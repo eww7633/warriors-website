@@ -1,52 +1,53 @@
-# Pittsburgh Warriors Hockey Club Platform
+# Pittsburgh Warriors Hockey Club HQ
 
-This is a starter Next.js platform for the Pittsburgh Warriors hockey club.
+This Next.js app is the private Hockey Ops and player management platform.
 
-## Included MVP modules
-- Public website pages: home, history, news
-- Role-aware calendar with public-only details by default
-- Player portal for registration and roster visibility
-- Admin operations dashboard for hockey operations staff
-- Player check-in app screen for attendance tracking
-- SportsPress-style games center with live event logs
-- Multiple rosters managed by season
-- API endpoints for registration, check-in, and games feed
+## Current modules
+- Player registration request workflow
+- Login/logout session auth
+- Admin approval workflow (pending -> approved)
+- Admin rejection workflow (pending -> rejected)
+- Mandatory roster assignment and jersey number assignment on approval
+- Jersey numbers enforced as unique within each roster
+- Protected player portal (approved rostered players only)
+- Protected check-in workflow with attendance truth states
+- SportsPress-style seasons, rosters, and games views
 
-## Demo role access
-Use query params:
-- Public: `/calendar`
-- Player: `/calendar?role=player`
-- Admin: `/admin?role=admin`
+## Access rules
+- Public users can view only public pages.
+- HQ pages require authentication.
+- Player HQ access requires admin approval and roster assignment.
+- Admin access is restricted to admin role accounts.
 
 ## Run locally
 1. Install dependencies:
    ```bash
    npm install
    ```
-2. Start dev server:
+2. Configure env:
+   ```bash
+   cp .env.example .env
+   ```
+3. Start dev server:
    ```bash
    npm run dev
    ```
 
+## Admin bootstrap account
+On first run, an admin user is seeded in `data/hq-store.json` using:
+- `ADMIN_EMAIL` (default: `ops@pghwarriorhockey.us`)
+- `ADMIN_PASSWORD` (default: `ChangeMeNow!`)
+- `HQ_STORE_PATH` (optional custom path)
+
+Set secure values in `.env` before production deployment.
+
+Note: on Vercel this file store runs in `/tmp` and is not durable. The next step is migrating this store to a managed database.
+
 ## Social media links
 Header social links are configured in `/lib/siteConfig.ts`.
-You can override them with:
+Override with:
 - `NEXT_PUBLIC_INSTAGRAM_URL`
 - `NEXT_PUBLIC_FACEBOOK_URL`
 
-## Deploying to Bluehost
-Deployment guide:
+## Deploying to Bluehost / DNS setup
 - `/docs/BLUEHOST_DEPLOY.md`
-
-Quick command for VPS/Dedicated updates:
-```bash
-./scripts/deploy-bluehost.sh
-```
-
-## Recommended migration path from WordPress + SportsPress
-- Export players, teams, seasons, and fixtures from WordPress
-- Map SportsPress entities to database tables (`players`, `rosters`, `seasons`, `games`, `game_events`)
-- Add real auth (NextAuth or Clerk) with role-based access control
-- Move mock data to PostgreSQL and add Prisma models
-- Add CMS-backed news and rich media history timeline
-- Add push notifications for check-in reminders

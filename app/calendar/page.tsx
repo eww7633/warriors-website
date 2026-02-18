@@ -1,21 +1,19 @@
 import { events } from "@/lib/mockData";
-import { isPrivileged, resolveRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/hq/session";
 
-type CalendarPageProps = {
-  searchParams: {
-    role?: string;
-  };
-};
-
-export default function CalendarPage({ searchParams }: CalendarPageProps) {
-  const role = resolveRole(searchParams.role);
-  const privileged = isPrivileged(role);
+export default async function CalendarPage() {
+  const user = await getCurrentUser();
+  const canViewPrivate = Boolean(
+    user && user.status === "approved" && (user.role === "player" || user.role === "admin")
+  );
 
   return (
     <section className="card">
       <h2>Team Calendar</h2>
       <p>
-        Viewing as <strong>{role}</strong>. Public visitors only see non-sensitive event details.
+        {canViewPrivate
+          ? `Viewing as ${user?.role}. Private logistics are visible.`
+          : "Public mode: only non-sensitive event details are visible."}
       </p>
       <div className="stack">
         {events.map((event) => (
@@ -23,10 +21,10 @@ export default function CalendarPage({ searchParams }: CalendarPageProps) {
             <h3>{event.title}</h3>
             <p>{new Date(event.date).toLocaleString()}</p>
             <p>{event.publicDetails}</p>
-            {privileged ? (
+            {canViewPrivate ? (
               <p className="private-detail">Private: {event.privateDetails}</p>
             ) : (
-              <p className="private-detail muted">Private details hidden. Sign in as a player.</p>
+              <p className="private-detail muted">Private details hidden.</p>
             )}
             {event.isPlayerOnly && <span className="badge">Player Event</span>}
           </article>

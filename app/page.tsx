@@ -5,48 +5,37 @@ export default function HomePage() {
     <section className="grid-home">
       <article className="card hero-card">
         <p className="eyebrow">Pittsburgh Disabled Veterans Hockey</p>
-        <h2>Strength, service, and brotherhood on the ice</h2>
+        <h2>Hockey Ops and player portal</h2>
         <p>
-          The Pittsburgh Warriors Hockey Club helps disabled veterans build routine,
-          confidence, and connection through elite-level team hockey.
+          Register to request player access. HQ access is only granted after Hockey Ops approves
+          your account and assigns you to an official roster.
         </p>
         <div className="cta-row">
-          <Link className="button" href="/player">
-            Register as a Player
+          <Link className="button" href="/register">
+            Request Player Access
           </Link>
-          <Link className="button alt" href="/admin">
-            Hockey Ops Access
+          <Link className="button alt" href="/login">
+            Sign In
           </Link>
         </div>
       </article>
 
       <article className="card">
-        <h3>What this platform includes</h3>
+        <h3>HQ capabilities</h3>
         <ul>
-          <li>Player registration and profile onboarding</li>
-          <li>Player tracking, roster visibility, and attendance check-in</li>
-          <li>SportsPress-style game center with live game events</li>
-          <li>Multiple rosters across active and archived seasons</li>
-          <li>Operations dashboard for hockey staff</li>
-          <li>Player-only workflows gated by roster approval</li>
-          <li>Role-based calendar details for player privacy</li>
+          <li>Registration intake and approval workflow</li>
+          <li>Roster assignment and jersey number control</li>
+          <li>Equipment and clothing size records per player</li>
+          <li>Attendance truth tracking for check-ins and actual arrival</li>
+          <li>Season and game tracking with role-based data access</li>
         </ul>
       </article>
 
       <article className="card">
-        <h3>Program pillars</h3>
-        <ul>
-          <li>Competitive team hockey with multiple seasonal rosters</li>
-          <li>Veteran wellness, discipline, and team accountability</li>
-          <li>Community engagement and visibility for disabled veterans</li>
-        </ul>
-      </article>
-
-      <article className="card">
-        <h3>Role-aware operations</h3>
+        <h3>Access policy</h3>
         <p>
-          Public users see only event summaries. Players and administrators see logistics,
-          check-in requirements, and private notes.
+          The HQ platform is for approved players and Hockey Ops personnel only.
+          Pending registrations do not have access to roster-protected pages.
         </p>
       </article>
     </section>

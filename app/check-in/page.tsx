@@ -1,39 +1,50 @@
-"use client";
-
-import { useState } from "react";
+import { redirect } from "next/navigation";
 import { events } from "@/lib/mockData";
+import { getCurrentUser } from "@/lib/hq/session";
 
-export default function CheckInPage() {
-  const [checkedIn, setCheckedIn] = useState<string[]>([]);
+export default async function CheckInPage({
+  searchParams
+}: {
+  searchParams: { saved?: string; error?: string };
+}) {
+  const user = await getCurrentUser();
 
-  const toggleCheckIn = (eventId: string) => {
-    setCheckedIn((current) =>
-      current.includes(eventId)
-        ? current.filter((id) => id !== eventId)
-        : [...current, eventId]
-    );
-  };
+  if (!user) {
+    redirect("/login?error=sign_in_required");
+  }
+
+  if (user.role !== "admin" && (user.role !== "player" || user.status !== "approved" || !user.rosterId)) {
+    redirect("/player?error=approval_required");
+  }
 
   return (
     <section className="card">
-      <h2>Player Check-In App</h2>
-      <p>Designed for mobile use before practices, games, and team events.</p>
+      <h2>Player Check-In</h2>
+      <p>Signed in as {user.fullName}. Submit check-in for active events.</p>
+      {searchParams.saved === "1" && <p className="badge">Check-in recorded.</p>}
+      {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
       <div className="stack">
-        {events.map((event) => {
-          const isChecked = checkedIn.includes(event.id);
-          return (
-            <article key={event.id} className="event-card">
-              <h3>{event.title}</h3>
-              <p>{new Date(event.date).toLocaleString()}</p>
-              <button
-                className={isChecked ? "button alt" : "button"}
-                onClick={() => toggleCheckIn(event.id)}
-              >
-                {isChecked ? "Checked In" : "Tap to Check In"}
-              </button>
-            </article>
-          );
-        })}
+        {events.map((event) => (
+          <form key={event.id} className="event-card stack" action="/api/checkin" method="post">
+            <h3>{event.title}</h3>
+            <p>{new Date(event.date).toLocaleString()}</p>
+            <input type="hidden" name="eventId" value={event.id} />
+            <label>
+              Attendance status
+              <select name="attendanceStatus" defaultValue="checked_in_attended" required>
+                <option value="checked_in_attended">Checked in + attended</option>
+                <option value="checked_in_no_show">Checked in + no-show</option>
+                <option value="walk_in_attended">Walk-in attended</option>
+                <option value="absent">Absent</option>
+              </select>
+            </label>
+            <label>
+              Notes
+              <input name="note" placeholder="Optional notes" />
+            </label>
+            <button className="button" type="submit">Submit Check-In</button>
+          </form>
+        ))}
       </div>
     </section>
   );

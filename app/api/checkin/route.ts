@@ -1,18 +1,51 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/hq/session";
+import { readStore, writeStore } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({}));
-  const playerId = String(body.playerId ?? "").trim();
-  const eventId = String(body.eventId ?? "").trim();
+  const user = await getCurrentUser();
 
-  if (!playerId || !eventId) {
-    return NextResponse.json({ error: "playerId and eventId are required." }, { status: 400 });
+  if (!user) {
+    return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url));
   }
 
-  return NextResponse.json({
-    status: "ok",
-    checkedInAt: new Date().toISOString(),
-    playerId,
-    eventId
+  if (user.role !== "admin" && (user.role !== "player" || user.status !== "approved" || !user.rosterId)) {
+    return NextResponse.redirect(new URL("/player?error=approval_required", request.url));
+  }
+
+  const formData = await request.formData();
+  const eventId = String(formData.get("eventId") ?? "").trim();
+  const attendanceStatus = String(formData.get("attendanceStatus") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
+
+  const validStatuses = [
+    "checked_in_attended",
+    "checked_in_no_show",
+    "walk_in_attended",
+    "absent"
+  ];
+
+  if (!eventId || !validStatuses.includes(attendanceStatus)) {
+    return NextResponse.redirect(new URL("/check-in?error=invalid_fields", request.url));
+  }
+
+  const now = new Date().toISOString();
+  const store = await readStore();
+  store.checkIns.push({
+    id: crypto.randomUUID(),
+    userId: user.id,
+    eventId,
+    checkedInAt: attendanceStatus.startsWith("checked_in") ? now : undefined,
+    arrivedAt: attendanceStatus.includes("attended") ? now : undefined,
+    attendanceStatus: attendanceStatus as
+      | "checked_in_attended"
+      | "checked_in_no_show"
+      | "walk_in_attended"
+      | "absent",
+    note
   });
+  await writeStore(store);
+
+  return NextResponse.redirect(new URL("/check-in?saved=1", request.url));
 }

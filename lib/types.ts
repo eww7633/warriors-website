@@ -1,4 +1,5 @@
 export type Role = "public" | "player" | "admin";
+export type UserStatus = "pending" | "approved" | "rejected";
 
 export type EventItem = {
   id: string;
@@ -59,4 +60,54 @@ export type Game = {
   warriorsScore: number;
   opponentScore: number;
   events: GameEvent[];
+};
+
+export type EquipmentSizes = {
+  helmet?: string;
+  gloves?: string;
+  skates?: string;
+  pants?: string;
+  stick?: string;
+  jersey?: string;
+  shell?: string;
+  warmupTop?: string;
+  warmupBottom?: string;
+};
+
+export type MemberUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+  requestedPosition?: string;
+  phone?: string;
+  role: Role;
+  status: UserStatus;
+  rosterId?: string;
+  jerseyNumber?: number;
+  equipmentSizes: EquipmentSizes;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SessionRecord = {
+  token: string;
+  userId: string;
+  expiresAt: string;
+};
+
+export type CheckInRecord = {
+  id: string;
+  userId: string;
+  eventId: string;
+  checkedInAt?: string;
+  arrivedAt?: string;
+  attendanceStatus: "checked_in_attended" | "checked_in_no_show" | "walk_in_attended" | "absent";
+  note?: string;
+};
+
+export type HQStore = {
+  users: MemberUser[];
+  sessions: SessionRecord[];
+  checkIns: CheckInRecord[];
 };

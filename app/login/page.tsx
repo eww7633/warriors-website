@@ -1,0 +1,46 @@
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/hq/session";
+
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: { error?: string; registered?: string; logged_out?: string };
+}) {
+  const user = await getCurrentUser();
+
+  if (user) {
+    return (
+      <section className="card stack">
+        <h2>Already Signed In</h2>
+        <p>You are signed in as {user.fullName}.</p>
+        <div className="cta-row">
+          <Link className="button" href={user.role === "admin" ? "/admin" : "/player"}>
+            Go to Dashboard
+          </Link>
+          <form action="/api/auth/logout" method="post">
+            <button className="button alt" type="submit">Log out</button>
+          </form>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="card stack">
+      <h2>Sign In</h2>
+      {searchParams.registered === "1" && (
+        <p className="badge">Registration submitted. Wait for admin approval before HQ access.</p>
+      )}
+      {searchParams.logged_out === "1" && <p className="badge">You have been logged out.</p>}
+      {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+      <form className="grid-form" action="/api/auth/login" method="post">
+        <input name="email" type="email" placeholder="Email" required />
+        <input name="password" type="password" placeholder="Password" required />
+        <button className="button" type="submit">Sign In</button>
+      </form>
+      <p>
+        Need an account? <Link href="/register">Request player access</Link>
+      </p>
+    </section>
+  );
+}

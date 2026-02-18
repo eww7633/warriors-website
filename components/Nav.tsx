@@ -1,12 +1,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { siteConfig } from "@/lib/siteConfig";
+import { getCurrentUser } from "@/lib/hq/session";
 
-export function Nav() {
+export async function Nav() {
+  const user = await getCurrentUser();
   const links = [
     ["About Us", "/history"],
     ["Partners", "/news"],
-    ["Join", "/player"],
+    ["Join", "/register"],
     ["Calendar", "/calendar"],
     ["Games", "/games"],
     ["Seasons", "/seasons"]
@@ -51,12 +53,25 @@ export function Nav() {
       </ul>
 
       <div className="auth-actions">
-        <Link className="button ghost" href="/admin?role=admin">
-          Warrior HQ
-        </Link>
-        <Link className="button" href="/player?role=player">
-          My Account
-        </Link>
+        {user ? (
+          <>
+            <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
+              {user.role === "admin" ? "Warrior HQ" : "My Account"}
+            </Link>
+            <form action="/api/auth/logout" method="post">
+              <button className="button" type="submit">Log out</button>
+            </form>
+          </>
+        ) : (
+          <>
+            <Link className="button ghost" href="/register">
+              Register
+            </Link>
+            <Link className="button" href="/login">
+              Log in
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
