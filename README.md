@@ -3,7 +3,7 @@
 This is a starter Next.js platform for the Pittsburgh Warriors hockey club.
 
 ## Included MVP modules
-- Public website pages: home, history, news, donations
+- Public website pages: home, history, news
 - Role-aware calendar with public-only details by default
 - Player portal for registration and roster visibility
 - Admin operations dashboard for hockey operations staff
@@ -48,6 +48,5 @@ Quick command for VPS/Dedicated updates:
 - Map SportsPress entities to database tables (`players`, `rosters`, `seasons`, `games`, `game_events`)
 - Add real auth (NextAuth or Clerk) with role-based access control
 - Move mock data to PostgreSQL and add Prisma models
-- Integrate Stripe for donations
 - Add CMS-backed news and rich media history timeline
 - Add push notifications for check-in reminders

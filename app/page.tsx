@@ -14,8 +14,8 @@ export default function HomePage() {
           <Link className="button" href="/player">
             Register as a Player
           </Link>
-          <Link className="button alt" href="/donate">
-            Support the Program
+          <Link className="button alt" href="/admin">
+            Hockey Ops Access
           </Link>
         </div>
       </article>
@@ -28,7 +28,7 @@ export default function HomePage() {
           <li>SportsPress-style game center with live game events</li>
           <li>Multiple rosters across active and archived seasons</li>
           <li>Operations dashboard for hockey staff</li>
-          <li>Public-facing news, history, and donation tools</li>
+          <li>Player-only workflows gated by roster approval</li>
           <li>Role-based calendar details for player privacy</li>
         </ul>
       </article>
@@ -37,7 +37,7 @@ export default function HomePage() {
         <h3>Program pillars</h3>
         <ul>
           <li>Competitive team hockey with multiple seasonal rosters</li>
-          <li>Veteran wellness, discipline, and mission-focused support</li>
+          <li>Veteran wellness, discipline, and team accountability</li>
           <li>Community engagement and visibility for disabled veterans</li>
         </ul>
       </article>

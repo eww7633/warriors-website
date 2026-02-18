@@ -5,7 +5,6 @@ import { siteConfig } from "@/lib/siteConfig";
 export function Nav() {
   const links = [
     ["About Us", "/history"],
-    ["Donate", "/donate"],
     ["Partners", "/news"],
     ["Join", "/player"],
     ["Calendar", "/calendar"],
