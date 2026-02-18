@@ -4,8 +4,9 @@ import { getCurrentUser } from "@/lib/hq/session";
 export default async function LoginPage({
   searchParams
 }: {
-  searchParams: { error?: string; registered?: string; logged_out?: string };
+  searchParams?: { error?: string; registered?: string; logged_out?: string };
 }) {
+  const query = searchParams ?? {};
   const user = await getCurrentUser();
 
   if (user) {
@@ -28,11 +29,11 @@ export default async function LoginPage({
   return (
     <section className="card stack">
       <h2>Sign In</h2>
-      {searchParams.registered === "1" && (
+      {query.registered === "1" && (
         <p className="badge">Registration submitted. Wait for admin approval before HQ access.</p>
       )}
-      {searchParams.logged_out === "1" && <p className="badge">You have been logged out.</p>}
-      {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+      {query.logged_out === "1" && <p className="badge">You have been logged out.</p>}
+      {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       <form className="grid-form" action="/api/auth/login" method="post">
         <input name="email" type="email" placeholder="Email" required />
         <input name="password" type="password" placeholder="Password" required />

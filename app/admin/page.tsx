@@ -6,8 +6,9 @@ import { readStore } from "@/lib/hq/store";
 export default async function AdminPage({
   searchParams
 }: {
-  searchParams: { error?: string; approved?: string; rejected?: string };
+  searchParams?: { error?: string; approved?: string; rejected?: string };
 }) {
+  const query = searchParams ?? {};
   const user = await getCurrentUser();
 
   if (!user) {
@@ -41,9 +42,9 @@ export default async function AdminPage({
       <article className="card">
         <h2>Hockey Ops Dashboard</h2>
         <p>Signed in as {user.email}</p>
-        {searchParams.approved === "1" && <p className="badge">Player approved and rostered.</p>}
-        {searchParams.rejected === "1" && <p className="badge">Registration request rejected.</p>}
-        {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+        {query.approved === "1" && <p className="badge">Player approved and rostered.</p>}
+        {query.rejected === "1" && <p className="badge">Registration request rejected.</p>}
+        {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
         <ul>
           <li>Pending Registrations: {pendingUsers.length}</li>
           <li>Approved Players: {approvedPlayers.length}</li>

@@ -6,8 +6,9 @@ import { readStore } from "@/lib/hq/store";
 export default async function PlayerPage({
   searchParams
 }: {
-  searchParams: { saved?: string; error?: string };
+  searchParams?: { saved?: string; error?: string };
 }) {
+  const query = searchParams ?? {};
   const user = await getCurrentUser();
 
   if (!user) {
@@ -30,8 +31,8 @@ export default async function PlayerPage({
           Signed in as <strong>{latestUser.fullName}</strong> ({latestUser.email})
         </p>
         <p>Status: <strong>{latestUser.status}</strong></p>
-        {searchParams.saved === "equipment" && <p className="badge">Equipment profile saved.</p>}
-        {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+        {query.saved === "equipment" && <p className="badge">Equipment profile saved.</p>}
+        {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
         {latestUser.status === "rejected" && (
           <p className="muted">
             Your registration request was rejected. Contact Hockey Ops for review before reapplying.

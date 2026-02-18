@@ -5,8 +5,9 @@ import { getCurrentUser } from "@/lib/hq/session";
 export default async function CheckInPage({
   searchParams
 }: {
-  searchParams: { saved?: string; error?: string };
+  searchParams?: { saved?: string; error?: string };
 }) {
+  const query = searchParams ?? {};
   const user = await getCurrentUser();
 
   if (!user) {
@@ -21,8 +22,8 @@ export default async function CheckInPage({
     <section className="card">
       <h2>Player Check-In</h2>
       <p>Signed in as {user.fullName}. Submit check-in for active events.</p>
-      {searchParams.saved === "1" && <p className="badge">Check-in recorded.</p>}
-      {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+      {query.saved === "1" && <p className="badge">Check-in recorded.</p>}
+      {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       <div className="stack">
         {events.map((event) => (
           <form key={event.id} className="event-card stack" action="/api/checkin" method="post">

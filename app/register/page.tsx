@@ -3,8 +3,9 @@ import Link from "next/link";
 export default function RegisterPage({
   searchParams
 }: {
-  searchParams: { error?: string };
+  searchParams?: { error?: string };
 }) {
+  const query = searchParams ?? {};
   return (
     <section className="card stack">
       <h2>Player Registration Request</h2>
@@ -12,7 +13,7 @@ export default function RegisterPage({
         Submit your player request. Hockey Ops must approve and place you on a roster before
         HQ access is granted.
       </p>
-      {searchParams.error && <p className="muted">{searchParams.error.replaceAll("_", " ")}</p>}
+      {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       <form className="grid-form" action="/api/auth/register" method="post">
         <input name="fullName" placeholder="Full name" required />
         <input name="email" type="email" placeholder="Email" required />

@@ -36,7 +36,13 @@ async function ensureStore() {
     await fs.writeFile(STORE_PATH, JSON.stringify(defaultStore, null, 2), "utf-8");
   }
 
-  const parsed = JSON.parse(await fs.readFile(STORE_PATH, "utf-8")) as HQStore;
+  let parsed: HQStore;
+  try {
+    parsed = JSON.parse(await fs.readFile(STORE_PATH, "utf-8")) as HQStore;
+  } catch {
+    parsed = { ...defaultStore };
+    await fs.writeFile(STORE_PATH, JSON.stringify(parsed, null, 2), "utf-8");
+  }
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSession } from "@/lib/hq/session";
+import { SESSION_COOKIE, createSessionRecord } from "@/lib/hq/session";
 import { findUserByEmail, hashPassword } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
@@ -16,11 +16,17 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url));
   }
 
-  await createSession(user.id);
+  const { token, expiresAt } = await createSessionRecord(user.id);
+  const destination = user.role === "admin" ? "/admin" : "/player";
+  const response = NextResponse.redirect(new URL(destination, request.url));
 
-  if (user.role === "admin") {
-    return NextResponse.redirect(new URL("/admin", request.url));
-  }
+  response.cookies.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    expires: new Date(expiresAt),
+    path: "/"
+  });
 
-  return NextResponse.redirect(new URL("/player", request.url));
+  return response;
 }
