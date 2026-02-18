@@ -53,8 +53,9 @@ async function ensureStore() {
   }
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
+  const existingAdmin = parsed.users.find((user) => normalizeEmail(user.email) === adminEmail);
 
-  if (!parsed.users.some((user) => normalizeEmail(user.email) === adminEmail)) {
+  if (!existingAdmin) {
     const adminUser: MemberUser = {
       id: crypto.randomUUID(),
       fullName: "Hockey Ops Admin",
@@ -67,6 +68,16 @@ async function ensureStore() {
       updatedAt: nowIso()
     };
     parsed.users.push(adminUser);
+    await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
+    return;
+  }
+
+  const nextHash = hashPassword(adminPassword);
+  if (existingAdmin.passwordHash !== nextHash || existingAdmin.role !== "admin" || existingAdmin.status !== "approved") {
+    existingAdmin.passwordHash = nextHash;
+    existingAdmin.role = "admin";
+    existingAdmin.status = "approved";
+    existingAdmin.updatedAt = nowIso();
     await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
   }
 }
