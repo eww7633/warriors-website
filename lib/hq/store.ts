@@ -1,14 +1,18 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { HQStore, MemberUser } from "@/lib/types";
+import { getPrismaClient } from "@/lib/prisma";
+import { CheckInRecord, EquipmentSizes, HQStore, MemberUser } from "@/lib/types";
+
+function useDatabaseBackend() {
+  return Boolean(process.env.DATABASE_URL);
+}
 
 function resolvedStorePath() {
   if (process.env.HQ_STORE_PATH) {
     return process.env.HQ_STORE_PATH;
   }
 
-  // In production/serverless runtimes, /tmp is typically the only writable path.
   if (process.env.NODE_ENV === "production") {
     return "/tmp/hq-store.json";
   }
@@ -30,11 +34,73 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function toEquipmentSizes(raw: unknown): EquipmentSizes {
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+  return raw as EquipmentSizes;
+}
+
+function mapUser(user: {
+  id: string;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+  requestedPosition: string | null;
+  phone: string | null;
+  role: string;
+  status: string;
+  rosterId: string | null;
+  jerseyNumber: number | null;
+  equipmentSizes: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}): MemberUser {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    passwordHash: user.passwordHash,
+    requestedPosition: user.requestedPosition ?? undefined,
+    phone: user.phone ?? undefined,
+    role: user.role as MemberUser["role"],
+    status: user.status as MemberUser["status"],
+    rosterId: user.rosterId ?? undefined,
+    jerseyNumber: user.jerseyNumber ?? undefined,
+    equipmentSizes: toEquipmentSizes(user.equipmentSizes),
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString()
+  };
+}
+
 export function hashPassword(password: string) {
   return crypto.createHash("sha256").update(password).digest("hex");
 }
 
-async function ensureStore() {
+async function ensureAdminSeedDb() {
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
+
+  await getPrismaClient().user.upsert({
+    where: { email: adminEmail },
+    update: {
+      fullName: "Hockey Ops Admin",
+      passwordHash: hashPassword(adminPassword),
+      role: "admin",
+      status: "approved"
+    },
+    create: {
+      fullName: "Hockey Ops Admin",
+      email: adminEmail,
+      passwordHash: hashPassword(adminPassword),
+      role: "admin",
+      status: "approved",
+      equipmentSizes: {}
+    }
+  });
+}
+
+async function ensureStoreFile() {
   const storePath = resolvedStorePath();
   await fs.mkdir(path.dirname(storePath), { recursive: true });
 
@@ -51,12 +117,13 @@ async function ensureStore() {
     parsed = { ...defaultStore };
     await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
   }
+
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
   const existingAdmin = parsed.users.find((user) => normalizeEmail(user.email) === adminEmail);
 
   if (!existingAdmin) {
-    const adminUser: MemberUser = {
+    parsed.users.push({
       id: crypto.randomUUID(),
       fullName: "Hockey Ops Admin",
       email: adminEmail,
@@ -66,8 +133,7 @@ async function ensureStore() {
       equipmentSizes: {},
       createdAt: nowIso(),
       updatedAt: nowIso()
-    };
-    parsed.users.push(adminUser);
+    });
     await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
     return;
   }
@@ -83,17 +149,55 @@ async function ensureStore() {
 }
 
 export async function readStore() {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+
+    const [users, sessions, checkIns] = await Promise.all([
+      getPrismaClient().user.findMany({ orderBy: { createdAt: "asc" } }),
+      getPrismaClient().session.findMany({ orderBy: { createdAt: "asc" } }),
+      getPrismaClient().checkIn.findMany({ orderBy: { createdAt: "asc" } })
+    ]);
+
+    return {
+      users: users.map(mapUser),
+      sessions: sessions.map((entry) => ({
+        token: entry.token,
+        userId: entry.userId,
+        expiresAt: entry.expiresAt.toISOString()
+      })),
+      checkIns: checkIns.map((entry) => ({
+        id: entry.id,
+        userId: entry.userId,
+        eventId: entry.eventId,
+        checkedInAt: entry.checkedInAt?.toISOString(),
+        arrivedAt: entry.arrivedAt?.toISOString(),
+        attendanceStatus: entry.attendanceStatus as CheckInRecord["attendanceStatus"],
+        note: entry.note ?? undefined
+      }))
+    } satisfies HQStore;
+  }
+
   const storePath = resolvedStorePath();
-  await ensureStore();
+  await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath, "utf-8")) as HQStore;
 }
 
 export async function writeStore(store: HQStore) {
+  if (useDatabaseBackend()) {
+    throw new Error("writeStore is not supported in database mode.");
+  }
+
   const storePath = resolvedStorePath();
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }
 
 export async function findUserByEmail(email: string) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const user = await getPrismaClient().user.findUnique({ where: { email: normalizeEmail(email) } });
+    return user ? mapUser(user) : undefined;
+  }
+
   const store = await readStore();
   return store.users.find((user) => normalizeEmail(user.email) === normalizeEmail(email));
 }
@@ -105,6 +209,30 @@ export async function createPendingPlayer(input: {
   requestedPosition?: string;
   phone?: string;
 }) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+
+    const existing = await getPrismaClient().user.findUnique({ where: { email: normalizeEmail(input.email) } });
+    if (existing) {
+      throw new Error("An account already exists for this email.");
+    }
+
+    const created = await getPrismaClient().user.create({
+      data: {
+        fullName: input.fullName,
+        email: normalizeEmail(input.email),
+        passwordHash: hashPassword(input.password),
+        requestedPosition: input.requestedPosition,
+        phone: input.phone,
+        role: "public",
+        status: "pending",
+        equipmentSizes: {}
+      }
+    });
+
+    return mapUser(created);
+  }
+
   const store = await readStore();
   const existing = store.users.find(
     (user) => normalizeEmail(user.email) === normalizeEmail(input.email)
@@ -134,6 +262,44 @@ export async function createPendingPlayer(input: {
 }
 
 export async function approvePlayer(userId: string, rosterId: string, jerseyNumber: number) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const user = await getPrismaClient().user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error("Player not found.");
+    }
+
+    if (user.status !== "pending") {
+      throw new Error("Only pending registrations can be approved.");
+    }
+
+    const jerseyTaken = await getPrismaClient().user.findFirst({
+      where: {
+        id: { not: userId },
+        status: "approved",
+        rosterId,
+        jerseyNumber
+      }
+    });
+
+    if (jerseyTaken) {
+      throw new Error("Jersey number is already assigned on this roster.");
+    }
+
+    const updated = await getPrismaClient().user.update({
+      where: { id: userId },
+      data: {
+        status: "approved",
+        role: "player",
+        rosterId,
+        jerseyNumber
+      }
+    });
+
+    return mapUser(updated);
+  }
+
   const store = await readStore();
   const user = store.users.find((entry) => entry.id === userId);
 
@@ -168,6 +334,31 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
 }
 
 export async function rejectPlayer(userId: string) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const user = await getPrismaClient().user.findUnique({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error("Player not found.");
+    }
+
+    if (user.status !== "pending") {
+      throw new Error("Only pending registrations can be rejected.");
+    }
+
+    const updated = await getPrismaClient().user.update({
+      where: { id: userId },
+      data: {
+        status: "rejected",
+        role: "public",
+        rosterId: null,
+        jerseyNumber: null
+      }
+    });
+
+    return mapUser(updated);
+  }
+
   const store = await readStore();
   const user = store.users.find((entry) => entry.id === userId);
 
@@ -187,4 +378,77 @@ export async function rejectPlayer(userId: string) {
 
   await writeStore(store);
   return user;
+}
+
+export async function upsertEquipmentSizes(userId: string, sizes: EquipmentSizes) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const updated = await getPrismaClient().user.update({
+      where: { id: userId },
+      data: { equipmentSizes: sizes }
+    });
+    return mapUser(updated);
+  }
+
+  const store = await readStore();
+  const actor = store.users.find((entry) => entry.id === userId);
+
+  if (!actor) {
+    throw new Error("Player account not found.");
+  }
+
+  actor.equipmentSizes = sizes;
+  actor.updatedAt = nowIso();
+  await writeStore(store);
+  return actor;
+}
+
+export async function addCheckInRecord(input: {
+  userId: string;
+  eventId: string;
+  attendanceStatus: CheckInRecord["attendanceStatus"];
+  note?: string;
+}) {
+  const now = new Date();
+  const checkedInAt = input.attendanceStatus.startsWith("checked_in") ? now : null;
+  const arrivedAt = input.attendanceStatus.includes("attended") ? now : null;
+
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const created = await getPrismaClient().checkIn.create({
+      data: {
+        userId: input.userId,
+        eventId: input.eventId,
+        attendanceStatus: input.attendanceStatus,
+        note: input.note,
+        checkedInAt,
+        arrivedAt
+      }
+    });
+
+    return {
+      id: created.id,
+      userId: created.userId,
+      eventId: created.eventId,
+      checkedInAt: created.checkedInAt?.toISOString(),
+      arrivedAt: created.arrivedAt?.toISOString(),
+      attendanceStatus: created.attendanceStatus as CheckInRecord["attendanceStatus"],
+      note: created.note ?? undefined
+    } satisfies CheckInRecord;
+  }
+
+  const store = await readStore();
+  const record: CheckInRecord = {
+    id: crypto.randomUUID(),
+    userId: input.userId,
+    eventId: input.eventId,
+    checkedInAt: checkedInAt?.toISOString(),
+    arrivedAt: arrivedAt?.toISOString(),
+    attendanceStatus: input.attendanceStatus,
+    note: input.note
+  };
+
+  store.checkIns.push(record);
+  await writeStore(store);
+  return record;
 }

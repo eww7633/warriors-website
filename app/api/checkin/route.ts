@@ -1,7 +1,6 @@
-import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
-import { readStore, writeStore } from "@/lib/hq/store";
+import { addCheckInRecord } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -30,14 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/check-in?error=invalid_fields", request.url), 303);
   }
 
-  const now = new Date().toISOString();
-  const store = await readStore();
-  store.checkIns.push({
-    id: crypto.randomUUID(),
+  await addCheckInRecord({
     userId: user.id,
     eventId,
-    checkedInAt: attendanceStatus.startsWith("checked_in") ? now : undefined,
-    arrivedAt: attendanceStatus.includes("attended") ? now : undefined,
     attendanceStatus: attendanceStatus as
       | "checked_in_attended"
       | "checked_in_no_show"
@@ -45,7 +39,6 @@ export async function POST(request: Request) {
       | "absent",
     note
   });
-  await writeStore(store);
 
   return NextResponse.redirect(new URL("/check-in?saved=1", request.url), 303);
 }

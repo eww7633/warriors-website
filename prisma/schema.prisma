@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(cuid())
+  fullName         String
+  email            String    @unique
+  passwordHash     String
+  requestedPosition String?
+  phone            String?
+  role             String    @default("public")
+  status           String    @default("pending")
+  rosterId         String?
+  jerseyNumber     Int?
+  equipmentSizes   Json
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  sessions         Session[]
+  checkIns         CheckIn[]
+
+  @@unique([rosterId, jerseyNumber])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model CheckIn {
+  id               String   @id @default(cuid())
+  userId           String
+  eventId          String
+  checkedInAt      DateTime?
+  arrivedAt        DateTime?
+  attendanceStatus String
+  note             String?
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([eventId])
+}

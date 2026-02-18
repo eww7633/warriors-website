@@ -33,15 +33,23 @@ This Next.js app is the private Hockey Ops and player management platform.
    npm run dev
    ```
 
+## Database mode (recommended)
+This app now supports two storage backends:
+- `DATABASE_URL` set: PostgreSQL via Prisma (durable, production mode)
+- `DATABASE_URL` missing: file fallback (`/tmp` in production)
+
+Set up Prisma schema:
+```bash
+npm run db:push
+```
+
 ## Admin bootstrap account
-On first run, an admin user is seeded in `data/hq-store.json` using:
+On startup, an admin user is always synced using:
 - `ADMIN_EMAIL` (default: `ops@pghwarriorhockey.us`)
 - `ADMIN_PASSWORD` (default: `ChangeMeNow!`)
-- `HQ_STORE_PATH` (optional custom path)
 
 Set secure values in `.env` before production deployment.
-
-Note: on Vercel this file store runs in `/tmp` and is not durable. The next step is migrating this store to a managed database.
+If `DATABASE_URL` is not configured, fallback file storage is used.
 
 ## Social media links
 Header social links are configured in `/lib/siteConfig.ts`.

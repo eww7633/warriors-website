@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
-import { readStore, writeStore } from "@/lib/hq/store";
+import { upsertEquipmentSizes } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -23,16 +23,11 @@ export async function POST(request: Request) {
     warmupBottom: String(formData.get("warmupBottom") ?? "").trim()
   };
 
-  const store = await readStore();
-  const actor = store.users.find((entry) => entry.id === user.id);
-
-  if (!actor) {
+  try {
+    await upsertEquipmentSizes(user.id, nextSizes);
+  } catch {
     return NextResponse.redirect(new URL("/player?error=account_not_found", request.url), 303);
   }
-
-  actor.equipmentSizes = nextSizes;
-  actor.updatedAt = new Date().toISOString();
-  await writeStore(store);
 
   return NextResponse.redirect(new URL("/player?saved=equipment", request.url), 303);
 }
