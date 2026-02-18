@@ -3,11 +3,18 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { HQStore, MemberUser } from "@/lib/types";
 
-const STORE_PATH =
-  process.env.HQ_STORE_PATH ??
-  (process.env.VERCEL
-    ? "/tmp/hq-store.json"
-    : path.join(process.cwd(), "data", "hq-store.json"));
+function resolvedStorePath() {
+  if (process.env.HQ_STORE_PATH) {
+    return process.env.HQ_STORE_PATH;
+  }
+
+  // In production/serverless runtimes, /tmp is typically the only writable path.
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/hq-store.json";
+  }
+
+  return path.join(process.cwd(), "data", "hq-store.json");
+}
 
 const defaultStore: HQStore = {
   users: [],
@@ -28,20 +35,21 @@ export function hashPassword(password: string) {
 }
 
 async function ensureStore() {
-  await fs.mkdir(path.dirname(STORE_PATH), { recursive: true });
+  const storePath = resolvedStorePath();
+  await fs.mkdir(path.dirname(storePath), { recursive: true });
 
   try {
-    await fs.access(STORE_PATH);
+    await fs.access(storePath);
   } catch {
-    await fs.writeFile(STORE_PATH, JSON.stringify(defaultStore, null, 2), "utf-8");
+    await fs.writeFile(storePath, JSON.stringify(defaultStore, null, 2), "utf-8");
   }
 
   let parsed: HQStore;
   try {
-    parsed = JSON.parse(await fs.readFile(STORE_PATH, "utf-8")) as HQStore;
+    parsed = JSON.parse(await fs.readFile(storePath, "utf-8")) as HQStore;
   } catch {
     parsed = { ...defaultStore };
-    await fs.writeFile(STORE_PATH, JSON.stringify(parsed, null, 2), "utf-8");
+    await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
   }
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
@@ -59,17 +67,19 @@ async function ensureStore() {
       updatedAt: nowIso()
     };
     parsed.users.push(adminUser);
-    await fs.writeFile(STORE_PATH, JSON.stringify(parsed, null, 2), "utf-8");
+    await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
   }
 }
 
 export async function readStore() {
+  const storePath = resolvedStorePath();
   await ensureStore();
-  return JSON.parse(await fs.readFile(STORE_PATH, "utf-8")) as HQStore;
+  return JSON.parse(await fs.readFile(storePath, "utf-8")) as HQStore;
 }
 
 export async function writeStore(store: HQStore) {
-  await fs.writeFile(STORE_PATH, JSON.stringify(store, null, 2), "utf-8");
+  const storePath = resolvedStorePath();
+  await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }
 
 export async function findUserByEmail(email: string) {
