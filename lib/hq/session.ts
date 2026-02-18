@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
+import { hasDatabaseUrl } from "@/lib/db-env";
 import { readStore, writeStore } from "@/lib/hq/store";
 
 export const SESSION_COOKIE = "warriors_session";
@@ -10,7 +11,7 @@ function addDays(days: number) {
 }
 
 function useDatabaseBackend() {
-  return Boolean(process.env.DATABASE_URL);
+  return hasDatabaseUrl();
 }
 
 export async function createSessionRecord(userId: string) {

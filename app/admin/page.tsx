@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { events, rosters } from "@/lib/mockData";
+import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
 import { readStore } from "@/lib/hq/store";
 
@@ -47,6 +48,7 @@ export default async function AdminPage({
         {query.approved === "1" && <p className="badge">Player approved and rostered.</p>}
         {query.rejected === "1" && <p className="badge">Registration request rejected.</p>}
         {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
+        <p>Storage mode: <strong>{hasDatabaseUrl() ? "Database" : "Fallback file"}</strong></p>
         <ul>
           <li>Pending Registrations: {pendingUsers.length}</li>
           <li>Approved Players: {approvedPlayers.length}</li>

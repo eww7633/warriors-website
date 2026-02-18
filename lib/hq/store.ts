@@ -4,8 +4,10 @@ import crypto from "node:crypto";
 import { getPrismaClient } from "@/lib/prisma";
 import { CheckInRecord, EquipmentSizes, HQStore, MemberUser } from "@/lib/types";
 
+import { hasDatabaseUrl } from "@/lib/db-env";
+
 function useDatabaseBackend() {
-  return Boolean(process.env.DATABASE_URL);
+  return hasDatabaseUrl();
 }
 
 function resolvedStorePath() {

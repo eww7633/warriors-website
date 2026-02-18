@@ -35,7 +35,7 @@ This Next.js app is the private Hockey Ops and player management platform.
 
 ## Database mode (recommended)
 This app now supports two storage backends:
-- `DATABASE_URL` set: PostgreSQL via Prisma (durable, production mode)
+- `DATABASE_URL` (or `POSTGRES_PRISMA_URL`) set: PostgreSQL via Prisma (durable, production mode)
 - `DATABASE_URL` missing: file fallback (`/tmp` in production)
 
 Set up Prisma schema:
