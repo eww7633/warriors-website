@@ -3,6 +3,8 @@ import { events, rosters } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
 import { readStore } from "@/lib/hq/store";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminPage({
   searchParams
 }: {

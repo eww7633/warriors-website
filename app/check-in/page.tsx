@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { events } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
 
+export const dynamic = "force-dynamic";
+
 export default async function CheckInPage({
   searchParams
 }: {
