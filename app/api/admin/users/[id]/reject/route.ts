@@ -9,13 +9,13 @@ export async function POST(
   const actor = await getCurrentUser();
 
   if (!actor || actor.role !== "admin") {
-    return NextResponse.redirect(new URL("/login?error=unauthorized", request.url));
+    return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
   try {
     await rejectPlayer(params.id);
-    return NextResponse.redirect(new URL("/admin?rejected=1", request.url));
+    return NextResponse.redirect(new URL("/admin?rejected=1", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=reject_failed", request.url));
+    return NextResponse.redirect(new URL("/admin?error=reject_failed", request.url), 303);
   }
 }

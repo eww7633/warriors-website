@@ -7,11 +7,11 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url));
+    return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url), 303);
   }
 
   if (user.role !== "admin" && (user.role !== "player" || user.status !== "approved" || !user.rosterId)) {
-    return NextResponse.redirect(new URL("/player?error=approval_required", request.url));
+    return NextResponse.redirect(new URL("/player?error=approval_required", request.url), 303);
   }
 
   const formData = await request.formData();
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   ];
 
   if (!eventId || !validStatuses.includes(attendanceStatus)) {
-    return NextResponse.redirect(new URL("/check-in?error=invalid_fields", request.url));
+    return NextResponse.redirect(new URL("/check-in?error=invalid_fields", request.url), 303);
   }
 
   const now = new Date().toISOString();
@@ -47,5 +47,5 @@ export async function POST(request: Request) {
   });
   await writeStore(store);
 
-  return NextResponse.redirect(new URL("/check-in?saved=1", request.url));
+  return NextResponse.redirect(new URL("/check-in?saved=1", request.url), 303);
 }

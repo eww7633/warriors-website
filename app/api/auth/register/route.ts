@@ -10,11 +10,11 @@ export async function POST(request: Request) {
   const requestedPosition = String(formData.get("position") ?? "").trim();
 
   if (!fullName || !email || !password) {
-    return NextResponse.redirect(new URL("/register?error=missing_fields", request.url));
+    return NextResponse.redirect(new URL("/register?error=missing_fields", request.url), 303);
   }
 
   if (password.length < 8) {
-    return NextResponse.redirect(new URL("/register?error=password_too_short", request.url));
+    return NextResponse.redirect(new URL("/register?error=password_too_short", request.url), 303);
   }
 
   try {
@@ -25,9 +25,12 @@ export async function POST(request: Request) {
       phone,
       requestedPosition
     });
-    return NextResponse.redirect(new URL("/login?registered=1", request.url));
+    return NextResponse.redirect(new URL("/login?registered=1", request.url), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed.";
-    return NextResponse.redirect(new URL(`/register?error=${encodeURIComponent(message)}`, request.url));
+    return NextResponse.redirect(
+      new URL(`/register?error=${encodeURIComponent(message)}`, request.url),
+      303
+    );
   }
 }

@@ -6,7 +6,7 @@ export async function POST(request: Request) {
   const user = await getCurrentUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url));
+    return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url), 303);
   }
 
   const formData = await request.formData();
@@ -27,12 +27,12 @@ export async function POST(request: Request) {
   const actor = store.users.find((entry) => entry.id === user.id);
 
   if (!actor) {
-    return NextResponse.redirect(new URL("/player?error=account_not_found", request.url));
+    return NextResponse.redirect(new URL("/player?error=account_not_found", request.url), 303);
   }
 
   actor.equipmentSizes = nextSizes;
   actor.updatedAt = new Date().toISOString();
   await writeStore(store);
 
-  return NextResponse.redirect(new URL("/player?saved=equipment", request.url));
+  return NextResponse.redirect(new URL("/player?saved=equipment", request.url), 303);
 }

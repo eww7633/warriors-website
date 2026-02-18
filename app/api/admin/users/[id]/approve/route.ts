@@ -9,7 +9,7 @@ export async function POST(
   const actor = await getCurrentUser();
 
   if (!actor || actor.role !== "admin") {
-    return NextResponse.redirect(new URL("/login?error=unauthorized", request.url));
+    return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
   const formData = await request.formData();
@@ -17,13 +17,13 @@ export async function POST(
   const jerseyNumber = Number(String(formData.get("jerseyNumber") ?? "0"));
 
   if (!rosterId || !Number.isFinite(jerseyNumber) || jerseyNumber <= 0) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_approval_fields", request.url));
+    return NextResponse.redirect(new URL("/admin?error=invalid_approval_fields", request.url), 303);
   }
 
   try {
     await approvePlayer(params.id, rosterId, jerseyNumber);
-    return NextResponse.redirect(new URL("/admin?approved=1", request.url));
+    return NextResponse.redirect(new URL("/admin?approved=1", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=approval_failed", request.url));
+    return NextResponse.redirect(new URL("/admin?error=approval_failed", request.url), 303);
   }
 }
