@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { getPrismaClient } from "@/lib/prisma";
 import { CheckInRecord, EquipmentSizes, HQStore, MemberUser } from "@/lib/types";
+import { hashPassword, verifyPassword } from "@/lib/hq/password";
 
 import { hasDatabaseUrl } from "@/lib/db-env";
 
@@ -75,31 +76,37 @@ function mapUser(user: {
   };
 }
 
-export function hashPassword(password: string) {
-  return crypto.createHash("sha256").update(password).digest("hex");
-}
-
 async function ensureAdminSeedDb() {
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL ?? "ops@pghwarriorhockey.us");
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMeNow!";
+  const existingAdmin = await getPrismaClient().user.findUnique({ where: { email: adminEmail } });
 
-  await getPrismaClient().user.upsert({
-    where: { email: adminEmail },
-    update: {
-      fullName: "Hockey Ops Admin",
-      passwordHash: hashPassword(adminPassword),
-      role: "admin",
-      status: "approved"
-    },
-    create: {
-      fullName: "Hockey Ops Admin",
-      email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
-      role: "admin",
-      status: "approved",
-      equipmentSizes: {}
-    }
-  });
+  if (!existingAdmin) {
+    await getPrismaClient().user.create({
+      data: {
+        fullName: "Hockey Ops Admin",
+        email: adminEmail,
+        passwordHash: await hashPassword(adminPassword),
+        role: "admin",
+        status: "approved",
+        equipmentSizes: {}
+      }
+    });
+    return;
+  }
+
+  const validPassword = await verifyPassword(adminPassword, existingAdmin.passwordHash);
+  if (!validPassword.valid || existingAdmin.role !== "admin" || existingAdmin.status !== "approved") {
+    await getPrismaClient().user.update({
+      where: { id: existingAdmin.id },
+      data: {
+        fullName: "Hockey Ops Admin",
+        passwordHash: await hashPassword(adminPassword),
+        role: "admin",
+        status: "approved"
+      }
+    });
+  }
 }
 
 async function ensureStoreFile() {
@@ -129,7 +136,7 @@ async function ensureStoreFile() {
       id: crypto.randomUUID(),
       fullName: "Hockey Ops Admin",
       email: adminEmail,
-      passwordHash: hashPassword(adminPassword),
+      passwordHash: await hashPassword(adminPassword),
       role: "admin",
       status: "approved",
       equipmentSizes: {},
@@ -140,9 +147,9 @@ async function ensureStoreFile() {
     return;
   }
 
-  const nextHash = hashPassword(adminPassword);
-  if (existingAdmin.passwordHash !== nextHash || existingAdmin.role !== "admin" || existingAdmin.status !== "approved") {
-    existingAdmin.passwordHash = nextHash;
+  const validPassword = await verifyPassword(adminPassword, existingAdmin.passwordHash);
+  if (!validPassword.valid || existingAdmin.role !== "admin" || existingAdmin.status !== "approved") {
+    existingAdmin.passwordHash = await hashPassword(adminPassword);
     existingAdmin.role = "admin";
     existingAdmin.status = "approved";
     existingAdmin.updatedAt = nowIso();
@@ -193,15 +200,50 @@ export async function writeStore(store: HQStore) {
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }
 
-export async function findUserByEmail(email: string) {
+export async function authenticateUser(email: string, password: string) {
+  const normalizedEmail = normalizeEmail(email);
+
   if (useDatabaseBackend()) {
     await ensureAdminSeedDb();
-    const user = await getPrismaClient().user.findUnique({ where: { email: normalizeEmail(email) } });
-    return user ? mapUser(user) : undefined;
+    const user = await getPrismaClient().user.findUnique({ where: { email: normalizedEmail } });
+    if (!user) {
+      return null;
+    }
+
+    const verification = await verifyPassword(password, user.passwordHash);
+    if (!verification.valid) {
+      return null;
+    }
+
+    if (verification.needsRehash) {
+      const updated = await getPrismaClient().user.update({
+        where: { id: user.id },
+        data: { passwordHash: await hashPassword(password) }
+      });
+      return mapUser(updated);
+    }
+
+    return mapUser(user);
   }
 
   const store = await readStore();
-  return store.users.find((user) => normalizeEmail(user.email) === normalizeEmail(email));
+  const user = store.users.find((entry) => normalizeEmail(entry.email) === normalizedEmail);
+  if (!user) {
+    return null;
+  }
+
+  const verification = await verifyPassword(password, user.passwordHash);
+  if (!verification.valid) {
+    return null;
+  }
+
+  if (verification.needsRehash) {
+    user.passwordHash = await hashPassword(password);
+    user.updatedAt = nowIso();
+    await writeStore(store);
+  }
+
+  return user;
 }
 
 export async function createPendingPlayer(input: {
@@ -223,7 +265,7 @@ export async function createPendingPlayer(input: {
       data: {
         fullName: input.fullName,
         email: normalizeEmail(input.email),
-        passwordHash: hashPassword(input.password),
+        passwordHash: await hashPassword(input.password),
         requestedPosition: input.requestedPosition,
         phone: input.phone,
         role: "public",
@@ -248,7 +290,7 @@ export async function createPendingPlayer(input: {
     id: crypto.randomUUID(),
     fullName: input.fullName,
     email: normalizeEmail(input.email),
-    passwordHash: hashPassword(input.password),
+    passwordHash: await hashPassword(input.password),
     requestedPosition: input.requestedPosition,
     phone: input.phone,
     role: "public",

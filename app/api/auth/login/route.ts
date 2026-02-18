@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, createSessionRecord } from "@/lib/hq/session";
-import { findUserByEmail, hashPassword } from "@/lib/hq/store";
+import { authenticateUser } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -11,8 +11,8 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?error=missing_credentials", request.url), 303);
   }
 
-  const user = await findUserByEmail(email);
-  if (!user || user.passwordHash !== hashPassword(password)) {
+  const user = await authenticateUser(email, password);
+  if (!user) {
     return NextResponse.redirect(new URL("/login?error=invalid_credentials", request.url), 303);
   }
 

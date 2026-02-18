@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, createSessionRecord } from "@/lib/hq/session";
-import { findUserByEmail, hashPassword } from "@/lib/hq/store";
+import { authenticateUser } from "@/lib/hq/store";
 
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -13,8 +13,8 @@ export async function loginAction(formData: FormData) {
     redirect("/login?error=missing_credentials");
   }
 
-  const user = await findUserByEmail(email);
-  if (!user || user.passwordHash !== hashPassword(password)) {
+  const user = await authenticateUser(email, password);
+  if (!user) {
     redirect("/login?error=invalid_credentials");
   }
 

@@ -19,6 +19,10 @@ This Next.js app is the private Hockey Ops and player management platform.
 - Player HQ access requires admin approval and roster assignment.
 - Admin access is restricted to admin role accounts.
 
+## Auth security
+- Passwords are stored with `bcrypt`.
+- Legacy SHA-256 hashes are automatically upgraded to bcrypt on successful login.
+
 ## Run locally
 1. Install dependencies:
    ```bash
