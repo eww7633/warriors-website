@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.4
+ * Version: 0.2.5
  */
 
 if (!defined('ABSPATH')) {
@@ -498,6 +498,122 @@ body[data-theme="dark"] .warriors-theme-tools-card,
 body[data-theme="dark"] .warriors-legacy-about {
   background: linear-gradient(180deg, #141b24 0%, #1c2531 100%);
   border-color: #313b4a;
+}
+
+/* Public-site polish layer to match HQ visual direction */
+body,
+html body,
+.wp-site-blocks,
+#page,
+.site {
+  background: linear-gradient(180deg, #f3f1ea 0%, #ece8df 100%) !important;
+  color: #1b2028 !important;
+}
+.site-header,
+header,
+.wp-site-blocks > header,
+.wp-block-template-part {
+  background: #f6f1e5 !important;
+  border-bottom: 1px solid #d8c8a8 !important;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+header a,
+.site-header a,
+.main-navigation a,
+.wp-block-navigation a {
+  color: #1b2028 !important;
+  font-weight: 700 !important;
+}
+header .current-menu-item > a,
+header .current_page_item > a,
+.site-header .current-menu-item > a,
+.site-header .current_page_item > a,
+.wp-block-navigation-item.current-menu-item > a {
+  color: #163f67 !important;
+}
+.wp-block-navigation .wp-block-navigation-item__content:hover,
+header .menu-item > a:hover,
+.site-header .menu-item > a:hover {
+  background: #efe5cd !important;
+  color: #163f67 !important;
+}
+main,
+.site-main,
+.entry-content,
+.wp-block-post-content {
+  max-width: 1220px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.wp-block-group,
+.entry-content > * {
+  border-radius: 20px;
+}
+.warriors-home-updates,
+.warriors-theme-tools-card,
+.warriors-legacy-about,
+.warriors-public-events,
+.entry-content > .wp-block-group {
+  border: 1px solid #cfbf9d !important;
+  border-radius: 20px !important;
+  background: #f8f6f1 !important;
+  box-shadow: 0 14px 36px rgba(25, 31, 40, 0.06);
+}
+.warriors-home-updates {
+  color: #1b2028 !important;
+  background:
+    radial-gradient(circle at 85% 8%, rgba(216, 170, 45, 0.18) 0%, rgba(216, 170, 45, 0) 32%),
+    #f8f3e8 !important;
+}
+.warriors-home-updates .eyebrow {
+  color: #445062 !important;
+}
+.warriors-home-updates .meta,
+.warriors-home-updates .events-headline {
+  color: #2f3744 !important;
+}
+.warriors-theme-tools-cta,
+.wp-block-button__link,
+button,
+input[type="submit"] {
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+.warriors-theme-tools-cta {
+  background: #d4a42f !important;
+  border-color: #d4a42f !important;
+  color: #151a22 !important;
+}
+.warriors-theme-tools-cta.alt {
+  background: #0e1621 !important;
+  border-color: #0e1621 !important;
+  color: #ffffff !important;
+}
+.warriors-public-events h2,
+.warriors-home-updates h2,
+h1, h2, h3, h4 {
+  color: #181d25 !important;
+}
+.warriors-public-events-card,
+.warriors-home-event-card {
+  border: 1px solid #cfbf9d !important;
+  border-radius: 14px !important;
+  background: #f4f2ee !important;
+  box-shadow: none !important;
+}
+.warriors-public-events-open,
+.warriors-home-event-card .event-link,
+a {
+  color: #1a4e7a !important;
+}
+@media (max-width: 900px) {
+  main,
+  .site-main,
+  .entry-content,
+  .wp-block-post-content {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
 }
 ';
 

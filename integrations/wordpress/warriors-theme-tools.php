@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools (Loader)
  * Description: Loader for the Warriors Theme Tools plugin in /warriors-theme-tools/.
- * Version: 0.2.4
+ * Version: 0.2.5
  */
 
 if (!defined('ABSPATH')) {
