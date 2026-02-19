@@ -14,9 +14,11 @@ This Next.js app is the private Hockey Ops and player management platform.
 - SportsPress-style seasons, rosters, and games views
 - Competition management:
   - Tournaments with Gold/White/Black optional team creation
+  - Team-level game creation inside tournaments (each team can have its own schedule)
   - Single Games with Gold/Black/Mixed roster mode
   - DVHL sessions with 4 custom drafted teams
   - Assign approved players to competition teams
+  - Admin dashboard organized by tabs: Overview, Competitions, Events, Players, Attendance
 
 ## Access rules
 - Public users can view only public pages.

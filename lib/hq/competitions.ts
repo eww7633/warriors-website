@@ -131,6 +131,9 @@ export async function listCompetitions() {
     include: {
       teams: {
         include: {
+          games: {
+            orderBy: { startsAt: "asc" }
+          },
           members: {
             include: {
               user: {
@@ -144,6 +147,39 @@ export async function listCompetitions() {
           }
         }
       }
+      ,
+      games: {
+        orderBy: { startsAt: "asc" }
+      }
+    }
+  });
+}
+
+export async function addCompetitionGameForTeam(input: {
+  teamId: string;
+  opponent: string;
+  startsAt?: string;
+  location?: string;
+  notes?: string;
+}) {
+  ensureDbMode();
+
+  const team = await getPrismaClient().competitionTeam.findUnique({
+    where: { id: input.teamId }
+  });
+
+  if (!team) {
+    throw new Error("Competition team not found.");
+  }
+
+  return getPrismaClient().competitionGame.create({
+    data: {
+      competitionId: team.competitionId,
+      teamId: team.id,
+      opponent: input.opponent,
+      startsAt: parseOptionalDate(input.startsAt),
+      location: input.location,
+      notes: input.notes
     }
   });
 }

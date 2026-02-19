@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/hq/session";
-import { loginAction } from "@/app/login/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +36,7 @@ export default async function LoginPage({
       )}
       {query.logged_out === "1" && <p className="badge">You have been logged out.</p>}
       {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
-      <form className="grid-form" action={loginAction}>
+      <form className="grid-form" action="/api/auth/login" method="post">
         <input name="email" type="email" placeholder="Email" required />
         <input name="password" type="password" placeholder="Password" required />
         <button className="button" type="submit">Sign In</button>

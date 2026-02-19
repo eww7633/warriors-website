@@ -87,6 +87,7 @@ model Competition {
   updatedAt DateTime @updatedAt
 
   teams     CompetitionTeam[]
+  games     CompetitionGame[]
 
   @@index([type])
   @@index([startsAt])
@@ -103,6 +104,7 @@ model CompetitionTeam {
 
   competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   members       CompetitionTeamMember[]
+  games         CompetitionGame[]
 
   @@index([competitionId])
 }
@@ -118,4 +120,24 @@ model CompetitionTeamMember {
 
   @@unique([teamId, userId])
   @@index([userId])
+}
+
+model CompetitionGame {
+  id            String   @id @default(cuid())
+  competitionId String
+  teamId        String
+  opponent      String
+  startsAt      DateTime?
+  location      String?
+  status        String   @default("scheduled")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  competition   Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  team          CompetitionTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([competitionId])
+  @@index([teamId])
+  @@index([startsAt])
 }

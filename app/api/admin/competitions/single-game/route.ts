@@ -16,11 +16,11 @@ export async function POST(request: Request) {
   const teamName = String(formData.get("teamName") ?? "Single Game Squad").trim();
 
   if (!title) {
-    return NextResponse.redirect(new URL("/admin?error=missing_single_game_title", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_single_game_title", request.url), 303);
   }
 
   if (!["gold", "black", "mixed"].includes(rosterMode)) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_single_game_mode", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=invalid_single_game_mode", request.url), 303);
   }
 
   try {
@@ -31,8 +31,8 @@ export async function POST(request: Request) {
       teamName,
       rosterMode: rosterMode as "gold" | "black" | "mixed"
     });
-    return NextResponse.redirect(new URL("/admin?competition=created", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&competition=created", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=single_game_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=single_game_create_failed", request.url), 303);
   }
 }

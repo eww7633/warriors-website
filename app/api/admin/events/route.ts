@@ -20,11 +20,11 @@ export async function POST(request: Request) {
   const locationPrivate = String(formData.get("locationPrivate") ?? "").trim();
 
   if (!title || !startsAt || !publicDetails) {
-    return NextResponse.redirect(new URL("/admin?error=missing_event_fields", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=events&error=missing_event_fields", request.url), 303);
   }
 
   if (!["public", "player_only", "internal"].includes(visibility)) {
-    return NextResponse.redirect(new URL("/admin?error=invalid_event_visibility", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=events&error=invalid_event_visibility", request.url), 303);
   }
 
   try {
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
       locationPrivate
     });
 
-    return NextResponse.redirect(new URL("/admin?eventsaved=1", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=events&eventsaved=1", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=event_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=events&error=event_create_failed", request.url), 303);
   }
 }

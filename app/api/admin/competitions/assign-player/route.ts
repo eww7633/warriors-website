@@ -13,13 +13,13 @@ export async function POST(request: Request) {
   const userId = String(formData.get("userId") ?? "").trim();
 
   if (!teamId || !userId) {
-    return NextResponse.redirect(new URL("/admin?error=missing_assignment_fields", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_assignment_fields", request.url), 303);
   }
 
   try {
     await assignPlayerToCompetitionTeam({ teamId, userId });
-    return NextResponse.redirect(new URL("/admin?assignment=saved", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&assignment=saved", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=assignment_failed", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=assignment_failed", request.url), 303);
   }
 }

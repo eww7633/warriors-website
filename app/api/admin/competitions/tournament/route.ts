@@ -18,13 +18,13 @@ export async function POST(request: Request) {
   ) as ("gold" | "white" | "black")[];
 
   if (!title) {
-    return NextResponse.redirect(new URL("/admin?error=missing_tournament_title", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_tournament_title", request.url), 303);
   }
 
   try {
     await createTournament({ title, startsAt, includeTeams, notes });
-    return NextResponse.redirect(new URL("/admin?competition=created", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&competition=created", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=tournament_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=tournament_create_failed", request.url), 303);
   }
 }

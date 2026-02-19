@@ -21,13 +21,13 @@ export async function POST(request: Request) {
   ];
 
   if (!title) {
-    return NextResponse.redirect(new URL("/admin?error=missing_dvhl_title", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_dvhl_title", request.url), 303);
   }
 
   try {
     await createDvhl({ title, startsAt, notes, teamNames });
-    return NextResponse.redirect(new URL("/admin?competition=created", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&competition=created", request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?error=dvhl_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=competitions&error=dvhl_create_failed", request.url), 303);
   }
 }
