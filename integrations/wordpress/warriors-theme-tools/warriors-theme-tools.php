@@ -73,16 +73,18 @@ a {
 }
 .site-title a,
 .wp-block-site-title a,
+.wp-block-site-title :where(a),
+p.wp-block-site-title a,
 .entry-title,
 .wp-block-post-title,
 .wp-block-heading {
-  color: #10141b;
+  color: #10141b !important;
 }
 .entry-content p,
 .entry-content li,
 main p,
 main li {
-  color: var(--warriors-copy);
+  color: var(--warriors-copy) !important;
 }
 header, .site-header, .main-navigation, .wp-block-navigation {
   background: linear-gradient(90deg, #050608 0%, #0d1218 48%, #161d27 100%);
@@ -204,6 +206,22 @@ input[type="submit"]:hover {
   text-decoration: none;
 }
 .warriors-theme-tools-social a[href*="linkedin"] {
+  display: none !important;
+}
+.wp-block-social-links .wp-social-link a {
+  border: 1px solid #c99d1e !important;
+  border-radius: 999px !important;
+  padding: 0.28rem 0.55rem !important;
+  background: linear-gradient(180deg, #ffd866 0%, #ffcc33 100%) !important;
+  color: #11161d !important;
+}
+.wp-block-social-links .wp-social-link a svg {
+  fill: currentColor !important;
+}
+.wp-block-social-links .wp-social-link.wp-social-link-linkedin,
+.wp-block-social-links .wp-social-link.wp-social-link-tiktok,
+.wp-block-social-links .wp-social-link.wp-social-link-github,
+.wp-block-social-links .wp-social-link.wp-social-link-x {
   display: none !important;
 }
 .warriors-home-updates {
@@ -384,6 +402,35 @@ input[type="submit"]:hover {
     color: #eef2f8;
   }
 }
+body.is-style-dark,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) {
+  background: linear-gradient(180deg, #090c11 0%, #121822 70%, #1a2230 100%);
+  color: #eef2f8;
+}
+body.is-style-dark .site-title a,
+body.is-style-dark .wp-block-site-title a,
+body.is-style-dark .wp-block-site-title :where(a),
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .site-title a,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .wp-block-site-title a,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .wp-block-site-title :where(a) {
+  color: #eef2f8 !important;
+}
+body.is-style-dark .entry-content p,
+body.is-style-dark .entry-content li,
+body.is-style-dark main p,
+body.is-style-dark main li,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .entry-content p,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .entry-content li,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) main p,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) main li {
+  color: #eef2f8 !important;
+}
+body .is-style-nfd-theme-darker .wp-block-site-title a,
+body .is-style-nfd-theme-darker p.wp-block-site-title a,
+body .is-style-nfd-theme-dark .wp-block-site-title a,
+body .is-style-nfd-theme-dark p.wp-block-site-title a {
+  color: #eef2f8 !important;
+}
 body.dark-mode,
 html.dark-mode body,
 body[data-theme="dark"] {
@@ -444,6 +491,8 @@ body[data-theme="dark"] .warriors-legacy-about {
 
     $js = 'window.WARRIORS_HQ_BASE = ' . wp_json_encode($hq) . ';
 window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
+window.WARRIORS_IG_URL = ' . wp_json_encode($opts['instagram_url']) . ';
+window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
 (() => {
   const mapHref = (label) => {
     const t = (label || "").toLowerCase().replace(/\\s+/g, " ").trim();
@@ -459,6 +508,13 @@ window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
   };
 
   const normalizeLinks = () => {
+    const wpLoggedIn = Boolean(
+      window.WARRIORS_WP_LOGGED_IN
+      || document.body.classList.contains("logged-in")
+      || document.getElementById("wpadminbar")
+      || /(?:^|;\\s*)wordpress_logged_in_[^=]+=/.test(document.cookie)
+    );
+
     const navSelectors = [
       "header a",
       ".site-header a",
@@ -477,7 +533,7 @@ window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
         || normalized === "register"
         || normalized === "player registration";
 
-      if (window.WARRIORS_WP_LOGGED_IN && isAuthLink) {
+      if (wpLoggedIn && isAuthLink) {
         const row = a.closest("li, .wp-block-navigation-item, .menu-item");
         if (row) {
           row.style.display = "none";
@@ -495,6 +551,21 @@ window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
       }
       a.style.pointerEvents = "auto";
       a.style.cursor = "pointer";
+    });
+
+    document.querySelectorAll(".wp-block-social-link.wp-social-link-instagram a").forEach((a) => {
+      if (!a.getAttribute("href") || a.getAttribute("href") === "#") {
+        a.setAttribute("href", window.WARRIORS_IG_URL || "#");
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noreferrer");
+      }
+    });
+    document.querySelectorAll(".wp-block-social-link.wp-social-link-facebook a").forEach((a) => {
+      if (!a.getAttribute("href") || a.getAttribute("href") === "#") {
+        a.setAttribute("href", window.WARRIORS_FB_URL || "#");
+        a.setAttribute("target", "_blank");
+        a.setAttribute("rel", "noreferrer");
+      }
     });
   };
 
