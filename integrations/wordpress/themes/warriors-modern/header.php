@@ -18,20 +18,26 @@
       </span>
     </a>
 
-    <nav class="wm-nav" aria-label="Primary">
-      <?php
-      wp_nav_menu([
-          'theme_location' => 'primary',
-          'container' => false,
-          'fallback_cb' => false,
-      ]);
-      ?>
-    </nav>
+    <button class="wm-menu-toggle" type="button" aria-controls="wm-mobile-panel" aria-expanded="false">
+      <span>Menu</span>
+    </button>
 
-    <div class="wm-actions">
-      <a class="wm-btn wm-btn-gold" href="<?php echo esc_url(home_url('/donate')); ?>">Donate</a>
-      <a class="wm-btn wm-btn-ghost" href="<?php echo warriors_modern_hq_url('/register'); ?>">Join</a>
-      <a class="wm-btn wm-btn-dark" href="<?php echo warriors_modern_hq_url('/login'); ?>">Log in</a>
+    <div id="wm-mobile-panel" class="wm-panel">
+      <nav class="wm-nav" aria-label="Primary">
+        <?php
+        wp_nav_menu([
+            'theme_location' => 'primary',
+            'container' => false,
+            'fallback_cb' => false,
+        ]);
+        ?>
+      </nav>
+
+      <div class="wm-actions">
+        <a class="wm-btn wm-btn-gold" href="<?php echo esc_url(home_url('/donate')); ?>">Donate</a>
+        <a class="wm-btn wm-btn-ghost" href="<?php echo warriors_modern_hq_url('/register'); ?>">Join</a>
+        <a class="wm-btn wm-btn-dark" href="<?php echo warriors_modern_hq_url('/login'); ?>">Log in</a>
+      </div>
     </div>
   </div>
 </header>

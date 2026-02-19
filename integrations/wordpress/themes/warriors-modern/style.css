@@ -3,7 +3,7 @@ Theme Name: Warriors Modern
 Theme URI: https://pghwarriorhockey.us
 Author: Warriors HQ
 Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
-Version: 1.0.0
+Version: 1.0.1
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -59,6 +59,7 @@ a:hover { text-decoration: underline; }
   align-items: center;
   justify-content: space-between;
   min-height: 86px;
+  position: relative;
 }
 
 .wm-brand {
@@ -104,10 +105,28 @@ a:hover { text-decoration: underline; }
 .wm-nav .current-menu-item > a,
 .wm-nav .current_page_item > a { color: var(--wm-link); }
 
+.wm-panel {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
 .wm-actions {
   display: flex;
   gap: .55rem;
   align-items: center;
+}
+
+.wm-menu-toggle {
+  display: none;
+  border: 1px solid #294f72;
+  color: #173f66;
+  background: #f8f4ea;
+  border-radius: 11px;
+  padding: .45rem .7rem;
+  font-weight: 800;
+  font-size: .92rem;
 }
 
 .wm-btn {
@@ -255,8 +274,41 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 980px) {
-  .wm-header-inner { flex-wrap: wrap; align-items: flex-start; padding: .65rem 0; }
-  .wm-nav { width: 100%; order: 3; }
-  .wm-nav ul { flex-wrap: wrap; gap: .7rem; }
+  .wm-header-inner { flex-wrap: wrap; align-items: center; padding: .55rem 0; min-height: 74px; }
+  .wm-menu-toggle { display: inline-flex; margin-left: auto; }
+  .wm-brand-title { font-size: clamp(1rem, 4.6vw, 1.35rem); }
+  .wm-brand-sub { font-size: .63rem; }
+  .wm-brand img { width: 34px; height: 34px; }
+  .wm-panel {
+    display: none;
+    width: 100%;
+    order: 3;
+    margin: .4rem 0 0;
+    padding: .75rem;
+    border: 1px solid var(--wm-border);
+    border-radius: 14px;
+    background: #f7f2e7;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .75rem;
+  }
+  .wm-header.menu-open .wm-panel { display: flex; }
+  .wm-nav { width: 100%; }
+  .wm-nav ul { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .7rem; }
+  .wm-nav li { min-width: 0; }
+  .wm-nav a {
+    display: block;
+    padding: .34rem .45rem;
+    border-radius: 8px;
+    background: #f1ebdc;
+  }
+  .wm-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
+  .wm-actions .wm-btn { width: 100%; padding: .55rem .5rem; font-size: .86rem; }
   .wm-home-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .wm-shell { width: min(1220px, calc(100% - 1rem)); }
+  .wm-nav ul { grid-template-columns: 1fr; }
+  .wm-actions { grid-template-columns: 1fr; }
 }
