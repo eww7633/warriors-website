@@ -1,0 +1,109 @@
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
+import { roster as mockRoster } from "@/lib/mockData";
+import { readStore } from "@/lib/hq/store";
+
+export type PublicRosterProfile = {
+  id: string;
+  fullName: string;
+  jerseyNumber?: number;
+  rosterId?: string;
+  position?: string;
+  status: "active" | "inactive";
+  stats: {
+    tournamentsPlayed: number;
+    teamsPlayedOn: number;
+    eventsAttended: number;
+  };
+};
+
+export async function listPublicRosterProfiles() {
+  if (!hasDatabaseUrl()) {
+    const store = await readStore();
+    return store.users
+      .filter((user) => user.role === "player" && user.status === "approved")
+      .map((user) => ({
+        id: user.id,
+        fullName: user.fullName,
+        jerseyNumber: user.jerseyNumber ?? undefined,
+        rosterId: user.rosterId ?? undefined,
+        position: user.requestedPosition ?? undefined,
+        status: user.activityStatus ?? "active",
+        stats: {
+          tournamentsPlayed: 0,
+          teamsPlayedOn: 0,
+          eventsAttended: store.checkIns.filter(
+            (entry) =>
+              entry.userId === user.id &&
+              (entry.attendanceStatus === "checked_in_attended" ||
+                entry.attendanceStatus === "walk_in_attended")
+          ).length
+        }
+      })) satisfies PublicRosterProfile[];
+  }
+
+  const users = await getPrismaClient().user.findMany({
+    where: {
+      role: "player",
+      status: "approved"
+    },
+    include: {
+      competitionMemberships: {
+        include: {
+          team: {
+            include: {
+              competition: true
+            }
+          }
+        }
+      },
+      checkIns: true
+    },
+    orderBy: [{ activityStatus: "asc" }, { fullName: "asc" }]
+  });
+
+  return users.map((user) => {
+    const tournamentIds = new Set(
+      user.competitionMemberships
+        .map((entry) => entry.team.competition)
+        .filter((competition) => competition.type === "TOURNAMENT")
+        .map((competition) => competition.id)
+    );
+    const teamIds = new Set(user.competitionMemberships.map((entry) => entry.teamId));
+    const eventsAttended = user.checkIns.filter(
+      (entry) =>
+        entry.attendanceStatus === "checked_in_attended" ||
+        entry.attendanceStatus === "walk_in_attended"
+    ).length;
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      jerseyNumber: user.jerseyNumber ?? undefined,
+      rosterId: user.rosterId ?? undefined,
+      position: user.requestedPosition ?? undefined,
+      status: (user.activityStatus as "active" | "inactive") ?? "active",
+      stats: {
+        tournamentsPlayed: tournamentIds.size,
+        teamsPlayedOn: teamIds.size,
+        eventsAttended
+      }
+    } satisfies PublicRosterProfile;
+  });
+}
+
+export function listMockRosterProfiles() {
+  return mockRoster.map((entry) => ({
+    id: entry.id,
+    fullName: entry.name,
+    jerseyNumber: undefined,
+    rosterId: undefined,
+    position: entry.position,
+    status: entry.status === "Active" ? "active" : "inactive",
+    stats: {
+      tournamentsPlayed: 0,
+      teamsPlayedOn: 0,
+      eventsAttended: entry.gamesPlayed
+    }
+  })) satisfies PublicRosterProfile[];
+}

@@ -291,6 +291,47 @@ body {
   margin-bottom: 0.7rem;
 }
 
+.calendar-event-expanded {
+  margin-top: 0.45rem;
+}
+
+.event-map {
+  width: 100%;
+  min-height: 280px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.jersey-render {
+  border-radius: 14px;
+  background: linear-gradient(145deg, #13161a 0%, #242a31 100%);
+  border: 1px solid #2f343c;
+  padding: 0.8rem;
+  max-width: 360px;
+}
+
+.jersey-render-inner {
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.jersey-number {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.03em;
+}
+
+.jersey-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f3efe6;
+  text-transform: uppercase;
+}
+
 .ops-tabs {
   display: flex;
   gap: 0.5rem;

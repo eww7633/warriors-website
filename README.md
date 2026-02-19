@@ -17,6 +17,11 @@ This Next.js app is the private Hockey Ops and player management platform.
 - Protected player portal (approved rostered players only)
 - Protected check-in workflow with attendance truth states
 - SportsPress-style seasons, rosters, and games views
+- Player reservation workflow on calendar:
+  - Going / Maybe / Not Going per event
+  - Player-visible reservation lists per event
+  - Google Maps links and embedded maps for event addresses
+- Public roster page with expandable player profile cards and participation stats (`/roster`)
 - Competition management:
   - Tournaments with Gold/White/Black optional team creation
   - Team-level game creation inside tournaments (each team can have its own schedule)

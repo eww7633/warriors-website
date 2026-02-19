@@ -25,6 +25,7 @@ model User {
 
   sessions         Session[]
   checkIns         CheckIn[]
+  reservations     EventReservation[]
   competitionMemberships CompetitionTeamMember[]
   contactLead      ContactLead?
   @@index([activityStatus])
@@ -78,12 +79,30 @@ model Event {
 
   season          Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   venue           Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  reservations    EventReservation[]
 
   @@index([published])
   @@index([startsAt])
   @@index([visibility])
   @@index([seasonId])
   @@index([venueId])
+}
+
+model EventReservation {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String   @default("going")
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 model Competition {
