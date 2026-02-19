@@ -44,5 +44,4 @@ jobs:
             **/README.md
             **/*.zip
             **/.DS_Store
-            **/warriors-public-events.php
           dangerous-clean-slate: false
