@@ -281,6 +281,18 @@ export async function createPendingPlayer(input: {
       }
     });
 
+    await getPrismaClient().contactLead.updateMany({
+      where: {
+        email: normalizeEmail(input.email),
+        linkedUserId: null
+      },
+      data: {
+        linkedUserId: created.id,
+        onboardingStatus: "linked",
+        linkedAt: new Date()
+      }
+    });
+
     return mapUser(created);
   }
 

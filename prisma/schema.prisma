@@ -26,6 +26,7 @@ model User {
   sessions         Session[]
   checkIns         CheckIn[]
   competitionMemberships CompetitionTeamMember[]
+  contactLead      ContactLead?
   @@index([activityStatus])
   @@index([rosterId])
   @@index([jerseyNumber])
@@ -199,14 +200,21 @@ model ContactLead {
   email       String?
   phone       String?
   source      String   @default("wix")
+  onboardingStatus String @default("imported")
+  invitedAt   DateTime?
+  linkedAt    DateTime?
+  linkedUserId String?  @unique
   notes       String?
   tags        String?
   rawJson     Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  linkedUser  User?    @relation(fields: [linkedUserId], references: [id], onDelete: SetNull)
+
   @@index([email])
   @@index([source])
+  @@index([onboardingStatus])
 }
 
 model CompetitionTeam {

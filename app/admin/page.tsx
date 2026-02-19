@@ -17,6 +17,7 @@ export const dynamic = "force-dynamic";
 const sections = [
   ["overview", "Overview"],
   ["sportsdata", "Sports Data"],
+  ["contacts", "Contacts"],
   ["competitions", "Competitions"],
   ["events", "Events"],
   ["players", "Players"],
@@ -38,6 +39,7 @@ export default async function AdminPage({
     assignment?: string;
     game?: string;
     data?: string;
+    contact?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -93,15 +95,36 @@ export default async function AdminPage({
     query.data === "venue_created" ? "Venue created." : null,
     query.data === "position_created" ? "Position created." : null,
     query.data === "staff_created" ? "Staff profile created." : null,
-    query.data === "sponsor_created" ? "Sponsor created." : null
+    query.data === "sponsor_created" ? "Sponsor created." : null,
+    query.contact === "invited" ? "Contact marked as invited." : null,
+    query.contact === "linked" ? "Contact linked to existing user account." : null
   ].filter(Boolean) as string[];
 
+  const snapshotItems = [
+    ["Pending", pendingUsers.length],
+    ["Approved", approvedPlayers.length],
+    ["Events", allEvents.length],
+    ["Competitions", competitions.length],
+    ["Check-ins", store.checkIns.length]
+  ] as const;
+
   return (
-    <section className="stack">
-      <article className="card">
+    <section className="stack admin-shell">
+      <article className="card hero-card admin-hero">
+        <p className="eyebrow">Warrior HQ</p>
         <h2>Hockey Ops Dashboard</h2>
-        <p>Signed in as {user.email}</p>
-        <p>Storage mode: <strong>{hasDatabaseUrl() ? "Database" : "Fallback file"}</strong></p>
+        <p>
+          Signed in as <strong>{user.email}</strong> | Storage mode:{" "}
+          <strong>{hasDatabaseUrl() ? "Database" : "Fallback file"}</strong>
+        </p>
+        <div className="admin-kpi-grid">
+          {snapshotItems.map(([label, value]) => (
+            <div key={label} className="admin-kpi">
+              <span className="muted">{label}</span>
+              <strong>{value}</strong>
+            </div>
+          ))}
+        </div>
         {statusMessages.map((message) => (
           <p className="badge" key={message}>{message}</p>
         ))}
@@ -135,8 +158,8 @@ export default async function AdminPage({
       )}
 
       {section === "sportsdata" && (
-        <>
-          <article className="card">
+        <div className="admin-grid-2">
+          <article className="card admin-card-compact">
             <h3>Create Season</h3>
             <form className="grid-form" action="/api/admin/data/season" method="post">
               <input name="label" placeholder="2026-2027" required />
@@ -154,7 +177,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-card-compact">
             <h3>Create Team</h3>
             <form className="grid-form" action="/api/admin/data/team" method="post">
               <input name="name" placeholder="Warriors Gold" required />
@@ -175,7 +198,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-card-compact">
             <h3>Create Venue</h3>
             <form className="grid-form" action="/api/admin/data/venue" method="post">
               <input name="name" placeholder="Pittsburgh Ice Arena" required />
@@ -188,7 +211,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-card-compact">
             <h3>Create Position</h3>
             <form className="grid-form" action="/api/admin/data/position" method="post">
               <input name="code" placeholder="F / D / G / C / LW / RW" required />
@@ -197,7 +220,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-card-compact">
             <h3>Create Staff Profile</h3>
             <form className="grid-form" action="/api/admin/data/staff" method="post">
               <input name="fullName" placeholder="Staff name" required />
@@ -210,7 +233,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-card-compact">
             <h3>Create Sponsor</h3>
             <form className="grid-form" action="/api/admin/data/sponsor" method="post">
               <input name="name" placeholder="Sponsor name" required />
@@ -222,7 +245,7 @@ export default async function AdminPage({
             </form>
           </article>
 
-          <article className="card">
+          <article className="card admin-grid-span">
             <h3>Sports Data Directory</h3>
             <div className="stack">
               <div className="event-card">
@@ -285,13 +308,13 @@ export default async function AdminPage({
               </div>
             </div>
           </article>
-        </>
+        </div>
       )}
 
       {section === "competitions" && (
-        <>
-          <article className="card">
-            <h3>Create Tournament</h3>
+        <div className="stack">
+          <details className="card admin-disclosure" open>
+            <summary>Create Tournament</summary>
             <p className="muted">National tournament setup with optional Gold/White/Black teams.</p>
             <form className="grid-form" action="/api/admin/competitions/tournament" method="post">
               <input name="title" placeholder="Tournament name" required />
@@ -308,10 +331,10 @@ export default async function AdminPage({
               <label><input type="checkbox" name="black" /> Black team</label>
               <button className="button" type="submit">Create Tournament</button>
             </form>
-          </article>
+          </details>
 
-          <article className="card">
-            <h3>Create Single Game</h3>
+          <details className="card admin-disclosure">
+            <summary>Create Single Game</summary>
             <p className="muted">Single exhibition game roster (Gold, Black, or Mixed).</p>
             <form className="grid-form" action="/api/admin/competitions/single-game" method="post">
               <input name="title" placeholder="Single game title" required />
@@ -331,10 +354,10 @@ export default async function AdminPage({
               <input name="notes" placeholder="Optional notes" />
               <button className="button" type="submit">Create Single Game</button>
             </form>
-          </article>
+          </details>
 
-          <article className="card">
-            <h3>Create DVHL League</h3>
+          <details className="card admin-disclosure">
+            <summary>Create DVHL League</summary>
             <p className="muted">In-house draft league with four team names from eligible players.</p>
             <form className="grid-form" action="/api/admin/competitions/dvhl" method="post">
               <input name="title" placeholder="DVHL session title" required />
@@ -349,10 +372,10 @@ export default async function AdminPage({
               <input name="notes" placeholder="Optional notes" />
               <button className="button" type="submit">Create DVHL Session</button>
             </form>
-          </article>
+          </details>
 
-          <article className="card">
-            <h3>Competition Team Builder</h3>
+          <details className="card admin-disclosure" open>
+            <summary>Competition Team Builder</summary>
             <p className="muted">Assign approved players and create team-specific games for each squad.</p>
             {competitions.length === 0 ? (
               <p className="muted">No competitions created yet.</p>
@@ -424,8 +447,79 @@ export default async function AdminPage({
                 ))}
               </div>
             )}
+          </details>
+        </div>
+      )}
+
+      {section === "contacts" && (
+        <div className="stack">
+          <article className="card">
+            <h3>Contact Onboarding Pipeline</h3>
+            <p className="muted">
+              Imported contacts are stored in DB and can be moved through invited to linked.
+              When someone registers with the same email, they link automatically.
+            </p>
+            <div className="admin-kpi-grid">
+              <div className="admin-kpi">
+                <span className="muted">Total contacts</span>
+                <strong>{sportsData.contactLeadStats.total}</strong>
+              </div>
+              <div className="admin-kpi">
+                <span className="muted">Imported</span>
+                <strong>{sportsData.contactLeadStats.imported}</strong>
+              </div>
+              <div className="admin-kpi">
+                <span className="muted">Invited</span>
+                <strong>{sportsData.contactLeadStats.invited}</strong>
+              </div>
+              <div className="admin-kpi">
+                <span className="muted">Linked</span>
+                <strong>{sportsData.contactLeadStats.linked}</strong>
+              </div>
+            </div>
+            <p>
+              Invite link to share:{" "}
+              <code>https://pghwarriorhockey.us/register</code>
+            </p>
           </article>
-        </>
+
+          <article className="card">
+            <h3>Imported Contacts</h3>
+            {sportsData.contactLeads.length === 0 ? (
+              <p className="muted">No contacts imported yet.</p>
+            ) : (
+              <div className="stack">
+                {sportsData.contactLeads.map((lead) => (
+                  <div key={lead.id} className="event-card stack">
+                    <strong>{lead.fullName || "Unnamed contact"}</strong>
+                    <p>{lead.email || "No email"} {lead.phone ? `| ${lead.phone}` : ""}</p>
+                    <p>Status: {lead.onboardingStatus}</p>
+                    <p>
+                      Linked user: {lead.linkedUser
+                        ? `${lead.linkedUser.fullName} (${lead.linkedUser.email})`
+                        : "Not linked yet"}
+                    </p>
+                    <div className="cta-row">
+                      {!lead.linkedUser && (
+                        <form action="/api/admin/contacts/mark-invited" method="post">
+                          <input type="hidden" name="contactLeadId" value={lead.id} />
+                          <button className="button alt" type="submit">Mark Invited</button>
+                        </form>
+                      )}
+                      {!lead.linkedUser && lead.email && (
+                        <form action="/api/admin/contacts/link-by-email" method="post">
+                          <input type="hidden" name="contactLeadId" value={lead.id} />
+                          <button className="button ghost" type="submit">Link Existing Account by Email</button>
+                        </form>
+                      )}
+                    </div>
+                    {lead.tags && <p className="muted">Tags: {lead.tags}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </div>
       )}
 
       {section === "events" && (

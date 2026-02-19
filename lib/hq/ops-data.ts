@@ -16,7 +16,13 @@ export async function listSportsData() {
       positions: [],
       staff: [],
       sponsors: [],
-      contactLeads: []
+      contactLeads: [],
+      contactLeadStats: {
+        total: 0,
+        imported: 0,
+        invited: 0,
+        linked: 0
+      }
     };
   }
 
@@ -36,11 +42,28 @@ export async function listSportsData() {
     }),
     getPrismaClient().contactLead.findMany({
       orderBy: { createdAt: "desc" },
-      take: 25
+      include: {
+        linkedUser: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true,
+            status: true
+          }
+        }
+      }
     })
   ]);
 
-  return { seasons, teams, venues, positions, staff, sponsors, contactLeads };
+  const contactLeadStats = {
+    total: contactLeads.length,
+    imported: contactLeads.filter((lead) => lead.onboardingStatus === "imported").length,
+    invited: contactLeads.filter((lead) => lead.onboardingStatus === "invited").length,
+    linked: contactLeads.filter((lead) => lead.onboardingStatus === "linked").length
+  };
+
+  return { seasons, teams, venues, positions, staff, sponsors, contactLeads, contactLeadStats };
 }
 
 export async function createSeason(input: {
@@ -190,5 +213,48 @@ export async function registerSponsorClick(id: string) {
   await getPrismaClient().sponsor.update({
     where: { id },
     data: { clicks: { increment: 1 } }
+  });
+}
+
+export async function markContactLeadInvited(contactLeadId: string) {
+  requireDatabaseMode();
+
+  await getPrismaClient().contactLead.update({
+    where: { id: contactLeadId },
+    data: {
+      onboardingStatus: "invited",
+      invitedAt: new Date()
+    }
+  });
+}
+
+export async function linkContactLeadToMatchingUser(contactLeadId: string) {
+  requireDatabaseMode();
+
+  const lead = await getPrismaClient().contactLead.findUnique({
+    where: { id: contactLeadId },
+    select: { email: true }
+  });
+
+  if (!lead?.email) {
+    throw new Error("Contact lead has no email to match.");
+  }
+
+  const user = await getPrismaClient().user.findUnique({
+    where: { email: lead.email.toLowerCase() },
+    select: { id: true }
+  });
+
+  if (!user) {
+    throw new Error("No user account exists for that email yet.");
+  }
+
+  await getPrismaClient().contactLead.update({
+    where: { id: contactLeadId },
+    data: {
+      linkedUserId: user.id,
+      onboardingStatus: "linked",
+      linkedAt: new Date()
+    }
   });
 }

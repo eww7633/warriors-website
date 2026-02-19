@@ -129,3 +129,10 @@ Custom CSV path example:
 ```bash
 npm run import:wix:contacts -- "./nigration/contacts.csv"
 ```
+
+After import:
+- Open Admin > `Contacts`
+- Use `Mark Invited` as your outreach tracker
+- Ask players to register at `/register` with the same email they used previously
+- Their contact will auto-link on registration
+- If they already have an account, use `Link Existing Account by Email`
