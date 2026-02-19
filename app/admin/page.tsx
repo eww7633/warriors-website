@@ -531,10 +531,21 @@ export default async function AdminPage({
                           <button className="button alt" type="submit">Mark Invited</button>
                         </form>
                       )}
-                      {!lead.linkedUser && lead.email && matchingUser && (
+                      {!lead.linkedUser && lead.email && (
                         <form action="/api/admin/contacts/link-by-email" method="post">
                           <input type="hidden" name="contactLeadId" value={lead.id} />
-                          <button className="button ghost" type="submit">Link Existing Account by Email</button>
+                          <button
+                            className="button ghost"
+                            type="submit"
+                            disabled={!matchingUser}
+                            title={
+                              matchingUser
+                                ? "Link this contact to the matching account."
+                                : "No account with this email exists yet."
+                            }
+                          >
+                            Link Existing Account by Email
+                          </button>
                         </form>
                       )}
                     </div>

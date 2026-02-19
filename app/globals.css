@@ -209,6 +209,11 @@ body {
   font-weight: 700;
 }
 
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .button.alt {
   background: var(--gold);
   color: #211700;
