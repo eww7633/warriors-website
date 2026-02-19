@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.4
+ * Version: 0.2.5
  */
 
 if (!defined('ABSPATH')) {
@@ -15,6 +15,7 @@ function warriors_theme_tools_defaults() {
         'instagram_url' => 'https://instagram.com/pittsburghwarriorshockey',
         'facebook_url' => 'https://www.facebook.com/pittsburghwarriors/',
         'inject_frontpage_block' => true,
+        'strict_public_shell' => true,
     ];
 }
 
@@ -35,12 +36,14 @@ function warriors_theme_tools_sanitize($input) {
         'instagram_url' => esc_url_raw($input['instagram_url'] ?? $defaults['instagram_url']),
         'facebook_url' => esc_url_raw($input['facebook_url'] ?? $defaults['facebook_url']),
         'inject_frontpage_block' => !empty($input['inject_frontpage_block']),
+        'strict_public_shell' => !empty($input['strict_public_shell']),
     ];
 }
 
 function warriors_theme_tools_enqueue_assets() {
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
+    $strict_public_shell = !empty($opts['strict_public_shell']);
 
     $css = '
 :root {
@@ -229,6 +232,65 @@ input[type="submit"]:hover {
 .wp-block-button.plover-hide-on-dark,
 .wp-block-button.plover-hide-on-light {
   display: none !important;
+}
+body.warriors-shell-mode,
+body.warriors-shell-mode .wp-site-blocks,
+body.warriors-shell-mode #page {
+  background: #efe9dc !important;
+}
+body.warriors-shell-mode header,
+body.warriors-shell-mode .site-header,
+body.warriors-shell-mode .wp-site-blocks > header,
+body.warriors-shell-mode .wp-block-template-part {
+  background: #e8e0cf !important;
+  border-bottom: 1px solid #cfbf98 !important;
+  box-shadow: none !important;
+}
+body.warriors-shell-mode .wp-block-site-title a,
+body.warriors-shell-mode .site-title a {
+  color: #1a2029 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+}
+body.warriors-shell-mode .wp-block-navigation .wp-block-navigation-item__content,
+body.warriors-shell-mode header a,
+body.warriors-shell-mode .site-header a {
+  color: #242c37 !important;
+}
+body.warriors-shell-mode .wp-block-navigation .wp-block-navigation-item__content:hover,
+body.warriors-shell-mode header a:hover,
+body.warriors-shell-mode .site-header a:hover {
+  color: #0f4f78 !important;
+  background: rgba(15, 79, 120, 0.08) !important;
+}
+body.warriors-shell-mode .entry-content > .wp-block-group.has-background,
+body.warriors-shell-mode .entry-content > [class*="nfd-theme"],
+body.warriors-shell-mode [class*="nfd-theme-dark"],
+body.warriors-shell-mode [class*="nfd-theme-darker"] {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body.warriors-shell-mode .entry-content {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+body.warriors-shell-mode .wp-block-post-content > * {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+body.warriors-shell-mode .wp-block-post-content > :first-child {
+  margin-top: 0;
+}
+body.warriors-shell-mode .wp-block-post-content .wp-block-group,
+body.warriors-shell-mode .wp-block-post-content .wp-block-columns {
+  border-radius: 16px;
+}
+body.warriors-shell-mode footer .wp-block-navigation .wp-block-navigation-item__content {
+  color: #d7dfeb !important;
+}
+body.warriors-shell-mode footer .wp-block-navigation .wp-block-navigation-item__content:hover {
+  color: #ffffff !important;
 }
 .warriors-home-updates {
   border: 1px solid #20262f;
@@ -499,6 +561,7 @@ body[data-theme="dark"] .warriors-legacy-about {
 window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
 window.WARRIORS_IG_URL = ' . wp_json_encode($opts['instagram_url']) . ';
 window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
+window.WARRIORS_STRICT_PUBLIC_SHELL = ' . wp_json_encode($strict_public_shell) . ';
 (() => {
   const mapHref = (label) => {
     const t = (label || "").toLowerCase().replace(/\\s+/g, " ").trim();
@@ -514,12 +577,18 @@ window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
   };
 
   const normalizeLinks = () => {
+    if (window.WARRIORS_STRICT_PUBLIC_SHELL) {
+      document.body.classList.add("warriors-shell-mode");
+    }
+
     const wpLoggedIn = Boolean(
       window.WARRIORS_WP_LOGGED_IN
       || document.body.classList.contains("logged-in")
       || document.getElementById("wpadminbar")
       || /(?:^|;\\s*)wordpress_logged_in_[^=]+=/.test(document.cookie)
     );
+    const corePages = new Set(["news", "history", "donate", "roster", "about", "partners"]);
+    const authPages = new Set(["join", "sign up", "register", "player registration", "log in", "login", "sign in", "warrior hq", "my account", "hq"]);
 
     const navSelectors = [
       "header a",
@@ -547,6 +616,19 @@ window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
           a.style.display = "none";
         }
         return;
+      }
+
+      if (window.WARRIORS_STRICT_PUBLIC_SHELL) {
+        const allowed = corePages.has(normalized) || authPages.has(normalized);
+        if (!allowed) {
+          const row = a.closest("li, .wp-block-navigation-item, .menu-item");
+          if (row) {
+            row.style.display = "none";
+          } else {
+            a.style.display = "none";
+          }
+          return;
+        }
       }
 
       if (!mapped) return;
@@ -635,9 +717,31 @@ function warriors_theme_tools_patch_menu_links($items) {
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
     $is_logged_in = is_user_logged_in();
+    $strict_public_shell = !empty($opts['strict_public_shell']);
+    $allowed_public = ['news', 'history', 'donate', 'roster', 'about', 'partners'];
 
     foreach ($items as $index => $item) {
         $title = strtolower(trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($item->title))));
+        if ($strict_public_shell) {
+            $is_auth_or_hq = (
+                strpos($title, 'log in') !== false
+                || $title === 'login'
+                || $title === 'sign in'
+                || $title === 'join'
+                || $title === 'sign up'
+                || $title === 'register'
+                || $title === 'player registration'
+                || $title === 'warrior hq'
+                || $title === 'my account'
+                || $title === 'hq'
+            );
+
+            if (!$is_auth_or_hq && !in_array($title, $allowed_public, true)) {
+                unset($items[$index]);
+                continue;
+            }
+        }
+
         if ($is_logged_in && (
             strpos($title, 'log in') !== false
             || $title === 'login'
@@ -876,6 +980,10 @@ function warriors_theme_tools_settings_page() {
                 <tr>
                     <th scope="row"><label for="wtt_inject">Inject Homepage Updates Block</label></th>
                     <td><label><input id="wtt_inject" name="warriors_theme_tools_options[inject_frontpage_block]" type="checkbox" <?php checked(!empty($opts['inject_frontpage_block'])); ?> /> Auto-insert updates block on front page</label></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="wtt_shell">Strict Public Shell Mode</label></th>
+                    <td><label><input id="wtt_shell" name="warriors_theme_tools_options[strict_public_shell]" type="checkbox" <?php checked(!empty($opts['strict_public_shell'])); ?> /> Force a simplified, consistent public shell (recommended)</label></td>
                 </tr>
             </table>
             <?php submit_button('Save Settings'); ?>
