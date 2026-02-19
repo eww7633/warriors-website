@@ -2,25 +2,67 @@ import Link from "next/link";
 import { siteConfig } from "@/lib/siteConfig";
 import { getHomepageShowcasePhotos } from "@/lib/showcase-photos";
 import { getCurrentUser } from "@/lib/hq/session";
+import { getAllEvents } from "@/lib/hq/events";
+import { readStore } from "@/lib/hq/store";
 
 export default async function HomePage() {
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
-  const showcase = await getHomepageShowcasePhotos(9);
+  const showcase = await getHomepageShowcasePhotos(12);
   const user = await getCurrentUser();
+  const [events, store] = await Promise.all([getAllEvents(), readStore()]);
+  const now = Date.now();
+  const upcomingEvents = events
+    .filter((event) => new Date(event.date).getTime() >= now)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 4);
+  const pendingRegistrations = store.users.filter((entry) => entry.status === "pending").length;
+  const approvedPlayers = store.users.filter(
+    (entry) => entry.status === "approved" && entry.role === "player"
+  ).length;
+  const recentCheckIns = store.checkIns
+    .filter((entry) => {
+      const stamp = entry.checkedInAt || entry.arrivedAt;
+      if (!stamp) {
+        return false;
+      }
+      return Date.now() - new Date(stamp).getTime() <= 7 * 24 * 60 * 60 * 1000;
+    })
+    .length;
 
   return (
     <section className="grid-home">
       <article className="card hero-card">
-        <p className="eyebrow">Pittsburgh Warriors Hockey Club</p>
-        <h2>Healing through hockey. One public site, one Warrior HQ.</h2>
-        <p>
-          Public website content lives on the main site. Warrior HQ handles player registration,
-          roster operations, event reservations, QR check-ins, and Hockey Ops workflows.
-        </p>
+        <p className="eyebrow">Warrior HQ Live Updates</p>
+        <h2>Latest activity across players, events, and attendance</h2>
+        <div className="home-live-grid">
+          <div className="event-card">
+            <strong>Pending registrations</strong>
+            <p>{pendingRegistrations}</p>
+          </div>
+          <div className="event-card">
+            <strong>Approved players</strong>
+            <p>{approvedPlayers}</p>
+          </div>
+          <div className="event-card">
+            <strong>7-day check-ins</strong>
+            <p>{recentCheckIns}</p>
+          </div>
+          <div className="event-card">
+            <strong>Upcoming events</strong>
+            <p>{upcomingEvents.length}</p>
+          </div>
+        </div>
+        <div className="stack">
+          {upcomingEvents.map((event) => (
+            <div key={event.id} className="event-card">
+              <strong>{event.title}</strong>
+              <p>{new Date(event.date).toLocaleString()}</p>
+              {event.locationPublic && <p>{event.locationPublic}</p>}
+            </div>
+          ))}
+          {upcomingEvents.length === 0 && <p className="muted">No upcoming events found.</p>}
+        </div>
         <div className="cta-row">
-          <a className="button alt" href={`${publicBase}/`}>
-            Open Main Website
-          </a>
           {user ? (
             <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
               {user.role === "admin" ? "Open Hockey Ops" : "Open My Account"}
@@ -59,7 +101,9 @@ export default async function HomePage() {
             <li>Competition, game scorekeeper, and live scoring tools</li>
           </ul>
           <p>
-            <Link href="/admin">Open Hockey Ops dashboard</Link>
+            <Link href={user?.role === "admin" ? "/admin" : "/player"}>
+              Open {user?.role === "admin" ? "Hockey Ops dashboard" : "player account"}
+            </Link>
           </p>
         </div>
       </article>
