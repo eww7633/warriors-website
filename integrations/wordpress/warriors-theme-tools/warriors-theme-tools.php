@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.0
+ * Version: 0.2.1
  */
 
 if (!defined('ABSPATH')) {
@@ -43,24 +43,30 @@ function warriors_theme_tools_enqueue_assets() {
 
     $css = '
 :root {
-  --warriors-black: #11161d;
-  --warriors-gold: #ffc72c;
-  --warriors-gunmetal: #2f343d;
-  --warriors-cream: #f3efe6;
-  --warriors-link: #0f4f78;
+  --warriors-black: #0a0b0d;
+  --warriors-gold: #ffcc33;
+  --warriors-gold-deep: #c79a17;
+  --warriors-gunmetal: #2d3239;
+  --warriors-steel: #454c56;
+  --warriors-cream: #f6f1e5;
+  --warriors-cream-deep: #e7dfcd;
+  --warriors-surface: #fefcf7;
+  --warriors-copy: #181c22;
 }
 body {
-  background: var(--warriors-cream);
+  background: radial-gradient(circle at top, #fdf9ef 0%, var(--warriors-cream) 45%, var(--warriors-cream-deep) 100%);
+  color: var(--warriors-copy);
 }
 .site, #page {
-  background: linear-gradient(180deg, #f6f2ea 0%, #efe9dc 100%);
+  background: transparent;
 }
 header, .site-header, .main-navigation, .wp-block-navigation {
-  background: var(--warriors-black);
+  background: linear-gradient(90deg, #060709 0%, #10141b 40%, #171d26 100%);
 }
 header a, .site-header a, .main-navigation a, .wp-block-navigation a {
-  color: #f4f1eb !important;
-  font-weight: 600;
+  color: #fbf7ec !important;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 header a:hover, .site-header a:hover, .main-navigation a:hover, .wp-block-navigation a:hover {
   color: var(--warriors-gold) !important;
@@ -69,29 +75,41 @@ header a:hover, .site-header a:hover, .main-navigation a:hover, .wp-block-naviga
 .wp-block-button__link,
 button,
 input[type="submit"] {
-  border-radius: 10px;
-  border: 1px solid #9b7711;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid var(--warriors-gold-deep);
   background: var(--warriors-gold);
-  color: #11161d;
-  font-weight: 700;
+  color: #10141b;
+  font-weight: 800;
+  text-decoration: none;
+  padding: 0.62rem 1rem;
+  line-height: 1.2;
+}
+.warriors-theme-tools-cta:hover,
+.wp-block-button__link:hover,
+button:hover,
+input[type="submit"]:hover {
+  filter: brightness(0.96);
 }
 .warriors-theme-tools-cta.alt {
-  background: var(--warriors-black);
-  border-color: var(--warriors-black);
-  color: #ffffff;
+  background: #131922;
+  border-color: #252f3f;
+  color: #fff;
 }
 .warriors-theme-tools-banner {
   display: flex;
-  gap: 0.65rem;
+  gap: 0.7rem;
   flex-wrap: wrap;
   margin: 1rem 0;
 }
 .warriors-theme-tools-card {
   border: 1px solid #d7c69a;
-  border-radius: 14px;
-  background: #fff;
+  border-radius: 16px;
+  background: var(--warriors-surface);
   padding: 1rem;
-  box-shadow: 0 8px 20px rgba(17,22,29,0.08);
+  box-shadow: 0 8px 24px rgba(17,22,29,0.1);
 }
 .warriors-theme-tools-social {
   display: flex;
@@ -99,27 +117,88 @@ input[type="submit"] {
   align-items: center;
 }
 .warriors-theme-tools-social a {
-  color: var(--warriors-link);
-  font-weight: 700;
+  color: #123f61;
+  font-weight: 800;
 }
 .warriors-home-updates {
-  border: 1px solid #d7c69a;
-  border-radius: 14px;
-  background: #fff;
+  border: 1px solid #20262f;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #0d1015 0%, #171c23 55%, #1f2630 100%);
   padding: 1rem;
-  margin: 1rem 0;
-  box-shadow: 0 8px 20px rgba(17,22,29,0.08);
+  margin: 1rem 0 1.25rem;
+  box-shadow: 0 14px 30px rgba(0,0,0,0.28);
+  color: #f7f2e8;
 }
 .warriors-home-updates h2 {
-  margin-top: 0;
-}
-.warriors-home-updates ul {
-  margin: 0.5rem 0 0;
-  padding-left: 1.25rem;
+  margin: 0 0 0.45rem;
+  font-size: clamp(1.35rem, 2.7vw, 1.85rem);
+  line-height: 1.2;
+  color: #ffffff;
 }
 .warriors-home-updates .meta {
-  color: #4f5763;
-  font-size: 0.95rem;
+  color: #dfd6c2;
+  font-size: 0.96rem;
+  margin: 0;
+}
+.warriors-home-updates .eyebrow {
+  margin: 0 0 0.42rem;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--warriors-gold);
+}
+.warriors-home-updates .warriors-theme-tools-banner {
+  margin: 0.9rem 0 1rem;
+}
+.warriors-home-events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+.warriors-home-event-card {
+  position: relative;
+  background: linear-gradient(180deg, #fbf8ef 0%, #f1e8d5 100%);
+  border: 1px solid #cfbb8a;
+  border-radius: 14px;
+  padding: 0.82rem;
+  color: #131922;
+}
+.warriors-home-event-card h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.04rem;
+  line-height: 1.28;
+}
+.warriors-home-event-card .event-meta {
+  margin: 0 0 0.22rem;
+  color: #7f5e10;
+  font-weight: 800;
+}
+.warriors-home-event-card .event-location,
+.warriors-home-event-card .event-type {
+  margin: 0 0 0.24rem;
+  color: #2f343d;
+  font-size: 0.93rem;
+}
+.warriors-home-event-card .event-link {
+  margin-top: 0.5rem;
+  display: inline-block;
+  font-weight: 800;
+  color: #0d4a74;
+  text-decoration: underline;
+}
+.warriors-home-updates .full-calendar-link {
+  margin: 0.85rem 0 0;
+}
+.warriors-home-updates .full-calendar-link a {
+  color: #ffdc6b;
+  font-weight: 800;
+  text-decoration: underline;
+}
+@media (max-width: 640px) {
+  .warriors-theme-tools-banner .warriors-theme-tools-cta {
+    flex: 1 1 auto;
+  }
 }
 ';
 
@@ -209,30 +288,55 @@ function warriors_theme_tools_fetch_public_events($feed_url, $limit = 3) {
     return array_slice($data['items'], 0, max(1, intval($limit)));
 }
 
+function warriors_theme_tools_event_url($event, $hq_base_url) {
+    if (!empty($event['eventUrl'])) {
+        return esc_url_raw($event['eventUrl']);
+    }
+
+    $event_id = sanitize_text_field($event['id'] ?? '');
+    return $hq_base_url . '/calendar' . (!empty($event_id) ? ('?event=' . rawurlencode($event_id)) : '');
+}
+
 function warriors_theme_tools_home_updates_shortcode() {
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
     $events = warriors_theme_tools_fetch_public_events($hq . '/api/public/events', 3);
 
     $html = '<section class="warriors-home-updates">';
-    $html .= '<h2>Latest Warriors Updates</h2>';
-    $html .= '<p class="meta">Live event snapshots and direct player access to Warrior HQ.</p>';
+    $html .= '<p class="eyebrow">Pittsburgh Warriors</p>';
+    $html .= '<h2>Upcoming Ice Time, Team Events, and Player Access</h2>';
+    $html .= '<p class="meta">Open an event to see full details and continue into Warrior HQ signup/RSVP.</p>';
     $html .= warriors_theme_tools_hq_cta_shortcode();
 
     if (count($events) > 0) {
-        $html .= '<ul>';
+        $html .= '<div class="warriors-home-events-grid">';
         foreach ($events as $event) {
             $title = esc_html($event['title'] ?? 'Event');
             $date = !empty($event['startsAt'])
                 ? esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event['startsAt'])))
                 : 'TBD';
-            $html .= '<li><strong>' . $title . '</strong> <span class="meta">(' . $date . ')</span></li>';
+            $location = !empty($event['location']) ? esc_html($event['location']) : '';
+            $type = !empty($event['eventType']) ? esc_html($event['eventType']) : '';
+            $event_url = warriors_theme_tools_event_url($event, $hq);
+
+            $html .= '<article class="warriors-home-event-card">';
+            $html .= '<h3>' . $title . '</h3>';
+            $html .= '<p class="event-meta">' . $date . '</p>';
+            if ($location !== '') {
+                $html .= '<p class="event-location">' . $location . '</p>';
+            }
+            if ($type !== '') {
+                $html .= '<p class="event-type">' . $type . '</p>';
+            }
+            $html .= '<a class="event-link" href="' . esc_url($event_url) . '">Open in Warrior HQ</a>';
+            $html .= '</article>';
         }
-        $html .= '</ul>';
+        $html .= '</div>';
     } else {
         $html .= '<p>No upcoming events available right now.</p>';
     }
 
+    $html .= '<p class="full-calendar-link"><a href="' . esc_url($hq . '/calendar') . '">See full Warrior HQ calendar</a></p>';
     $html .= '</section>';
 
     return $html;
