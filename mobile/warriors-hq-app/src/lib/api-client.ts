@@ -97,8 +97,7 @@ export const apiClient = {
   },
 
   async setRsvp(eventId: string, status: 'going' | 'maybe' | 'not_going'): Promise<void> {
-    const mappedStatus = status === 'not_going' ? 'declined' : status;
-    const legacy = await postForm('/api/events/reservation', { eventId, status: mappedStatus, note: '' });
+    const legacy = await postForm('/api/events/reservation', { eventId, status, note: '' });
     const err = extractUrlError(legacy.url || '');
     if (err) throw new Error(err);
   },
