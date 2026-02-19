@@ -36,7 +36,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: integrations/wordpress/
-          server-dir: /
+          server-dir: /plugins/
           exclude: |
             **/.git*
             **/.git*/**
