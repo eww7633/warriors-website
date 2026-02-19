@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Public Events Feed
  * Description: Pulls public events from the Warriors HQ API and renders them via shortcode.
- * Version: 0.3.1
+ * Version: 0.3.2
  */
 
 if (!defined('ABSPATH')) {
@@ -100,6 +100,7 @@ function warriors_render_public_events_shortcode($atts) {
     ?>
     <section class="warriors-public-events">
         <h2><?php echo esc_html($atts['title']); ?></h2>
+        <p class="intro">Tap any event card to open the full Warrior HQ details and RSVP/signup flow.</p>
         <div class="warriors-public-events-cta">
             <a class="warriors-public-events-button alt" href="<?php echo esc_url($login_url); ?>">Player Login</a>
             <a class="warriors-public-events-button" href="<?php echo esc_url($register_url); ?>">Request Player Access</a>
@@ -144,21 +145,23 @@ add_shortcode('warriors_public_events', 'warriors_render_public_events_shortcode
 function warriors_public_events_enqueue_styles() {
     $css = '
 .warriors-public-events{margin:1rem 0}
-.warriors-public-events h2{font-size:1.75rem;margin:0 0 .8rem;color:#11161d}
+.warriors-public-events h2{font-size:1.82rem;margin:0 0 .35rem;color:#10141b;line-height:1.2}
+.warriors-public-events .intro{margin:0 0 .9rem;color:#3a4350}
 .warriors-public-events-cta{display:flex;gap:.65rem;flex-wrap:wrap;margin:0 0 1rem}
-.warriors-public-events-button{display:inline-block;padding:.58rem .95rem;border-radius:10px;background:#ffcc33;color:#11161d;text-decoration:none;font-weight:800;border:1px solid #c99d1e}
-.warriors-public-events-button.alt{background:#11161d;color:#fff;border-color:#11161d}
-.warriors-public-events-grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(245px,1fr))}
-.warriors-public-events-card{position:relative;border:1px solid #d9c8a0;border-radius:14px;background:linear-gradient(180deg,#fffdf8 0%,#f4ecdc 100%);padding:.9rem;box-shadow:0 10px 20px -16px rgba(0,0,0,.45);transition:transform .16s ease,box-shadow .16s ease}
-.warriors-public-events-card:hover{transform:translateY(-2px);box-shadow:0 14px 24px -18px rgba(0,0,0,.55)}
+.warriors-public-events-button{display:inline-block;padding:.58rem .95rem;border-radius:10px;background:linear-gradient(180deg,#ffd866 0%,#ffcc33 100%);color:#11161d;text-decoration:none;font-weight:800;border:1px solid #c99d1e;box-shadow:0 7px 16px rgba(0,0,0,.14)}
+.warriors-public-events-button.alt{background:linear-gradient(180deg,#1c2532 0%,#11161d 100%);color:#fff;border-color:#11161d}
+.warriors-public-events-grid{display:grid;gap:.86rem;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.warriors-public-events-card{position:relative;border:1px solid #d9c8a0;border-radius:14px;background:linear-gradient(180deg,#fffdf8 0%,#f4ecdc 100%);padding:.92rem;box-shadow:0 10px 20px -16px rgba(0,0,0,.45);transition:transform .16s ease,box-shadow .16s ease}
+.warriors-public-events-card:hover{transform:translateY(-2px);box-shadow:0 16px 28px -18px rgba(0,0,0,.55)}
 .warriors-public-events-card:focus-within{outline:2px solid #ffcc33;outline-offset:2px}
 .warriors-public-events-stretched-link{position:absolute;inset:0;border-radius:14px;z-index:1}
 .warriors-public-events-card h3,.warriors-public-events-card p{position:relative;z-index:2}
-.warriors-public-events-card h3{margin:0 0 .45rem;color:#11161d;font-size:1.05rem}
+.warriors-public-events-card h3{margin:0 0 .45rem;color:#10141b;font-size:1.08rem;line-height:1.3}
 .warriors-public-events-meta{margin:0 0 .25rem;color:#8d670f;font-weight:800}
 .warriors-public-events-location{margin:0 0 .2rem;color:#38414e;font-size:.95rem}
 .warriors-public-events-type{margin:0 0 .4rem;color:#1c232d;font-weight:700}
-.warriors-public-events-open{margin:.55rem 0 0;font-weight:800;color:#0d4a74;text-decoration:underline}
+.warriors-public-events-open{margin:.58rem 0 0;font-weight:900;color:#0d4a74;text-decoration:underline}
+.warriors-public-events-open:after{content:\"  ->\"}
 .warriors-public-events-link{font-weight:700;color:#0d4a74;text-decoration:underline}
 .warriors-public-events-map-link{position:relative;z-index:3}
 ';
