@@ -1,0 +1,262 @@
+/*
+Theme Name: Warriors Modern
+Theme URI: https://pghwarriorhockey.us
+Author: Warriors HQ
+Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
+Version: 1.0.0
+Requires at least: 6.0
+Tested up to: 6.9
+Requires PHP: 7.4
+Text Domain: warriors-modern
+*/
+
+:root {
+  --wm-bg: #efece4;
+  --wm-surface: #f7f4ed;
+  --wm-surface-soft: #fbf9f3;
+  --wm-border: #cdbb98;
+  --wm-ink: #181d25;
+  --wm-muted: #3f4856;
+  --wm-link: #1b4f79;
+  --wm-gold: #d3a330;
+  --wm-black: #0f1722;
+  --wm-radius: 18px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--wm-ink);
+  background: radial-gradient(circle at 8% 0%, #f7f2e7 0%, var(--wm-bg) 55%, #e8e2d6 100%);
+  line-height: 1.45;
+}
+
+a { color: var(--wm-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wm-shell {
+  width: min(1220px, calc(100% - 2rem));
+  margin: 0 auto;
+}
+
+.wm-topbar {
+  height: 7px;
+  background: linear-gradient(90deg, var(--wm-black) 0 45%, var(--wm-gold) 45% 100%);
+}
+
+.wm-header {
+  background: #f6f1e5;
+  border-bottom: 1px solid #d4c4a3;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.wm-header-inner {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 86px;
+}
+
+.wm-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .7rem;
+  color: var(--wm-ink);
+}
+
+.wm-brand img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.wm-brand-title {
+  font-family: "Merriweather", Georgia, serif;
+  font-weight: 700;
+  font-size: clamp(1.2rem, 2.3vw, 2.4rem);
+  line-height: 1.1;
+}
+
+.wm-brand-sub {
+  display: block;
+  margin-top: .2rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .75rem;
+  color: #4f5867;
+  font-weight: 700;
+}
+
+.wm-nav ul {
+  list-style: none;
+  display: flex;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  font-weight: 700;
+}
+
+.wm-nav a { color: var(--wm-ink); }
+.wm-nav .current-menu-item > a,
+.wm-nav .current_page_item > a { color: var(--wm-link); }
+
+.wm-actions {
+  display: flex;
+  gap: .55rem;
+  align-items: center;
+}
+
+.wm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  padding: .58rem .95rem;
+  font-weight: 800;
+  line-height: 1.15;
+  transition: transform .14s ease;
+}
+
+.wm-btn:hover { transform: translateY(-1px); text-decoration: none; }
+.wm-btn-gold { background: var(--wm-gold); color: #11141a; }
+.wm-btn-dark { background: var(--wm-black); color: #fff; }
+.wm-btn-ghost { border-color: var(--wm-link); color: var(--wm-link); background: transparent; }
+
+.wm-main {
+  padding: 1.4rem 0 3rem;
+}
+
+.wm-card {
+  background: linear-gradient(180deg, var(--wm-surface) 0%, var(--wm-surface-soft) 100%);
+  border: 1px solid var(--wm-border);
+  border-radius: var(--wm-radius);
+  box-shadow: 0 12px 30px rgba(20, 25, 33, .06);
+}
+
+.wm-home-grid {
+  display: grid;
+  grid-template-columns: 1.35fr .95fr;
+  gap: 1rem;
+}
+
+.wm-hero {
+  padding: 1.2rem;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(211,163,48,.24) 0%, rgba(211,163,48,0) 34%),
+    linear-gradient(180deg, #f6f1e5 0%, #f3ecde 100%);
+}
+
+.wm-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #4e5766;
+  font-size: .8rem;
+  font-weight: 800;
+}
+
+.wm-hero h1 {
+  margin: .35rem 0 .65rem;
+  font-size: clamp(2rem, 4.8vw, 4rem);
+  font-family: "Merriweather", Georgia, serif;
+  line-height: 1.03;
+}
+
+.wm-hero p { margin: 0 0 .85rem; font-size: 1.18rem; color: #2e3744; }
+
+.wm-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+  margin: .9rem 0;
+}
+
+.wm-stat {
+  border: 1px solid var(--wm-border);
+  border-radius: 14px;
+  background: #f8f6f0;
+  padding: .75rem;
+}
+.wm-stat span { display: block; text-transform: uppercase; font-size: .76rem; color: #515b6b; font-weight: 800; letter-spacing: .06em; }
+.wm-stat strong { font-size: 1.75rem; font-family: "Merriweather", Georgia, serif; }
+
+.wm-cta-row { display: flex; gap: .6rem; flex-wrap: wrap; }
+
+.wm-support {
+  padding: 1rem 1.1rem;
+}
+
+.wm-support h2 {
+  margin: .1rem 0 .55rem;
+  font-size: clamp(1.55rem, 2.9vw, 2.4rem);
+  font-family: "Merriweather", Georgia, serif;
+}
+
+.wm-support ul { margin: .45rem 0 .8rem 1rem; color: #2c3643; }
+.wm-support li { margin-bottom: .33rem; }
+
+.wm-section {
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.wm-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: .75rem;
+}
+
+.wm-section h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.3vw, 2rem);
+  font-family: "Merriweather", Georgia, serif;
+}
+
+.wm-event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: .7rem;
+}
+
+.wm-event {
+  border: 1px solid var(--wm-border);
+  border-radius: 14px;
+  padding: .8rem;
+  background: #f5f2eb;
+}
+
+.wm-event h4 { margin: 0 0 .4rem; font-size: 1.12rem; }
+.wm-event p { margin: 0 0 .33rem; color: #2f3947; }
+
+.wm-page {
+  padding: 1.15rem;
+}
+
+.wm-page h1 {
+  margin-top: .2rem;
+  margin-bottom: .65rem;
+  font-family: "Merriweather", Georgia, serif;
+  font-size: clamp(1.9rem, 3.8vw, 3rem);
+}
+
+.wm-footer {
+  border-top: 1px solid #d9ccb0;
+  margin-top: 2rem;
+  padding: 1rem 0 1.8rem;
+  color: #4f5867;
+  font-size: .95rem;
+}
+
+@media (max-width: 980px) {
+  .wm-header-inner { flex-wrap: wrap; align-items: flex-start; padding: .65rem 0; }
+  .wm-nav { width: 100%; order: 3; }
+  .wm-nav ul { flex-wrap: wrap; gap: .7rem; }
+  .wm-home-grid { grid-template-columns: 1fr; }
+}

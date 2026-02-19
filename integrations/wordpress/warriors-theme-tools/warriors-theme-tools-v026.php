@@ -37,6 +37,10 @@ function warriors_theme_tools_sanitize($input) {
 }
 
 function warriors_theme_tools_enqueue_assets() {
+    if (wp_get_theme()->get_stylesheet() === 'warriors-modern') {
+        return;
+    }
+
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
 
@@ -744,6 +748,10 @@ function warriors_theme_tools_normalize_menu_url($item, $hq_base_url) {
 }
 
 function warriors_theme_tools_patch_menu_links($items) {
+    if (wp_get_theme()->get_stylesheet() === 'warriors-modern') {
+        return $items;
+    }
+
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
     $is_logged_in = is_user_logged_in();
@@ -928,6 +936,10 @@ function warriors_theme_tools_legacy_about_shortcode() {
 add_shortcode('warriors_legacy_about', 'warriors_theme_tools_legacy_about_shortcode');
 
 function warriors_theme_tools_inject_frontpage_content($content) {
+    if (wp_get_theme()->get_stylesheet() === 'warriors-modern') {
+        return $content;
+    }
+
     if (is_admin() || !is_main_query() || !is_singular()) {
         return $content;
     }

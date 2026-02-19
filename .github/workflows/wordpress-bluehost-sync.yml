@@ -8,6 +8,7 @@ on:
       - "integrations/wordpress/warriors-public-events/**"
       - "integrations/wordpress/warriors-theme-tools.php"
       - "integrations/wordpress/warriors-theme-tools/**"
+      - "integrations/wordpress/themes/**"
       - ".github/workflows/wordpress-bluehost-sync.yml"
   workflow_dispatch:
 
@@ -19,6 +20,7 @@ jobs:
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
       BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'wp-content/plugins/' }}
+      BLUEHOST_WP_THEME_DIR: ${{ vars.BLUEHOST_WP_THEME_DIR != '' && vars.BLUEHOST_WP_THEME_DIR || 'wp-content/themes/' }}
 
     steps:
       - name: Checkout
@@ -63,6 +65,36 @@ jobs:
           echo "DEPLOY_PLUGIN_DIR=/$DEPLOY_DIR" >> "$GITHUB_ENV"
           echo "Using DEPLOY_PLUGIN_DIR=/$DEPLOY_DIR"
 
+      - name: Resolve WordPress theme directory
+        run: |
+          if [ -z "$BLUEHOST_WP_THEME_DIR" ]; then
+            echo "Missing BLUEHOST_WP_THEME_DIR and no fallback resolved" >&2
+            exit 1
+          fi
+
+          DEPLOY_DIR="$BLUEHOST_WP_THEME_DIR"
+          DEPLOY_DIR="${DEPLOY_DIR#./}"
+          DEPLOY_DIR="${DEPLOY_DIR%/}/"
+
+          DEPLOY_DIR="${DEPLOY_DIR#/home2/*/public_html/}"
+          DEPLOY_DIR="${DEPLOY_DIR#/home/*/public_html/}"
+          DEPLOY_DIR="${DEPLOY_DIR#/public_html/}"
+
+          DEPLOY_DIR="${DEPLOY_DIR//public_html\/wp-content\/public_html\/wp-content\//wp-content/}"
+          DEPLOY_DIR="${DEPLOY_DIR//wp-content\/wp-content\//wp-content/}"
+
+          case "$DEPLOY_DIR" in
+            wp-content/themes/*)
+              ;;
+            *)
+              echo "Resolved theme dir must be under wp-content/themes/. Got: $DEPLOY_DIR" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "DEPLOY_THEME_DIR=/$DEPLOY_DIR" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_THEME_DIR=/$DEPLOY_DIR"
+
       - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -73,6 +105,26 @@ jobs:
           port: 21
           local-dir: integrations/wordpress/
           server-dir: ${{ env.DEPLOY_PLUGIN_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/README.md
+            **/*.zip
+            **/.DS_Store
+            themes/**
+          dangerous-clean-slate: false
+
+      - name: Upload WordPress themes
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.BLUEHOST_HOST }}
+          username: ${{ env.BLUEHOST_USER }}
+          password: ${{ env.BLUEHOST_PASS }}
+          protocol: ftp
+          port: 21
+          local-dir: integrations/wordpress/themes/
+          server-dir: ${{ env.DEPLOY_THEME_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
