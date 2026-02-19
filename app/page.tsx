@@ -7,9 +7,19 @@ import { readStore } from "@/lib/hq/store";
 
 export default async function HomePage() {
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
-  const showcase = await getHomepageShowcasePhotos(12);
-  const user = await getCurrentUser();
-  const [events, store] = await Promise.all([getAllEvents(), readStore()]);
+  const [showcaseResult, userResult, eventsResult, storeResult] = await Promise.allSettled([
+    getHomepageShowcasePhotos(12),
+    getCurrentUser(),
+    getAllEvents(),
+    readStore()
+  ]);
+  const showcase = showcaseResult.status === "fulfilled" ? showcaseResult.value : [];
+  const user = userResult.status === "fulfilled" ? userResult.value : null;
+  const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];
+  const store =
+    storeResult.status === "fulfilled"
+      ? storeResult.value
+      : { users: [], sessions: [], checkIns: [] };
   const now = Date.now();
   const upcomingEvents = events
     .filter((event) => new Date(event.date).getTime() >= now)

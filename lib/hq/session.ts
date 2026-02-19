@@ -66,40 +66,44 @@ export async function getCurrentUser() {
     return null;
   }
 
-  if (useDatabaseBackend()) {
-    const session = await getPrismaClient().session.findUnique({
-      where: { token },
-      include: { user: true }
-    });
+  try {
+    if (useDatabaseBackend()) {
+      const session = await getPrismaClient().session.findUnique({
+        where: { token },
+        include: { user: true }
+      });
 
-    if (!session || session.expiresAt <= new Date()) {
+      if (!session || session.expiresAt <= new Date()) {
+        return null;
+      }
+
+      return {
+        id: session.user.id,
+        fullName: session.user.fullName,
+        email: session.user.email,
+        passwordHash: session.user.passwordHash,
+        requestedPosition: session.user.requestedPosition ?? undefined,
+        phone: session.user.phone ?? undefined,
+        role: session.user.role as "public" | "player" | "admin",
+        status: session.user.status as "pending" | "approved" | "rejected",
+        activityStatus: (session.user.activityStatus as "active" | "inactive") ?? "active",
+        rosterId: session.user.rosterId ?? undefined,
+        jerseyNumber: session.user.jerseyNumber ?? undefined,
+        equipmentSizes: (session.user.equipmentSizes as Record<string, string>) ?? {},
+        createdAt: session.user.createdAt.toISOString(),
+        updatedAt: session.user.updatedAt.toISOString()
+      };
+    }
+
+    const store = await readStore();
+    const session = store.sessions.find((entry) => entry.token === token);
+
+    if (!session || new Date(session.expiresAt) <= new Date()) {
       return null;
     }
 
-    return {
-      id: session.user.id,
-      fullName: session.user.fullName,
-      email: session.user.email,
-      passwordHash: session.user.passwordHash,
-      requestedPosition: session.user.requestedPosition ?? undefined,
-      phone: session.user.phone ?? undefined,
-      role: session.user.role as "public" | "player" | "admin",
-      status: session.user.status as "pending" | "approved" | "rejected",
-      activityStatus: (session.user.activityStatus as "active" | "inactive") ?? "active",
-      rosterId: session.user.rosterId ?? undefined,
-      jerseyNumber: session.user.jerseyNumber ?? undefined,
-      equipmentSizes: (session.user.equipmentSizes as Record<string, string>) ?? {},
-      createdAt: session.user.createdAt.toISOString(),
-      updatedAt: session.user.updatedAt.toISOString()
-    };
-  }
-
-  const store = await readStore();
-  const session = store.sessions.find((entry) => entry.token === token);
-
-  if (!session || new Date(session.expiresAt) <= new Date()) {
+    return store.users.find((user) => user.id === session.userId) ?? null;
+  } catch {
     return null;
   }
-
-  return store.users.find((user) => user.id === session.userId) ?? null;
 }
