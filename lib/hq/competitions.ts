@@ -132,6 +132,24 @@ export async function listCompetitions() {
       teams: {
         include: {
           games: {
+            include: {
+              scorekeeperUser: {
+                select: {
+                  id: true,
+                  fullName: true
+                }
+              },
+              scorekeeperStaff: {
+                select: {
+                  id: true,
+                  fullName: true
+                }
+              },
+              events: {
+                orderBy: { createdAt: "desc" },
+                take: 20
+              }
+            },
             orderBy: { startsAt: "asc" }
           },
           members: {
@@ -161,6 +179,8 @@ export async function addCompetitionGameForTeam(input: {
   startsAt?: string;
   location?: string;
   notes?: string;
+  scorekeeperUserId?: string;
+  scorekeeperStaffId?: string;
 }) {
   ensureDbMode();
 
@@ -179,7 +199,63 @@ export async function addCompetitionGameForTeam(input: {
       opponent: input.opponent,
       startsAt: parseOptionalDate(input.startsAt),
       location: input.location,
-      notes: input.notes
+      notes: input.notes,
+      scorekeeperUserId: input.scorekeeperUserId || null,
+      scorekeeperStaffId: input.scorekeeperStaffId || null
+    }
+  });
+}
+
+export async function assignGameScorekeeper(input: {
+  gameId: string;
+  scorekeeperType: "none" | "player" | "staff";
+  scorekeeperUserId?: string;
+  scorekeeperStaffId?: string;
+}) {
+  ensureDbMode();
+
+  if (input.scorekeeperType === "player") {
+    if (!input.scorekeeperUserId) {
+      throw new Error("Select a player to assign as scorekeeper.");
+    }
+
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.scorekeeperUserId },
+      select: { role: true, status: true }
+    });
+
+    if (!user || (user.role !== "player" && user.role !== "admin") || user.status !== "approved") {
+      throw new Error("Scorekeeper must be an approved player or admin.");
+    }
+
+    return getPrismaClient().competitionGame.update({
+      where: { id: input.gameId },
+      data: {
+        scorekeeperUserId: input.scorekeeperUserId,
+        scorekeeperStaffId: null
+      }
+    });
+  }
+
+  if (input.scorekeeperType === "staff") {
+    if (!input.scorekeeperStaffId) {
+      throw new Error("Select a staff member to assign as scorekeeper.");
+    }
+
+    return getPrismaClient().competitionGame.update({
+      where: { id: input.gameId },
+      data: {
+        scorekeeperStaffId: input.scorekeeperStaffId,
+        scorekeeperUserId: null
+      }
+    });
+  }
+
+  return getPrismaClient().competitionGame.update({
+    where: { id: input.gameId },
+    data: {
+      scorekeeperStaffId: null,
+      scorekeeperUserId: null
     }
   });
 }

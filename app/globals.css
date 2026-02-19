@@ -91,6 +91,14 @@ body {
   border-color: var(--gold);
 }
 
+.nav-public-link a {
+  color: #4a3a12;
+}
+
+.nav-hq-link a {
+  color: #0f4f82;
+}
+
 .social-list {
   list-style: none;
   margin: 0;

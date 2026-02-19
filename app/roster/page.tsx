@@ -21,6 +21,30 @@ export default async function RosterPage() {
                 {player.fullName} {player.jerseyNumber ? `| #${player.jerseyNumber}` : ""} {player.status === "inactive" ? "(Inactive)" : ""}
               </summary>
               <div className="stack">
+                {player.photos.length > 0 && (
+                  <div className="stack">
+                    <img
+                      src={(player.photos.find((photo) => photo.isPrimary) || player.photos[0]).imageUrl}
+                      alt={`${player.fullName} primary`}
+                      style={{ maxWidth: "320px", width: "100%", height: "auto", borderRadius: "10px" }}
+                    />
+                    {player.photos.length > 1 && (
+                      <div className="stack">
+                        <p className="muted">Photo history</p>
+                        {player.photos.slice(1).map((photo) => (
+                          <div key={photo.id} className="event-card">
+                            <img
+                              src={photo.imageUrl}
+                              alt={`${player.fullName} archive`}
+                              style={{ maxWidth: "220px", width: "100%", height: "auto", borderRadius: "8px" }}
+                            />
+                            {photo.caption && <p>{photo.caption}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="jersey-render">
                   <div className="jersey-render-inner">
                     <span className="jersey-number">{player.jerseyNumber ?? "--"}</span>

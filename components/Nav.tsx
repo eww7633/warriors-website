@@ -5,13 +5,18 @@ import { getCurrentUser } from "@/lib/hq/session";
 
 export async function Nav() {
   const user = await getCurrentUser();
-  const links = [
-    ["About Us", "/history"],
-    ["Roster", "/roster"],
-    ["Partners", "/partners"],
-    ["Join", "/register"],
+  const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
+  const publicLinks = [
+    ["Main Site", `${publicBase}/`],
+    ["About Us", `${publicBase}/about`],
+    ["Donate", `${publicBase}/donate`],
+    ["Partners", `${publicBase}/partners`],
+    ["Public Events", `${publicBase}/events`]
+  ] as const;
+  const hqLinks = [
     ["Calendar", "/calendar"],
     ["Games", "/games"],
+    ["Roster", "/roster"],
     ["Seasons", "/seasons"]
   ] as const;
 
@@ -35,8 +40,13 @@ export async function Nav() {
 
       <nav className="main-nav" aria-label="Primary">
         <ul className="nav-list">
-          {links.map(([label, href]) => (
-            <li key={href}>
+          {publicLinks.map(([label, href]) => (
+            <li key={href} className="nav-public-link">
+              <a href={href}>{label}</a>
+            </li>
+          ))}
+          {hqLinks.map(([label, href]) => (
+            <li key={href} className="nav-hq-link">
               <Link href={href}>{label}</Link>
             </li>
           ))}
@@ -56,6 +66,9 @@ export async function Nav() {
       <div className="auth-actions">
         {user ? (
           <>
+            <a className="button alt" href={publicBase}>
+              Main Website
+            </a>
             <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
               {user.role === "admin" ? "Warrior HQ" : "My Account"}
             </Link>
@@ -65,11 +78,14 @@ export async function Nav() {
           </>
         ) : (
           <>
+            <a className="button alt" href={publicBase}>
+              Main Website
+            </a>
             <Link className="button ghost" href="/register">
-              Register
+              Player Register
             </Link>
             <Link className="button" href="/login">
-              Log in
+              Player Log in
             </Link>
           </>
         )}

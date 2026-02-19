@@ -19,6 +19,10 @@ export async function POST(request: Request) {
   const published = String(formData.get("published") ?? "").trim() === "on";
   const locationPublic = String(formData.get("locationPublic") ?? "").trim();
   const locationPrivate = String(formData.get("locationPrivate") ?? "").trim();
+  const locationPublicMapUrl = String(formData.get("locationPublicMapUrl") ?? "").trim();
+  const locationPrivateMapUrl = String(formData.get("locationPrivateMapUrl") ?? "").trim();
+  const eventTypeId = String(formData.get("eventTypeId") ?? "").trim();
+  const managerUserId = String(formData.get("managerUserId") ?? "").trim();
 
   if (!eventId || !title || !startsAt || !publicDetails) {
     return NextResponse.redirect(new URL("/admin?section=events&error=missing_event_fields", request.url), 303);
@@ -38,7 +42,11 @@ export async function POST(request: Request) {
       visibility: visibility as "public" | "player_only" | "internal",
       published,
       locationPublic,
-      locationPrivate
+      locationPrivate,
+      locationPublicMapUrl,
+      locationPrivateMapUrl,
+      eventTypeId: eventTypeId || undefined,
+      managerUserId: managerUserId || undefined
     });
 
     return NextResponse.redirect(new URL("/admin?section=events&eventupdated=1", request.url), 303);

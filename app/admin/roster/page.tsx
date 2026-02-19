@@ -208,6 +208,26 @@ export default async function CentralRosterPage({
                     </label>
                     <button className="button" type="submit">Save</button>
                   </form>
+                  <form className="grid-form" action="/api/admin/roster/photos/add" method="post">
+                    <input type="hidden" name="userId" value={player.id} />
+                    <input name="imageUrl" placeholder="Photo URL (https://...)" required />
+                    <input name="caption" placeholder="Caption (optional)" />
+                    <label>
+                      <input type="checkbox" name="makePrimary" defaultChecked /> Set as primary photo
+                    </label>
+                    <button className="button ghost" type="submit">Add Photo</button>
+                  </form>
+                  {player.photos.length > 0 && (
+                    <div className="stack">
+                      <p className="muted">Photo history ({player.photos.length})</p>
+                      {player.photos.slice(0, 4).map((photo) => (
+                        <div key={photo.id} className="event-card">
+                          <img src={photo.imageUrl} alt={player.fullName} style={{ maxWidth: "160px", height: "auto", borderRadius: "8px" }} />
+                          <p>{photo.isPrimary ? "Primary" : "Archived"} {photo.caption ? `| ${photo.caption}` : ""}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <form className="grid-form" action="/api/admin/roster/delete" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <button className="button alt" type="submit">Delete Player</button>

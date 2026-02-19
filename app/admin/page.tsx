@@ -4,7 +4,7 @@ import { rosters } from "@/lib/mockData";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
 import { readStore } from "@/lib/hq/store";
-import { getAllEvents } from "@/lib/hq/events";
+import { getAllEvents, listEventTypes } from "@/lib/hq/events";
 import {
   competitionTypeLabel,
   listCompetitions,
@@ -40,9 +40,11 @@ export default async function AdminPage({
     competition?: string;
     assignment?: string;
     game?: string;
+    scorekeeper?: string;
     data?: string;
     contact?: string;
     userrole?: string;
+    eventtype?: string;
     errorDetail?: string;
   };
 }) {
@@ -61,9 +63,10 @@ export default async function AdminPage({
     ? (query.section as Section)
     : "overview";
 
-  const [store, allEvents, competitions, eligiblePlayers, sportsData] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData] = await Promise.all([
     readStore(),
     getAllEvents(),
+    listEventTypes(),
     listCompetitions(),
     listEligiblePlayers(),
     listSportsData()
@@ -101,6 +104,7 @@ export default async function AdminPage({
     query.competition === "created" ? "Competition created." : null,
     query.assignment === "saved" ? "Player assigned to competition team." : null,
     query.game === "created" ? "Competition game created." : null,
+    query.scorekeeper === "saved" ? "Game scorekeeper updated." : null,
     query.data === "season_created" ? "Season created." : null,
     query.data === "team_created" ? "Team created." : null,
     query.data === "venue_created" ? "Venue created." : null,
@@ -110,7 +114,8 @@ export default async function AdminPage({
     query.contact === "invited" ? "Contact marked as invited." : null,
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
-    query.userrole === "updated" ? "User role updated." : null
+    query.userrole === "updated" ? "User role updated." : null,
+    query.eventtype === "created" ? "Event type created." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -453,6 +458,36 @@ export default async function AdminPage({
                             </label>
                             <input name="location" placeholder="Location" />
                             <input name="notes" placeholder="Game notes" />
+                            <label>
+                              Scorekeeper assignment
+                              <select name="scorekeeperType" defaultValue="none">
+                                <option value="none">None</option>
+                                <option value="player">Player/Admin account</option>
+                                <option value="staff">Staff profile</option>
+                              </select>
+                            </label>
+                            <label>
+                              Scorekeeper player/admin
+                              <select name="scorekeeperUserId" defaultValue="">
+                                <option value="">No user assignment</option>
+                                {eligiblePlayers.map((player) => (
+                                  <option key={player.id} value={player.id}>
+                                    {player.fullName}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Scorekeeper staff
+                              <select name="scorekeeperStaffId" defaultValue="">
+                                <option value="">No staff assignment</option>
+                                {sportsData.staff.map((staff) => (
+                                  <option key={staff.id} value={staff.id}>
+                                    {staff.fullName} ({staff.jobTitle})
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                             <button className="button alt" type="submit">Add Team Game</button>
                           </form>
 
@@ -465,7 +500,43 @@ export default async function AdminPage({
                                   <strong>vs {game.opponent}</strong>
                                   <p>{game.startsAt ? new Date(game.startsAt).toLocaleString() : "No date"}</p>
                                   <p>{game.location || "No location"}</p>
-                                  <p>Status: {game.status}</p>
+                                  <p>Status: {game.liveStatus || game.status} | Score: {game.warriorsScore} - {game.opponentScore} | {game.period}{game.clock ? ` ${game.clock}` : ""}</p>
+                                  <p>
+                                    Scorekeeper: {game.scorekeeperUser?.fullName || game.scorekeeperStaff?.fullName || "Unassigned"}
+                                  </p>
+                                  <form className="grid-form" action="/api/admin/competitions/assign-scorekeeper" method="post">
+                                    <input type="hidden" name="gameId" value={game.id} />
+                                    <label>
+                                      Assignment type
+                                      <select name="scorekeeperType" defaultValue={game.scorekeeperUser ? "player" : game.scorekeeperStaff ? "staff" : "none"}>
+                                        <option value="none">None</option>
+                                        <option value="player">Player/Admin account</option>
+                                        <option value="staff">Staff profile</option>
+                                      </select>
+                                    </label>
+                                    <label>
+                                      Player/Admin
+                                      <select name="scorekeeperUserId" defaultValue={game.scorekeeperUser?.id || ""}>
+                                        <option value="">No user assignment</option>
+                                        {eligiblePlayers.map((player) => (
+                                          <option key={player.id} value={player.id}>{player.fullName}</option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <label>
+                                      Staff
+                                      <select name="scorekeeperStaffId" defaultValue={game.scorekeeperStaff?.id || ""}>
+                                        <option value="">No staff assignment</option>
+                                        {sportsData.staff.map((staff) => (
+                                          <option key={staff.id} value={staff.id}>{staff.fullName} ({staff.jobTitle})</option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                    <button className="button ghost" type="submit">Update Scorekeeper</button>
+                                  </form>
+                                  <p>
+                                    <Link href="/games">Open live scorekeeping console</Link>
+                                  </p>
                                 </div>
                               ))
                             )}
@@ -591,6 +662,20 @@ export default async function AdminPage({
       {section === "events" && (
         <div className="stack">
           <details className="card admin-disclosure" open>
+            <summary>Event Types</summary>
+            <p className="muted">
+              Add event categories that can be reused in scheduling and reporting.
+            </p>
+            <form className="grid-form" action="/api/admin/events/type" method="post">
+              <input name="name" placeholder="Practice / Scrimmage / Volunteer / Off-Ice / Custom" required />
+              <button className="button" type="submit">Create Event Type</button>
+            </form>
+            <p className="muted">
+              Current types: {eventTypes.length > 0 ? eventTypes.map((entry) => entry.name).join(", ") : "None yet"}
+            </p>
+          </details>
+
+          <details className="card admin-disclosure" open>
             <summary>Create Event</summary>
             <h3>Publish Event (WordPress feed source)</h3>
             <form className="grid-form" action="/api/admin/events" method="post">
@@ -601,6 +686,26 @@ export default async function AdminPage({
               </label>
               <input name="locationPublic" placeholder="Public location" />
               <input name="locationPrivate" placeholder="Private location (players/admin)" />
+              <input name="locationPublicMapUrl" placeholder="Public Google Maps URL (optional)" />
+              <input name="locationPrivateMapUrl" placeholder="Private Google Maps URL (optional)" />
+              <label>
+                Event type
+                <select name="eventTypeId" defaultValue="">
+                  <option value="">Uncategorized</option>
+                  {eventTypes.map((eventType) => (
+                    <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Game manager
+                <select name="managerUserId" defaultValue="">
+                  <option value="">No manager assigned</option>
+                  {approvedPlayers.map((member) => (
+                    <option key={member.id} value={member.id}>{member.fullName}</option>
+                  ))}
+                </select>
+              </label>
               <label>
                 Public details
                 <input name="publicDetails" placeholder="Public summary" required />
@@ -631,6 +736,7 @@ export default async function AdminPage({
               {allEvents.map((event) => (
                 <details key={event.id} className="event-card admin-disclosure">
                   <summary>{event.title} | {new Date(event.date).toLocaleString()}</summary>
+                  <p>Type: {event.eventTypeName || "Uncategorized"} | Manager: {event.managerName || "Unassigned"}</p>
                   <form className="grid-form" action="/api/admin/events/update" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <input name="title" defaultValue={event.title} required />
@@ -645,6 +751,26 @@ export default async function AdminPage({
                     </label>
                     <input name="locationPublic" defaultValue={event.locationPublic || ""} placeholder="Public location" />
                     <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
+                    <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public Google Maps URL (optional)" />
+                    <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private Google Maps URL (optional)" />
+                    <label>
+                      Event type
+                      <select name="eventTypeId" defaultValue={event.eventTypeId || ""}>
+                        <option value="">Uncategorized</option>
+                        {eventTypes.map((eventType) => (
+                          <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Game manager
+                      <select name="managerUserId" defaultValue={event.managerUserId || ""}>
+                        <option value="">No manager assigned</option>
+                        {approvedPlayers.map((member) => (
+                          <option key={member.id} value={member.id}>{member.fullName}</option>
+                        ))}
+                      </select>
+                    </label>
                     <label>
                       Public details
                       <input name="publicDetails" defaultValue={event.publicDetails} required />

@@ -104,6 +104,30 @@ Optional shortcode attributes:
 [warriors_public_events feed_url="https://hq.pghwarriorhockey.us/api/public/events" limit="8" title="Upcoming Events"]
 ```
 
+## Deployment automation
+
+### 1) Vercel app deploy on push
+- Keep your GitHub repo connected to Vercel.
+- Any push to `main` deploys HQ automatically.
+
+### 2) WordPress plugin sync on push
+- Workflow file: `/.github/workflows/wordpress-bluehost-sync.yml`
+- This uploads:
+  - `integrations/wordpress/warriors-public-events/*` -> `/plugins/warriors-public-events/`
+  - `integrations/wordpress/warriors-theme-tools/*` -> `/plugins/warriors-theme-tools/`
+
+Required GitHub repo secrets:
+- `BLUEHOST_HOST` = `50.87.184.167`
+- `BLUEHOST_USER` = FTP username (example: `codexftp@nqj.lxn.mybluehost.me`)
+- `BLUEHOST_PASS` = FTP password
+
+### 3) One-command release flow
+Use:
+```bash
+npm run release:main -- "your commit message"
+```
+This runs build, commit, and push to `main`.
+
 ## Wix migration (public site scrape)
 To capture public pages/content/images from your current Wix site:
 

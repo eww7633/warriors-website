@@ -28,6 +28,11 @@ model User {
   reservations     EventReservation[]
   competitionMemberships CompetitionTeamMember[]
   contactLead      ContactLead?
+  managedEvents    Event[]   @relation("EventManager")
+  createdCheckInTokens EventCheckInToken[] @relation("EventTokenCreator")
+  scorekeepingGames CompetitionGame[] @relation("GameScorekeeperUser")
+  recordedGameEvents CompetitionGameEvent[] @relation("GameEventRecorder")
+  photos           PlayerPhoto[]
   @@index([activityStatus])
   @@index([rosterId])
   @@index([jerseyNumber])
@@ -72,20 +77,71 @@ model Event {
   published       Boolean  @default(true)
   locationPublic  String?
   locationPrivate String?
+  locationPublicMapUrl String?
+  locationPrivateMapUrl String?
   seasonId        String?
   venueId         String?
+  eventTypeId     String?
+  managerUserId   String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   season          Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
   venue           Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  eventType       EventType? @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
+  managerUser     User?    @relation("EventManager", fields: [managerUserId], references: [id], onDelete: SetNull)
   reservations    EventReservation[]
+  checkInTokens   EventCheckInToken[]
 
   @@index([published])
   @@index([startsAt])
   @@index([visibility])
   @@index([seasonId])
   @@index([venueId])
+  @@index([eventTypeId])
+  @@index([managerUserId])
+}
+
+model PlayerPhoto {
+  id          String   @id @default(cuid())
+  userId      String
+  imageUrl    String
+  caption     String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isPrimary])
+}
+
+model EventType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events      Event[]
+
+  @@index([isActive])
+}
+
+model EventCheckInToken {
+  id              String   @id @default(cuid())
+  token           String   @unique
+  eventId         String
+  createdByUserId String
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdByUser   User     @relation("EventTokenCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([expiresAt])
 }
 
 model EventReservation {
@@ -194,6 +250,8 @@ model StaffProfile {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  scorekeepingGames CompetitionGame[] @relation("GameScorekeeperStaff")
+
   @@index([jobTitle])
   @@index([isActive])
 }
@@ -273,14 +331,45 @@ model CompetitionGame {
   startsAt      DateTime?
   location      String?
   status        String   @default("scheduled")
+  liveStatus    String   @default("scheduled")
+  warriorsScore Int      @default(0)
+  opponentScore Int      @default(0)
+  period        String   @default("P1")
+  clock         String?
+  scorekeeperUserId String?
+  scorekeeperStaffId String?
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   competition   Competition     @relation(fields: [competitionId], references: [id], onDelete: Cascade)
   team          CompetitionTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  scorekeeperUser User? @relation("GameScorekeeperUser", fields: [scorekeeperUserId], references: [id], onDelete: SetNull)
+  scorekeeperStaff StaffProfile? @relation("GameScorekeeperStaff", fields: [scorekeeperStaffId], references: [id], onDelete: SetNull)
+  events        CompetitionGameEvent[]
 
   @@index([competitionId])
   @@index([teamId])
   @@index([startsAt])
+  @@index([scorekeeperUserId])
+  @@index([scorekeeperStaffId])
+  @@index([liveStatus])
+}
+
+model CompetitionGameEvent {
+  id              String   @id @default(cuid())
+  gameId           String
+  period           String?
+  clock            String?
+  team             String
+  eventType        String
+  note             String?
+  createdByUserId  String
+  createdAt        DateTime @default(now())
+
+  game             CompetitionGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdByUser    User            @relation("GameEventRecorder", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+  @@index([createdAt])
 }

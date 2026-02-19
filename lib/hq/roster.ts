@@ -11,6 +11,13 @@ export type CentralRosterPlayer = {
   rosterId?: string;
   jerseyNumber?: number;
   competitionHistory: string[];
+  photos: Array<{
+    id: string;
+    imageUrl: string;
+    caption?: string;
+    isPrimary: boolean;
+    createdAt: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 };
@@ -36,6 +43,7 @@ export async function listCentralRosterPlayers() {
         rosterId: user.rosterId,
         jerseyNumber: user.jerseyNumber,
         competitionHistory: [],
+        photos: [],
         createdAt: user.createdAt,
         updatedAt: user.updatedAt
       })) satisfies CentralRosterPlayer[];
@@ -55,6 +63,10 @@ export async function listCentralRosterPlayers() {
         },
         orderBy: { createdAt: "desc" }
       }
+      ,
+      photos: {
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }]
+      }
     }
   });
 
@@ -69,6 +81,13 @@ export async function listCentralRosterPlayers() {
     competitionHistory: user.competitionMemberships.map(
       (membership) => `${membership.team.competition.title} - ${membership.team.name}`
     ),
+    photos: user.photos.map((photo) => ({
+      id: photo.id,
+      imageUrl: photo.imageUrl,
+      caption: photo.caption ?? undefined,
+      isPrimary: photo.isPrimary,
+      createdAt: photo.createdAt.toISOString()
+    })),
     createdAt: user.createdAt.toISOString(),
     updatedAt: user.updatedAt.toISOString()
   })) satisfies CentralRosterPlayer[];
@@ -276,4 +295,44 @@ export async function deleteCentralRosterPlayer(userId: string) {
   }
 
   await getPrismaClient().user.delete({ where: { id: userId } });
+}
+
+export async function addPlayerPhoto(input: {
+  userId: string;
+  imageUrl: string;
+  caption?: string;
+  makePrimary?: boolean;
+}) {
+  if (!hasDatabaseUrl()) {
+    throw new Error("Database mode is required for player photo history.");
+  }
+
+  const player = await getPrismaClient().user.findUnique({
+    where: { id: input.userId },
+    select: { role: true }
+  });
+
+  if (!player || player.role !== "player") {
+    throw new Error("Only player accounts support profile photos.");
+  }
+
+  if (input.makePrimary) {
+    await getPrismaClient().playerPhoto.updateMany({
+      where: { userId: input.userId, isPrimary: true },
+      data: { isPrimary: false }
+    });
+  }
+
+  const hasAny = await getPrismaClient().playerPhoto.count({
+    where: { userId: input.userId }
+  });
+
+  return getPrismaClient().playerPhoto.create({
+    data: {
+      userId: input.userId,
+      imageUrl: input.imageUrl,
+      caption: input.caption || null,
+      isPrimary: input.makePrimary || hasAny === 0
+    }
+  });
 }

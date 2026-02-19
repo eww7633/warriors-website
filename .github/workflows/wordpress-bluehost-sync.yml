@@ -1,0 +1,42 @@
+name: WordPress Bluehost Sync
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "integrations/wordpress/warriors-public-events/**"
+      - "integrations/wordpress/warriors-theme-tools/**"
+      - ".github/workflows/wordpress-bluehost-sync.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy-wordpress-assets:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload warriors-public-events plugin
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.BLUEHOST_HOST }}
+          username: ${{ secrets.BLUEHOST_USER }}
+          password: ${{ secrets.BLUEHOST_PASS }}
+          protocol: ftp
+          port: 21
+          local-dir: integrations/wordpress/warriors-public-events/
+          server-dir: /plugins/warriors-public-events/
+          dangerous-clean-slate: false
+
+      - name: Upload warriors-theme-tools plugin
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.BLUEHOST_HOST }}
+          username: ${{ secrets.BLUEHOST_USER }}
+          password: ${{ secrets.BLUEHOST_PASS }}
+          protocol: ftp
+          port: 21
+          local-dir: integrations/wordpress/warriors-theme-tools/
+          server-dir: /plugins/warriors-theme-tools/
+          dangerous-clean-slate: false

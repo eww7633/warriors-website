@@ -14,6 +14,9 @@ export async function POST(request: Request) {
   const startsAt = String(formData.get("startsAt") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const scorekeeperType = String(formData.get("scorekeeperType") ?? "none").trim();
+  const scorekeeperUserId = String(formData.get("scorekeeperUserId") ?? "").trim();
+  const scorekeeperStaffId = String(formData.get("scorekeeperStaffId") ?? "").trim();
 
   if (!teamId || !opponent) {
     return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_game_fields", request.url), 303);
@@ -25,7 +28,9 @@ export async function POST(request: Request) {
       opponent,
       startsAt,
       location,
-      notes
+      notes,
+      scorekeeperUserId: scorekeeperType === "player" ? scorekeeperUserId : undefined,
+      scorekeeperStaffId: scorekeeperType === "staff" ? scorekeeperStaffId : undefined
     });
 
     return NextResponse.redirect(new URL("/admin?section=competitions&game=created", request.url), 303);

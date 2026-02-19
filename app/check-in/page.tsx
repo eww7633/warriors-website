@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCalendarEventsForRole } from "@/lib/hq/events";
 import { getCurrentUser } from "@/lib/hq/session";
 
@@ -25,6 +26,9 @@ export default async function CheckInPage({
     <section className="card">
       <h2>Player Check-In</h2>
       <p>Signed in as {user.fullName}. Submit check-in for active events.</p>
+      <p>
+        Prefer QR? <Link href="/check-in/scan">Open QR scan check-in</Link>.
+      </p>
       {query.saved === "1" && <p className="badge">Check-in recorded.</p>}
       {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       <div className="stack">
