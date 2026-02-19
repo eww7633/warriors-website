@@ -191,8 +191,8 @@ Custom path example:
 npm run import:wix:events -- "migration/wix/exports/my-events-export.csv"
 ```
 
-## Google Photos scrape (public shared links)
-Use this to collect direct image URLs from one or more Google Photos shared pages/albums.
+## Google Photos / Google Drive scrape (public shared links)
+Use this to collect image candidates from one or more Google Photos shared pages or Google Drive shared folders.
 
 Multiple URLs directly:
 ```bash
@@ -207,3 +207,4 @@ npm run import:google:photos -- --file migration/google-photos/urls.txt
 Outputs:
 - `migration/google-photos/manifest.json`
 - `migration/google-photos/images.txt`
+- `migration/google-photos/drive-files.json`

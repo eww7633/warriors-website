@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/siteConfig";
+import { getHomepageShowcasePhotos } from "@/lib/showcase-photos";
 
-export default function HomePage() {
+export default async function HomePage() {
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
+  const showcase = await getHomepageShowcasePhotos(9);
 
   return (
     <section className="grid-home">
@@ -58,6 +60,18 @@ export default function HomePage() {
           HQ is restricted to approved players and Hockey Ops staff. Registration alone does not
           grant roster-protected access until an admin approves and assigns roster status.
         </p>
+      </article>
+
+      <article className="card">
+        <h3>Warriors In Action</h3>
+        <p>Featured directly from your shared Drive media library.</p>
+        <div className="photo-grid">
+          {showcase.map((photo) => (
+            <a key={photo.id} href={photo.viewUrl} target="_blank" rel="noreferrer" className="photo-card">
+              <img src={photo.imageUrl} alt="Warriors action photo" loading="lazy" />
+            </a>
+          ))}
+        </div>
       </article>
     </section>
   );
