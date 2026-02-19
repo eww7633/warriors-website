@@ -83,6 +83,7 @@ export type MemberUser = {
   phone?: string;
   role: Role;
   status: UserStatus;
+  activityStatus: "active" | "inactive";
   rosterId?: string;
   jerseyNumber?: number;
   equipmentSizes: EquipmentSizes;

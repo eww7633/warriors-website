@@ -318,6 +318,18 @@ export default async function AdminPage({
       {section === "players" && (
         <>
           <article className="card">
+            <h3>Central Roster Tools</h3>
+            <p className="muted">
+              Manage active/inactive players, sortable columns, exports, and roster history.
+            </p>
+            <p>
+              <Link className="button ghost" href="/admin/roster">
+                Open Central Roster Manager
+              </Link>
+            </p>
+          </article>
+
+          <article className="card">
             <h3>Pending Registration Requests</h3>
             {pendingUsers.length === 0 ? (
               <p className="muted">No pending requests.</p>

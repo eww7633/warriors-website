@@ -85,6 +85,7 @@ export async function getCurrentUser() {
       phone: session.user.phone ?? undefined,
       role: session.user.role as "public" | "player" | "admin",
       status: session.user.status as "pending" | "approved" | "rejected",
+      activityStatus: (session.user.activityStatus as "active" | "inactive") ?? "active",
       rosterId: session.user.rosterId ?? undefined,
       jerseyNumber: session.user.jerseyNumber ?? undefined,
       equipmentSizes: (session.user.equipmentSizes as Record<string, string>) ?? {},

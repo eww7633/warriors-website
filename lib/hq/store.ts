@@ -53,6 +53,7 @@ function mapUser(user: {
   phone: string | null;
   role: string;
   status: string;
+  activityStatus: string;
   rosterId: string | null;
   jerseyNumber: number | null;
   equipmentSizes: unknown;
@@ -68,6 +69,7 @@ function mapUser(user: {
     phone: user.phone ?? undefined,
     role: user.role as MemberUser["role"],
     status: user.status as MemberUser["status"],
+    activityStatus: (user.activityStatus as MemberUser["activityStatus"]) ?? "active",
     rosterId: user.rosterId ?? undefined,
     jerseyNumber: user.jerseyNumber ?? undefined,
     equipmentSizes: toEquipmentSizes(user.equipmentSizes),
@@ -89,6 +91,7 @@ async function ensureAdminSeedDb() {
         passwordHash: await hashPassword(adminPassword),
         role: "admin",
         status: "approved",
+        activityStatus: "active",
         equipmentSizes: {}
       }
     });
@@ -103,7 +106,8 @@ async function ensureAdminSeedDb() {
         fullName: "Hockey Ops Admin",
         passwordHash: await hashPassword(adminPassword),
         role: "admin",
-        status: "approved"
+        status: "approved",
+        activityStatus: "active"
       }
     });
   }
@@ -139,6 +143,7 @@ async function ensureStoreFile() {
       passwordHash: await hashPassword(adminPassword),
       role: "admin",
       status: "approved",
+      activityStatus: "active",
       equipmentSizes: {},
       createdAt: nowIso(),
       updatedAt: nowIso()
@@ -152,6 +157,7 @@ async function ensureStoreFile() {
     existingAdmin.passwordHash = await hashPassword(adminPassword);
     existingAdmin.role = "admin";
     existingAdmin.status = "approved";
+    existingAdmin.activityStatus = "active";
     existingAdmin.updatedAt = nowIso();
     await fs.writeFile(storePath, JSON.stringify(parsed, null, 2), "utf-8");
   }
@@ -270,6 +276,7 @@ export async function createPendingPlayer(input: {
         phone: input.phone,
         role: "public",
         status: "pending",
+        activityStatus: "active",
         equipmentSizes: {}
       }
     });
@@ -295,6 +302,7 @@ export async function createPendingPlayer(input: {
     phone: input.phone,
     role: "public",
     status: "pending",
+    activityStatus: "active",
     equipmentSizes: {},
     createdAt: nowIso(),
     updatedAt: nowIso()
@@ -336,6 +344,7 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
       data: {
         status: "approved",
         role: "player",
+        activityStatus: "active",
         rosterId,
         jerseyNumber
       }
@@ -369,6 +378,7 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
 
   user.status = "approved";
   user.role = "player";
+  user.activityStatus = "active";
   user.rosterId = rosterId;
   user.jerseyNumber = jerseyNumber;
   user.updatedAt = nowIso();
