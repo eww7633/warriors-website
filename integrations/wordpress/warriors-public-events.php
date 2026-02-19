@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Public Events Feed (Loader)
  * Description: Loader for the Warriors Public Events plugin in /warriors-public-events/.
- * Version: 0.3.2
+ * Version: 0.3.4
  */
 
 if (!defined('ABSPATH')) {
