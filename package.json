@@ -12,6 +12,7 @@
     "migrate:wix": "node scripts/wix-migrate.mjs",
     "import:wix:contacts": "node scripts/import-wix-contacts.mjs",
     "import:wix:events": "node scripts/import-wix-events.mjs",
+    "import:google:photos": "node scripts/import-google-photos.mjs",
     "release:main": "./scripts/release-main.sh",
     "postinstall": "prisma generate"
   },

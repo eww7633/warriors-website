@@ -190,3 +190,20 @@ Custom path example:
 ```bash
 npm run import:wix:events -- "migration/wix/exports/my-events-export.csv"
 ```
+
+## Google Photos scrape (public shared links)
+Use this to collect direct image URLs from one or more Google Photos shared pages/albums.
+
+Multiple URLs directly:
+```bash
+npm run import:google:photos -- "https://photos.app.goo.gl/AAA..." "https://photos.app.goo.gl/BBB..."
+```
+
+Or from a text file (one URL per line):
+```bash
+npm run import:google:photos -- --file migration/google-photos/urls.txt
+```
+
+Outputs:
+- `migration/google-photos/manifest.json`
+- `migration/google-photos/images.txt`
