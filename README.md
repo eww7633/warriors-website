@@ -12,6 +12,11 @@ This Next.js app is the private Hockey Ops and player management platform.
 - Protected player portal (approved rostered players only)
 - Protected check-in workflow with attendance truth states
 - SportsPress-style seasons, rosters, and games views
+- Competition management:
+  - Tournaments with Gold/White/Black optional team creation
+  - Single Games with Gold/Black/Mixed roster mode
+  - DVHL sessions with 4 custom drafted teams
+  - Assign approved players to competition teams
 
 ## Access rules
 - Public users can view only public pages.
@@ -47,6 +52,8 @@ Set up Prisma schema:
 npm run db:push
 ```
 
+After competition/event model updates, run `db:push` again before deploying.
+
 ## Admin bootstrap account
 On startup, an admin user is always synced using:
 - `ADMIN_EMAIL` (default: `ops@pghwarriorhockey.us`)
@@ -63,3 +70,20 @@ Override with:
 
 ## Deploying to Bluehost / DNS setup
 - `/docs/BLUEHOST_DEPLOY.md`
+
+## WordPress public event sync
+This app exposes a public-safe feed at:
+- `/api/public/events`
+
+Install the WordPress shortcode plugin:
+- `/integrations/wordpress/warriors-public-events.php`
+
+Use shortcode on any WordPress page:
+```text
+[warriors_public_events]
+```
+
+Optional shortcode attributes:
+```text
+[warriors_public_events feed_url="https://hq.pghwarriorhockey.us/api/public/events" limit="8" title="Upcoming Events"]
+```

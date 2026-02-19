@@ -1,0 +1,199 @@
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
+
+type TournamentTeamKey = "gold" | "white" | "black";
+
+type CompetitionType = "TOURNAMENT" | "SINGLE_GAME" | "DVHL";
+
+function ensureDbMode() {
+  if (!hasDatabaseUrl()) {
+    throw new Error("Database mode is required for competition management.");
+  }
+}
+
+function parseOptionalDate(value?: string) {
+  if (!value) {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Invalid date.");
+  }
+
+  return parsed;
+}
+
+export async function createTournament(input: {
+  title: string;
+  startsAt?: string;
+  includeTeams: TournamentTeamKey[];
+  notes?: string;
+}) {
+  ensureDbMode();
+
+  if (input.includeTeams.length === 0) {
+    throw new Error("At least one team is required for a tournament.");
+  }
+
+  const teamDefs = input.includeTeams.map((key) => ({
+    name: key.toUpperCase(),
+    colorTag: key,
+    rosterMode: "TOURNAMENT"
+  }));
+
+  return getPrismaClient().competition.create({
+    data: {
+      title: input.title,
+      type: "TOURNAMENT",
+      startsAt: parseOptionalDate(input.startsAt),
+      notes: input.notes,
+      teams: {
+        create: teamDefs
+      }
+    },
+    include: {
+      teams: true
+    }
+  });
+}
+
+export async function createSingleGame(input: {
+  title: string;
+  startsAt?: string;
+  teamName: string;
+  rosterMode: "gold" | "black" | "mixed";
+  notes?: string;
+}) {
+  ensureDbMode();
+
+  return getPrismaClient().competition.create({
+    data: {
+      title: input.title,
+      type: "SINGLE_GAME",
+      startsAt: parseOptionalDate(input.startsAt),
+      notes: input.notes,
+      teams: {
+        create: [
+          {
+            name: input.teamName,
+            colorTag: input.rosterMode,
+            rosterMode: "SINGLE_GAME"
+          }
+        ]
+      }
+    },
+    include: {
+      teams: true
+    }
+  });
+}
+
+export async function createDvhl(input: {
+  title: string;
+  startsAt?: string;
+  teamNames: [string, string, string, string];
+  notes?: string;
+}) {
+  ensureDbMode();
+
+  const trimmedNames = input.teamNames.map((name) => name.trim());
+  if (trimmedNames.some((name) => !name)) {
+    throw new Error("DVHL requires four team names.");
+  }
+
+  return getPrismaClient().competition.create({
+    data: {
+      title: input.title,
+      type: "DVHL",
+      startsAt: parseOptionalDate(input.startsAt),
+      notes: input.notes,
+      teams: {
+        create: trimmedNames.map((name) => ({
+          name,
+          rosterMode: "DVHL_DRAFT"
+        }))
+      }
+    },
+    include: {
+      teams: true
+    }
+  });
+}
+
+export async function listCompetitions() {
+  if (!hasDatabaseUrl()) {
+    return [];
+  }
+
+  return getPrismaClient().competition.findMany({
+    orderBy: [{ startsAt: "asc" }, { createdAt: "desc" }],
+    include: {
+      teams: {
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+export async function assignPlayerToCompetitionTeam(input: { teamId: string; userId: string }) {
+  ensureDbMode();
+
+  const user = await getPrismaClient().user.findUnique({ where: { id: input.userId } });
+  if (!user || user.role !== "player" || user.status !== "approved") {
+    throw new Error("Only approved players can be assigned to competition teams.");
+  }
+
+  return getPrismaClient().competitionTeamMember.upsert({
+    where: {
+      teamId_userId: {
+        teamId: input.teamId,
+        userId: input.userId
+      }
+    },
+    update: {},
+    create: {
+      teamId: input.teamId,
+      userId: input.userId
+    }
+  });
+}
+
+export async function listEligiblePlayers() {
+  if (!hasDatabaseUrl()) {
+    return [];
+  }
+
+  return getPrismaClient().user.findMany({
+    where: {
+      role: "player",
+      status: "approved"
+    },
+    orderBy: { fullName: "asc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      rosterId: true,
+      jerseyNumber: true
+    }
+  });
+}
+
+export function competitionTypeLabel(type: CompetitionType) {
+  if (type === "TOURNAMENT") return "Tournament";
+  if (type === "SINGLE_GAME") return "Single Game";
+  return "DVHL";
+}

@@ -24,6 +24,7 @@ model User {
 
   sessions         Session[]
   checkIns         CheckIn[]
+  competitionMemberships CompetitionTeamMember[]
 
   @@unique([rosterId, jerseyNumber])
 }
@@ -55,4 +56,66 @@ model CheckIn {
 
   @@index([userId])
   @@index([eventId])
+}
+
+model Event {
+  id              String   @id @default(cuid())
+  title           String
+  startsAt        DateTime
+  publicDetails   String
+  privateDetails  String?
+  visibility      String   @default("public")
+  published       Boolean  @default(true)
+  locationPublic  String?
+  locationPrivate String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([published])
+  @@index([startsAt])
+  @@index([visibility])
+}
+
+model Competition {
+  id        String   @id @default(cuid())
+  title     String
+  type      String
+  startsAt  DateTime?
+  status    String   @default("planned")
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams     CompetitionTeam[]
+
+  @@index([type])
+  @@index([startsAt])
+}
+
+model CompetitionTeam {
+  id            String   @id @default(cuid())
+  competitionId String
+  name          String
+  colorTag      String?
+  rosterMode    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  competition   Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  members       CompetitionTeamMember[]
+
+  @@index([competitionId])
+}
+
+model CompetitionTeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  team      CompetitionTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
 }

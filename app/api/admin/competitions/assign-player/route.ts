@@ -1,0 +1,25 @@
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/hq/session";
+import { assignPlayerToCompetitionTeam } from "@/lib/hq/competitions";
+
+export async function POST(request: Request) {
+  const actor = await getCurrentUser();
+  if (!actor || actor.role !== "admin") {
+    return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
+  }
+
+  const formData = await request.formData();
+  const teamId = String(formData.get("teamId") ?? "").trim();
+  const userId = String(formData.get("userId") ?? "").trim();
+
+  if (!teamId || !userId) {
+    return NextResponse.redirect(new URL("/admin?error=missing_assignment_fields", request.url), 303);
+  }
+
+  try {
+    await assignPlayerToCompetitionTeam({ teamId, userId });
+    return NextResponse.redirect(new URL("/admin?assignment=saved", request.url), 303);
+  } catch {
+    return NextResponse.redirect(new URL("/admin?error=assignment_failed", request.url), 303);
+  }
+}

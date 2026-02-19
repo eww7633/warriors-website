@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { events } from "@/lib/mockData";
+import { getCalendarEventsForRole } from "@/lib/hq/events";
 import { getCurrentUser } from "@/lib/hq/session";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +19,7 @@ export default async function CheckInPage({
   if (user.role !== "admin" && (user.role !== "player" || user.status !== "approved" || !user.rosterId)) {
     redirect("/player?error=approval_required");
   }
+  const events = await getCalendarEventsForRole(user.role, user.status === "approved");
 
   return (
     <section className="card">

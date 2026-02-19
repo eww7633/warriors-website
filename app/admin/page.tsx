@@ -1,15 +1,28 @@
 import { redirect } from "next/navigation";
-import { events, rosters } from "@/lib/mockData";
+import { rosters } from "@/lib/mockData";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
 import { readStore } from "@/lib/hq/store";
+import { getAllEvents } from "@/lib/hq/events";
+import {
+  competitionTypeLabel,
+  listCompetitions,
+  listEligiblePlayers
+} from "@/lib/hq/competitions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage({
   searchParams
 }: {
-  searchParams?: { error?: string; approved?: string; rejected?: string };
+  searchParams?: {
+    error?: string;
+    approved?: string;
+    rejected?: string;
+    eventsaved?: string;
+    competition?: string;
+    assignment?: string;
+  };
 }) {
   const query = searchParams ?? {};
   const user = await getCurrentUser();
@@ -22,13 +35,20 @@ export default async function AdminPage({
     redirect("/player?error=admin_required");
   }
 
-  const store = await readStore();
+  const [store, allEvents, competitions, eligiblePlayers] = await Promise.all([
+    readStore(),
+    getAllEvents(),
+    listCompetitions(),
+    listEligiblePlayers()
+  ]);
+
   const pendingUsers = store.users.filter((entry) => entry.status === "pending");
   const approvedPlayers = store.users.filter(
     (entry) => entry.status === "approved" && entry.role === "player"
   );
   const rejectedUsers = store.users.filter((entry) => entry.status === "rejected");
-  const attendanceByEvent = events.map((event) => {
+
+  const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
     return {
       eventId: event.id,
@@ -47,14 +67,173 @@ export default async function AdminPage({
         <p>Signed in as {user.email}</p>
         {query.approved === "1" && <p className="badge">Player approved and rostered.</p>}
         {query.rejected === "1" && <p className="badge">Registration request rejected.</p>}
+        {query.eventsaved === "1" && <p className="badge">Event saved and ready for public feed.</p>}
+        {query.competition === "created" && <p className="badge">Competition created.</p>}
+        {query.assignment === "saved" && <p className="badge">Player assigned to competition team.</p>}
         {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
         <p>Storage mode: <strong>{hasDatabaseUrl() ? "Database" : "Fallback file"}</strong></p>
         <ul>
           <li>Pending Registrations: {pendingUsers.length}</li>
           <li>Approved Players: {approvedPlayers.length}</li>
           <li>Attendance Records: {store.checkIns.length}</li>
-          <li>Upcoming Events: {events.length}</li>
+          <li>Events in HQ: {allEvents.length}</li>
+          <li>Competitions: {competitions.length}</li>
         </ul>
+      </article>
+
+      <article className="card">
+        <h3>Create Tournament</h3>
+        <p className="muted">National tournament setup with optional Gold/White/Black teams.</p>
+        <form className="grid-form" action="/api/admin/competitions/tournament" method="post">
+          <input name="title" placeholder="Tournament name" required />
+          <label>
+            Start date/time
+            <input name="startsAt" type="datetime-local" />
+          </label>
+          <label>
+            Notes
+            <input name="notes" placeholder="Optional notes" />
+          </label>
+          <label><input type="checkbox" name="gold" defaultChecked /> Gold team</label>
+          <label><input type="checkbox" name="white" /> White team</label>
+          <label><input type="checkbox" name="black" /> Black team</label>
+          <button className="button" type="submit">Create Tournament</button>
+        </form>
+      </article>
+
+      <article className="card">
+        <h3>Create Single Game</h3>
+        <p className="muted">Single exhibition game roster (Gold, Black, or Mixed).</p>
+        <form className="grid-form" action="/api/admin/competitions/single-game" method="post">
+          <input name="title" placeholder="Single game title" required />
+          <label>
+            Start date/time
+            <input name="startsAt" type="datetime-local" />
+          </label>
+          <input name="teamName" placeholder="Team label (e.g. Mixed Squad)" defaultValue="Single Game Squad" />
+          <label>
+            Roster mode
+            <select name="rosterMode" defaultValue="mixed">
+              <option value="gold">Gold</option>
+              <option value="black">Black</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </label>
+          <input name="notes" placeholder="Optional notes" />
+          <button className="button" type="submit">Create Single Game</button>
+        </form>
+      </article>
+
+      <article className="card">
+        <h3>Create DVHL League</h3>
+        <p className="muted">In-house draft league with four team names from eligible players.</p>
+        <form className="grid-form" action="/api/admin/competitions/dvhl" method="post">
+          <input name="title" placeholder="DVHL session title" required />
+          <label>
+            Start date/time
+            <input name="startsAt" type="datetime-local" />
+          </label>
+          <input name="team1" placeholder="Team 1 name" required />
+          <input name="team2" placeholder="Team 2 name" required />
+          <input name="team3" placeholder="Team 3 name" required />
+          <input name="team4" placeholder="Team 4 name" required />
+          <input name="notes" placeholder="Optional notes" />
+          <button className="button" type="submit">Create DVHL Session</button>
+        </form>
+      </article>
+
+      <article className="card">
+        <h3>Competition Team Builder</h3>
+        <p className="muted">Assign approved players from main roster to tournament/single game/DVHL teams.</p>
+        {competitions.length === 0 ? (
+          <p className="muted">No competitions created yet.</p>
+        ) : (
+          <div className="stack">
+            {competitions.map((competition) => (
+              <div key={competition.id} className="event-card stack">
+                <strong>{competition.title}</strong>
+                <p>{competitionTypeLabel(competition.type as "TOURNAMENT" | "SINGLE_GAME" | "DVHL")}</p>
+                <p>{competition.startsAt ? new Date(competition.startsAt).toLocaleString() : "No start date"}</p>
+                <div className="stack">
+                  {competition.teams.map((team) => (
+                    <div key={team.id} className="event-card">
+                      <strong>{team.name}</strong>
+                      <p>Mode: {team.rosterMode || "-"}</p>
+                      <p>Roster count: {team.members.length}</p>
+                      <p>
+                        Players: {team.members.length > 0
+                          ? team.members.map((member) => member.user.fullName).join(", ")
+                          : "No players assigned"}
+                      </p>
+                      <form className="grid-form" action="/api/admin/competitions/assign-player" method="post">
+                        <input type="hidden" name="teamId" value={team.id} />
+                        <label>
+                          Add approved player
+                          <select name="userId" required defaultValue="">
+                            <option value="" disabled>Select player</option>
+                            {eligiblePlayers.map((player) => (
+                              <option key={player.id} value={player.id}>
+                                {player.fullName} ({player.rosterId || "No roster"}) #{player.jerseyNumber || "-"}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button className="button" type="submit">Assign Player</button>
+                      </form>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="card">
+        <h3>Publish Event (WordPress feed source)</h3>
+        <form className="grid-form" action="/api/admin/events" method="post">
+          <input name="title" placeholder="Event title" required />
+          <label>
+            Start date/time
+            <input name="startsAt" type="datetime-local" required />
+          </label>
+          <input name="locationPublic" placeholder="Public location" />
+          <input name="locationPrivate" placeholder="Private location (players/admin)" />
+          <label>
+            Public details
+            <input name="publicDetails" placeholder="Public summary" required />
+          </label>
+          <label>
+            Private details
+            <input name="privateDetails" placeholder="Private logistics" />
+          </label>
+          <label>
+            Visibility
+            <select name="visibility" defaultValue="public">
+              <option value="public">Public</option>
+              <option value="player_only">Player only</option>
+              <option value="internal">Internal (admin only)</option>
+            </select>
+          </label>
+          <label>
+            <input name="published" type="checkbox" defaultChecked /> Publish to public feed
+          </label>
+          <button className="button" type="submit">Save Event</button>
+        </form>
+      </article>
+
+      <article className="card">
+        <h3>Current Event Feed Inventory</h3>
+        <div className="stack">
+          {allEvents.map((event) => (
+            <div key={event.id} className="event-card">
+              <strong>{event.title}</strong>
+              <p>{new Date(event.date).toLocaleString()}</p>
+              <p>Visibility: {event.visibility}</p>
+              <p>Published: {event.published ? "Yes" : "No"}</p>
+            </div>
+          ))}
+        </div>
       </article>
 
       <article className="card">
