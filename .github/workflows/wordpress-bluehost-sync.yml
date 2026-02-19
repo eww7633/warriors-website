@@ -6,6 +6,8 @@ on:
     paths:
       - "integrations/wordpress/warriors-public-events/**"
       - "integrations/wordpress/warriors-theme-tools/**"
+      - "integrations/wordpress/warriors-public-events.php"
+      - "integrations/wordpress/warriors-theme-tools.php"
       - ".github/workflows/wordpress-bluehost-sync.yml"
   workflow_dispatch:
 
