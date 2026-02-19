@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getCalendarEventsForRole, listActiveCheckInTokens } from "@/lib/hq/events";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listReservationBoards } from "@/lib/hq/reservations";
@@ -57,6 +58,21 @@ export default async function CalendarPage({
               {event.title} | {new Date(event.date).toLocaleString()}
             </summary>
             <div className="stack calendar-event-expanded">
+              <div className="event-card attendance-summary">
+                <strong>Attendance Summary</strong>
+                <p>
+                  Going: {(reservationBoards.byEvent[event.id] || []).filter((entry) => entry.status === "going").length}
+                  {" | "}
+                  Maybe: {(reservationBoards.byEvent[event.id] || []).filter((entry) => entry.status === "maybe").length}
+                  {" | "}
+                  Not going: {(reservationBoards.byEvent[event.id] || []).filter((entry) => entry.status === "not_going").length}
+                </p>
+                {user ? (
+                  <p className="muted">
+                    Your status: {reservationBoards.viewerStatusByEvent[event.id]?.replaceAll("_", " ") || "not set"}
+                  </p>
+                ) : null}
+              </div>
               <p>Type: {event.eventTypeName || "Uncategorized"}</p>
               {event.managerName && <p>Game manager: {event.managerName}</p>}
               <p>{event.publicDetails}</p>
@@ -149,6 +165,11 @@ export default async function CalendarPage({
                             <a href={`/check-in/scan?token=${encodeURIComponent(checkInTokens[event.id]!.token)}`}>
                               Open check-in page
                             </a>
+                          </p>
+                          <p>
+                            <Link href={user.role === "admin" ? "/admin?section=competitions" : "/check-in"}>
+                              Open manager tools
+                            </Link>
                           </p>
                         </>
                       ) : (

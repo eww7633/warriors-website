@@ -12,7 +12,9 @@ export async function POST(
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const role = String(formData.get("role") ?? "").trim();
 
   if (!["public", "player", "admin"].includes(role)) {

@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
 
+function getReturnPath(raw: string) {
+  const value = raw.trim();
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return "/calendar";
+  }
+  return value;
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
 
@@ -13,13 +21,19 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/player?error=approval_required", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const eventId = String(formData.get("eventId") ?? "").trim();
   const status = String(formData.get("status") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();
+  const returnTo = getReturnPath(String(formData.get("returnTo") ?? "/calendar"));
 
   if (!eventId || !isValidReservationStatus(status)) {
-    return NextResponse.redirect(new URL("/calendar?error=invalid_reservation_fields", request.url), 303);
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_reservation_fields`, request.url),
+      303
+    );
   }
 
   try {
@@ -29,8 +43,14 @@ export async function POST(request: Request) {
       status,
       note
     });
-    return NextResponse.redirect(new URL("/calendar?reservation=saved", request.url), 303);
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reservation=saved`, request.url),
+      303
+    );
   } catch {
-    return NextResponse.redirect(new URL("/calendar?error=reservation_save_failed", request.url), 303);
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=reservation_save_failed`, request.url),
+      303
+    );
   }
 }

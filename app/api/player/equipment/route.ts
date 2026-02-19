@@ -9,7 +9,9 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?error=sign_in_required", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
 
   const nextSizes = {
     helmet: String(formData.get("helmet") ?? "").trim(),

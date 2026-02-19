@@ -267,6 +267,26 @@ body {
   font-weight: 700;
 }
 
+.reservation-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.3rem;
+}
+
+.reservation-inline form {
+  margin: 0;
+}
+
+.reservation-inline .button {
+  padding: 0.42rem 0.68rem;
+  font-size: 0.84rem;
+}
+
+.attendance-summary p {
+  margin: 0.35rem 0 0;
+}
+
 .hero-stat-row {
   display: grid;
   gap: 0.7rem;

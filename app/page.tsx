@@ -4,9 +4,15 @@ import { getHomepageShowcasePhotos } from "@/lib/showcase-photos";
 import { getCurrentUser } from "@/lib/hq/session";
 import { getAllEvents } from "@/lib/hq/events";
 import { readStore } from "@/lib/hq/store";
+import { listReservationBoards } from "@/lib/hq/reservations";
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams?: { reservation?: string; error?: string };
+}) {
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
+  const query = searchParams ?? {};
   const [showcaseResult, userResult, eventsResult, storeResult] = await Promise.allSettled([
     getHomepageShowcasePhotos(12),
     getCurrentUser(),
@@ -44,6 +50,22 @@ export default async function HomePage() {
   const signedInSummary = user
     ? `${user.fullName} | ${user.role === "admin" ? "Hockey Ops" : "Player"}${user.status ? ` | ${user.status}` : ""}`
     : "";
+  const canQuickReserve = Boolean(
+    user && (user.role === "admin" || (user.role === "player" && user.status === "approved"))
+  );
+  const eventIds = upcomingEvents.map((event) => event.id);
+  let reservationBoards: Awaited<ReturnType<typeof listReservationBoards>> = {
+    byEvent: {},
+    viewerStatusByEvent: {}
+  };
+
+  if (canQuickReserve && user && eventIds.length > 0) {
+    try {
+      reservationBoards = await listReservationBoards(eventIds, user.id);
+    } catch {
+      reservationBoards = { byEvent: {}, viewerStatusByEvent: {} };
+    }
+  }
 
   return (
     <section className="grid-home">
@@ -91,6 +113,8 @@ export default async function HomePage() {
             Public Events
           </a>
         </div>
+        {query.reservation === "saved" ? <p className="badge">Reservation updated.</p> : null}
+        {query.error ? <p className="muted">{query.error.replaceAll("_", " ")}</p> : null}
       </article>
 
       <article className="card sleek-events">
@@ -101,6 +125,38 @@ export default async function HomePage() {
               <strong>{event.title}</strong>
               <p>{new Date(event.date).toLocaleString()}</p>
               {event.locationPublic ? <p>{event.locationPublic}</p> : null}
+              {canQuickReserve ? (
+                <p className="muted">
+                  Your status: {reservationBoards.viewerStatusByEvent[event.id]?.replaceAll("_", " ") || "not set"}
+                </p>
+              ) : null}
+              {canQuickReserve ? (
+                <div className="reservation-inline">
+                  <form action="/api/events/reservation" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input type="hidden" name="status" value="going" />
+                    <input type="hidden" name="returnTo" value="/" />
+                    <button className="button" type="submit">Going</button>
+                  </form>
+                  <form action="/api/events/reservation" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input type="hidden" name="status" value="maybe" />
+                    <input type="hidden" name="returnTo" value="/" />
+                    <button className="button ghost" type="submit">Maybe</button>
+                  </form>
+                  <form action="/api/events/reservation" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input type="hidden" name="status" value="not_going" />
+                    <input type="hidden" name="returnTo" value="/" />
+                    <button className="button ghost" type="submit">Not Going</button>
+                  </form>
+                </div>
+              ) : null}
+              {canQuickReserve ? (
+                <p className="muted">
+                  RSVP board: {(reservationBoards.byEvent[event.id] || []).length} responses
+                </p>
+              ) : null}
               <p>
                 <Link href={`/calendar?event=${encodeURIComponent(event.id)}`}>
                   Open event details

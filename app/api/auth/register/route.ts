@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { createPendingPlayer } from "@/lib/hq/store";
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();

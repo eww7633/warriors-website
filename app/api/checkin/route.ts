@@ -13,7 +13,9 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/player?error=approval_required", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const eventId = String(formData.get("eventId") ?? "").trim();
   const attendanceStatus = String(formData.get("attendanceStatus") ?? "").trim();
   const note = String(formData.get("note") ?? "").trim();

@@ -12,7 +12,9 @@ export async function POST(
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const rosterId = String(formData.get("rosterId") ?? "").trim();
   const jerseyNumber = Number(String(formData.get("jerseyNumber") ?? "0"));
 

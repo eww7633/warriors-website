@@ -8,7 +8,9 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as unknown as {
+    get: (name: string) => FormDataEntryValue | null;
+  };
   const gameId = String(formData.get("gameId") ?? "").trim();
   const scorekeeperType = String(formData.get("scorekeeperType") ?? "none").trim();
   const scorekeeperUserId = String(formData.get("scorekeeperUserId") ?? "").trim();
