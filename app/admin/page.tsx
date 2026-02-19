@@ -103,7 +103,8 @@ export default async function AdminPage({
     query.data === "staff_created" ? "Staff profile created." : null,
     query.data === "sponsor_created" ? "Sponsor created." : null,
     query.contact === "invited" ? "Contact marked as invited." : null,
-    query.contact === "linked" ? "Contact linked to existing user account." : null
+    query.contact === "linked" ? "Contact linked to existing user account." : null,
+    query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -113,8 +114,7 @@ export default async function AdminPage({
     ["Competitions", competitions.length],
     ["Check-ins", store.checkIns.length]
   ] as const;
-  const inviteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
-  const inviteFromEmail = process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
+  const inviteFromEmail = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
 
   return (
     <section className="stack admin-shell">
@@ -142,6 +142,10 @@ export default async function AdminPage({
               ? query.errorDetail
                 ? decodeURIComponent(query.errorDetail)
                 : "Unable to link this contact by email."
+              : query.error === "invite_send_failed"
+              ? query.errorDetail
+                ? decodeURIComponent(query.errorDetail)
+                : "Unable to send invite email."
               : query.error.replaceAll("_", " ")}
           </p>
         )}
@@ -515,26 +519,6 @@ export default async function AdminPage({
                       const matchingUser = lead.email
                         ? usersByEmail.get(lead.email.trim().toLowerCase())
                         : undefined;
-                      const inviteSubject = "Pittsburgh Warriors Hockey Club Registration Invite";
-                      const inviteBody = [
-                        `Hi ${lead.fullName || "there"},`,
-                        "",
-                        "We imported your contact into our new Warriors system.",
-                        "Please register using this exact email address so we can link your record:",
-                        lead.email || "[your-email]",
-                        "",
-                        `${inviteBaseUrl}/register`,
-                        "",
-                        "After you register, Hockey Ops will approve your player access.",
-                        "",
-                        "Thank you,",
-                        "Pittsburgh Warriors Hockey Ops"
-                      ].join("\n");
-                      const gmailInviteHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
-                        lead.email || ""
-                      )}&su=${encodeURIComponent(inviteSubject)}&body=${encodeURIComponent(
-                        inviteBody
-                      )}`;
                       return (
                         <>
                     <strong>{lead.fullName || "Unnamed contact"}</strong>
@@ -553,14 +537,10 @@ export default async function AdminPage({
                     <p className="muted">Invite sender account: {inviteFromEmail}</p>
                     <div className="cta-row">
                       {lead.email && (
-                        <a
-                          className="button"
-                          href={gmailInviteHref}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open Gmail Invite
-                        </a>
+                        <form action="/api/admin/contacts/send-invite" method="post">
+                          <input type="hidden" name="contactLeadId" value={lead.id} />
+                          <button className="button" type="submit">Send Invite Email</button>
+                        </form>
                       )}
                       {!lead.linkedUser && (
                         <form action="/api/admin/contacts/mark-invited" method="post">

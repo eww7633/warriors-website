@@ -132,7 +132,32 @@ npm run import:wix:contacts -- "./nigration/contacts.csv"
 
 After import:
 - Open Admin > `Contacts`
-- Use `Mark Invited` as your outreach tracker
+- Use `Send Invite Email` to send from configured SMTP mailbox
+- Use `Mark Invited` as a manual outreach tracker if needed
 - Ask players to register at `/register` with the same email they used previously
 - Their contact will auto-link on registration
 - If they already have an account, use `Link Existing Account by Email`
+
+Required env vars for invite sending:
+- `EMAIL_FROM`
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_PASS`
+
+To import Wix Events CSV into HQ events:
+
+1. Export events from Wix as CSV and place it in `/migration/wix/exports/` (for example `events.csv`).
+2. Preview parse results first:
+   ```bash
+   npm run import:wix:events -- --dry-run
+   ```
+3. Import events:
+   ```bash
+   npm run import:wix:events
+   ```
+
+Custom path example:
+```bash
+npm run import:wix:events -- "migration/wix/exports/my-events-export.csv"
+```

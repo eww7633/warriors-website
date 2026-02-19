@@ -11,17 +11,20 @@
     "db:generate": "prisma generate",
     "migrate:wix": "node scripts/wix-migrate.mjs",
     "import:wix:contacts": "node scripts/import-wix-contacts.mjs",
+    "import:wix:events": "node scripts/import-wix-events.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "5.19.1",
     "bcryptjs": "2.4.3",
     "next": "14.2.10",
+    "nodemailer": "^8.0.1",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
   "devDependencies": {
     "@types/node": "20.16.5",
+    "@types/nodemailer": "^7.0.10",
     "@types/react": "18.3.5",
     "@types/react-dom": "18.3.0",
     "prisma": "5.19.1",
