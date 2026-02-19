@@ -9,4 +9,4 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-require_once __DIR__ . '/warriors-theme-tools/warriors-theme-tools.php';
+require_once __DIR__ . '/warriors-theme-tools/warriors-theme-tools-v025.php';
