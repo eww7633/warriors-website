@@ -40,6 +40,7 @@ function warriors_theme_tools_sanitize($input) {
 
 function warriors_theme_tools_enqueue_assets() {
     $opts = warriors_theme_tools_get_options();
+    $hq = untrailingslashit($opts['hq_base_url']);
 
     $css = '
 :root {
@@ -262,13 +263,85 @@ input[type="submit"]:hover {
     padding: 0.9rem;
   }
 }
+@media (prefers-color-scheme: dark) {
+  body {
+    background: linear-gradient(180deg, #090c11 0%, #121822 70%, #1a2230 100%);
+    color: #eef2f8;
+  }
+  .site, #page, main, .site-content {
+    background: transparent;
+  }
+  h1, h2, h3, h4, p, li {
+    color: #eef2f8;
+  }
+  .warriors-theme-tools-card,
+  .warriors-legacy-about {
+    background: linear-gradient(180deg, #141b24 0%, #1c2531 100%);
+    border-color: #313b4a;
+  }
+  .warriors-home-event-card {
+    background: linear-gradient(180deg, #1a2330 0%, #212d3d 100%);
+    border-color: #39485d;
+    color: #f4f7fb;
+  }
+  .warriors-home-event-card .event-meta {
+    color: #ffd978;
+  }
+  .warriors-home-event-card .event-location,
+  .warriors-home-event-card .event-type,
+  .warriors-home-event-card .event-summary {
+    color: #d9e1ee;
+  }
+  a, .warriors-home-event-card .event-link, .warriors-theme-tools-social a {
+    color: #8dc8ff;
+  }
+}
 ';
 
     wp_register_style('warriors-theme-tools-inline', false);
     wp_enqueue_style('warriors-theme-tools-inline');
     wp_add_inline_style('warriors-theme-tools-inline', $css);
 
-    $js = 'window.WARRIORS_HQ_BASE = ' . wp_json_encode(untrailingslashit($opts['hq_base_url'])) . ';';
+    $js = 'window.WARRIORS_HQ_BASE = ' . wp_json_encode($hq) . ';
+(() => {
+  const mapHref = (label) => {
+    const t = (label || "").toLowerCase().replace(/\\s+/g, " ").trim();
+    if (!t) return null;
+    if (t === "about") return "/about";
+    if (t.includes("log in") && t.includes("join")) return window.WARRIORS_HQ_BASE + "/login";
+    if (["log in", "login", "sign in"].includes(t)) return window.WARRIORS_HQ_BASE + "/login";
+    if (["join", "sign up", "register", "player registration"].includes(t)) return window.WARRIORS_HQ_BASE + "/register";
+    if (["players", "roster"].includes(t)) return window.WARRIORS_HQ_BASE + "/roster";
+    if (["donate", "donation", "donations"].includes(t)) return "/donate";
+    if (["warrior hq", "my account", "hq"].includes(t)) return window.WARRIORS_HQ_BASE + "/player";
+    return null;
+  };
+
+  const normalizeLinks = () => {
+    const navSelectors = [
+      "header a",
+      ".site-header a",
+      ".main-navigation a",
+      ".wp-block-navigation a",
+      "a.wp-block-button__link"
+    ];
+    document.querySelectorAll(navSelectors.join(",")).forEach((a) => {
+      const label = (a.textContent || "").trim();
+      const mapped = mapHref(label);
+      if (!mapped) return;
+      if (!a.getAttribute("href") || a.getAttribute("href") === "#" || a.getAttribute("href") === "") {
+        a.setAttribute("href", mapped);
+      } else if (mapped.startsWith("http")) {
+        a.setAttribute("href", mapped);
+      }
+      a.style.pointerEvents = "auto";
+      a.style.cursor = "pointer";
+    });
+  };
+
+  document.addEventListener("DOMContentLoaded", normalizeLinks);
+  window.addEventListener("load", normalizeLinks);
+})();';
     wp_register_script('warriors-theme-tools-inline', false, [], null, true);
     wp_enqueue_script('warriors-theme-tools-inline');
     wp_add_inline_script('warriors-theme-tools-inline', $js, 'before');
