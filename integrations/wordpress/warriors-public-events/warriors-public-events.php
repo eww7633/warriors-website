@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Public Events Feed
  * Description: Pulls public events from the Warriors HQ API and renders them via shortcode.
- * Version: 0.3.0
+ * Version: 0.3.1
  */
 
 if (!defined('ABSPATH')) {
@@ -111,25 +111,25 @@ function warriors_render_public_events_shortcode($atts) {
                     $event_url = !empty($event['eventUrl'])
                         ? esc_url_raw($event['eventUrl'])
                         : $hq_base_url . '/calendar' . (!empty($event_id) ? ('?event=' . rawurlencode($event_id)) : '');
+                    $starts_at = !empty($event['startsAt']) ? strtotime($event['startsAt']) : false;
                 ?>
                 <article class="warriors-public-events-card">
+                    <a class="warriors-public-events-stretched-link" href="<?php echo esc_url($event_url); ?>" aria-label="Open <?php echo esc_attr($event['title'] ?? 'event'); ?> in Warrior HQ"></a>
                     <h3><?php echo esc_html($event['title'] ?? 'Event'); ?></h3>
                     <p class="warriors-public-events-meta">
-                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event['startsAt'] ?? ''))); ?>
+                        <?php echo $starts_at ? esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $starts_at)) : 'TBD'; ?>
                     </p>
                     <?php if (!empty($event['location'])): ?>
                         <p class="warriors-public-events-location"><?php echo esc_html($event['location']); ?></p>
-                    <?php endif; ?>
-                    <?php if (!empty($event['locationMapUrl'])): ?>
-                        <p><a class="warriors-public-events-link" href="<?php echo esc_url($event['locationMapUrl']); ?>" target="_blank" rel="noreferrer">View Map</a></p>
                     <?php endif; ?>
                     <?php if (!empty($event['eventType'])): ?>
                         <p class="warriors-public-events-type"><?php echo esc_html($event['eventType']); ?></p>
                     <?php endif; ?>
                     <p><?php echo esc_html($event['publicDetails'] ?? ''); ?></p>
-                    <p>
-                        <a class="warriors-public-events-link" href="<?php echo esc_url($event_url); ?>">View Details & RSVP</a>
-                    </p>
+                    <p class="warriors-public-events-open">Open Event Details & RSVP</p>
+                    <?php if (!empty($event['locationMapUrl'])): ?>
+                        <p><a class="warriors-public-events-link warriors-public-events-map-link" href="<?php echo esc_url($event['locationMapUrl']); ?>" target="_blank" rel="noreferrer">View Map</a></p>
+                    <?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </div>
@@ -142,7 +142,26 @@ function warriors_render_public_events_shortcode($atts) {
 add_shortcode('warriors_public_events', 'warriors_render_public_events_shortcode');
 
 function warriors_public_events_enqueue_styles() {
-    $css = '.warriors-public-events{margin:1rem 0}.warriors-public-events h2{font-size:1.75rem;margin:0 0 0.8rem;color:#1d2128}.warriors-public-events-cta{display:flex;gap:.65rem;flex-wrap:wrap;margin:0 0 1rem}.warriors-public-events-button{display:inline-block;padding:.55rem .9rem;border-radius:8px;background:#ffc72c;color:#11161d;text-decoration:none;font-weight:700;border:1px solid #d6a100}.warriors-public-events-button.alt{background:#11161d;color:#fff;border-color:#11161d}.warriors-public-events-grid{display:grid;gap:0.8rem;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}.warriors-public-events-card{border:1px solid #d4d8de;border-radius:12px;background:#fff;padding:0.9rem;box-shadow:0 8px 18px -16px rgba(0,0,0,.45)}.warriors-public-events-card h3{margin:0 0 .45rem;color:#11161d;font-size:1.05rem}.warriors-public-events-meta{margin:0 0 .25rem;color:#a9770e;font-weight:700}.warriors-public-events-location{margin:0 0 .2rem;color:#404754;font-size:.95rem}.warriors-public-events-type{margin:0 0 .4rem;color:#11161d;font-weight:700}.warriors-public-events-link{font-weight:700;color:#0a4b78;text-decoration:underline}';
+    $css = '
+.warriors-public-events{margin:1rem 0}
+.warriors-public-events h2{font-size:1.75rem;margin:0 0 .8rem;color:#11161d}
+.warriors-public-events-cta{display:flex;gap:.65rem;flex-wrap:wrap;margin:0 0 1rem}
+.warriors-public-events-button{display:inline-block;padding:.58rem .95rem;border-radius:10px;background:#ffcc33;color:#11161d;text-decoration:none;font-weight:800;border:1px solid #c99d1e}
+.warriors-public-events-button.alt{background:#11161d;color:#fff;border-color:#11161d}
+.warriors-public-events-grid{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(245px,1fr))}
+.warriors-public-events-card{position:relative;border:1px solid #d9c8a0;border-radius:14px;background:linear-gradient(180deg,#fffdf8 0%,#f4ecdc 100%);padding:.9rem;box-shadow:0 10px 20px -16px rgba(0,0,0,.45);transition:transform .16s ease,box-shadow .16s ease}
+.warriors-public-events-card:hover{transform:translateY(-2px);box-shadow:0 14px 24px -18px rgba(0,0,0,.55)}
+.warriors-public-events-card:focus-within{outline:2px solid #ffcc33;outline-offset:2px}
+.warriors-public-events-stretched-link{position:absolute;inset:0;border-radius:14px;z-index:1}
+.warriors-public-events-card h3,.warriors-public-events-card p{position:relative;z-index:2}
+.warriors-public-events-card h3{margin:0 0 .45rem;color:#11161d;font-size:1.05rem}
+.warriors-public-events-meta{margin:0 0 .25rem;color:#8d670f;font-weight:800}
+.warriors-public-events-location{margin:0 0 .2rem;color:#38414e;font-size:.95rem}
+.warriors-public-events-type{margin:0 0 .4rem;color:#1c232d;font-weight:700}
+.warriors-public-events-open{margin:.55rem 0 0;font-weight:800;color:#0d4a74;text-decoration:underline}
+.warriors-public-events-link{font-weight:700;color:#0d4a74;text-decoration:underline}
+.warriors-public-events-map-link{position:relative;z-index:3}
+';
     wp_register_style('warriors-public-events-inline', false);
     wp_enqueue_style('warriors-public-events-inline');
     wp_add_inline_style('warriors-public-events-inline', $css);
