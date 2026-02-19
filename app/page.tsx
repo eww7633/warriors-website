@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/siteConfig";
 import { getHomepageShowcasePhotos } from "@/lib/showcase-photos";
+import { getCurrentUser } from "@/lib/hq/session";
 
 export default async function HomePage() {
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
   const showcase = await getHomepageShowcasePhotos(9);
+  const user = await getCurrentUser();
 
   return (
     <section className="grid-home">
@@ -19,12 +21,20 @@ export default async function HomePage() {
           <a className="button alt" href={`${publicBase}/`}>
             Open Main Website
           </a>
-          <Link className="button ghost" href="/register">
-            Request Player Access
-          </Link>
-          <Link className="button" href="/login">
-            Player Log in
-          </Link>
+          {user ? (
+            <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
+              {user.role === "admin" ? "Open Hockey Ops" : "Open My Account"}
+            </Link>
+          ) : (
+            <>
+              <Link className="button ghost" href="/register">
+                Request Player Access
+              </Link>
+              <Link className="button" href="/login">
+                Player Log in
+              </Link>
+            </>
+          )}
         </div>
       </article>
 

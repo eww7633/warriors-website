@@ -62,9 +62,11 @@ export async function Nav() {
         <div className="auth-actions">
           {user ? (
             <>
-              <span className="hq-badge">Warrior HQ</span>
+              <span className="user-pill">
+                Signed in: {user.fullName} ({user.role})
+              </span>
               <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
-                {user.role === "admin" ? "HQ Console" : "My Account"}
+                {user.role === "admin" ? "Hockey Ops" : "My Account"}
               </Link>
               <form action="/api/auth/logout" method="post">
                 <button className="button" type="submit">Log out</button>

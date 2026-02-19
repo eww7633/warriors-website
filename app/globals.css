@@ -171,6 +171,7 @@ body {
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 15px 34px -30px var(--shadow);
+  color: var(--ink);
 }
 
 .grid-home {
@@ -207,6 +208,12 @@ body {
 .hero-card {
   border-left: 8px solid var(--gold);
   background: linear-gradient(180deg, #fffaf0 0%, #fff4de 100%);
+  color: #17191d;
+}
+
+.hero-card h2,
+.hero-card p {
+  color: #17191d;
 }
 
 .eyebrow {
@@ -286,7 +293,7 @@ body {
   border-color: #0f4f82;
 }
 
-.hq-badge {
+.user-pill {
   display: inline-block;
   padding: 0.22rem 0.55rem;
   border-radius: 999px;
@@ -488,46 +495,9 @@ td {
     flex: 1;
     text-align: center;
   }
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d141c;
-    --surface: #141a21;
-    --surface-soft: #1a2129;
-    --ink: #ecedf0;
-    --ink-soft: #b1b4bb;
-    --line: #29313b;
-    --shadow: rgba(0, 0, 0, 0.45);
-  }
-
-  .site-header {
-    background: linear-gradient(100deg, #10171f 0%, #121b24 65%, #0f171f 100%);
-  }
-
-  .brand-name,
-  .nav-list a {
-    color: #f4f1e8;
-  }
-
-  .nav-list a:hover {
-    border-color: #f7c34a;
-  }
-
-  .social-list a {
-    border-color: #37414f;
-    background: rgba(16, 23, 31, 0.85);
-    color: #f1ece0;
-  }
-
-  .button.ghost {
-    color: #70b6ea;
-    border-color: #356f98;
-  }
-
-  input,
-  select {
-    background: #121922;
-    color: #ecedf0;
+  .user-pill {
+    width: 100%;
+    text-align: center;
   }
 }
