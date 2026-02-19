@@ -12,31 +12,37 @@ on:
 jobs:
   deploy-wordpress-assets:
     runs-on: ubuntu-latest
+    env:
+      BLUEHOST_HOST: ${{ secrets.BLUEHOST_HOST != '' && secrets.BLUEHOST_HOST || vars.BLUEHOST_HOST }}
+      BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
+      BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Upload warriors-public-events plugin
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.BLUEHOST_HOST }}
-          username: ${{ secrets.BLUEHOST_USER }}
-          password: ${{ secrets.BLUEHOST_PASS }}
-          protocol: ftp
-          port: 21
-          local-dir: integrations/wordpress/warriors-public-events/
-          server-dir: /plugins/warriors-public-events/
-          dangerous-clean-slate: false
+      - name: Validate Bluehost credentials are present
+        run: |
+          test -n "$BLUEHOST_HOST" || (echo "Missing BLUEHOST_HOST in secrets/vars" && exit 1)
+          test -n "$BLUEHOST_USER" || (echo "Missing BLUEHOST_USER in secrets/vars" && exit 1)
+          test -n "$BLUEHOST_PASS" || (echo "Missing BLUEHOST_PASS in secrets/vars" && exit 1)
 
-      - name: Upload warriors-theme-tools plugin
+      - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.BLUEHOST_HOST }}
-          username: ${{ secrets.BLUEHOST_USER }}
-          password: ${{ secrets.BLUEHOST_PASS }}
+          server: ${{ env.BLUEHOST_HOST }}
+          username: ${{ env.BLUEHOST_USER }}
+          password: ${{ env.BLUEHOST_PASS }}
           protocol: ftp
           port: 21
-          local-dir: integrations/wordpress/warriors-theme-tools/
-          server-dir: /plugins/warriors-theme-tools/
+          local-dir: integrations/wordpress/
+          server-dir: /
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/README.md
+            **/*.zip
+            **/.DS_Store
+            **/warriors-public-events.php
           dangerous-clean-slate: false
