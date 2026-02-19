@@ -7,7 +7,7 @@ export async function Nav() {
   const user = await getCurrentUser();
   const links = [
     ["About Us", "/history"],
-    ["Partners", "/news"],
+    ["Partners", "/partners"],
     ["Join", "/register"],
     ["Calendar", "/calendar"],
     ["Games", "/games"],

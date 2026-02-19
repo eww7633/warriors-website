@@ -10,11 +10,13 @@ import {
   listCompetitions,
   listEligiblePlayers
 } from "@/lib/hq/competitions";
+import { listSportsData } from "@/lib/hq/ops-data";
 
 export const dynamic = "force-dynamic";
 
 const sections = [
   ["overview", "Overview"],
+  ["sportsdata", "Sports Data"],
   ["competitions", "Competitions"],
   ["events", "Events"],
   ["players", "Players"],
@@ -35,6 +37,7 @@ export default async function AdminPage({
     competition?: string;
     assignment?: string;
     game?: string;
+    data?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -52,11 +55,12 @@ export default async function AdminPage({
     ? (query.section as Section)
     : "overview";
 
-  const [store, allEvents, competitions, eligiblePlayers] = await Promise.all([
+  const [store, allEvents, competitions, eligiblePlayers, sportsData] = await Promise.all([
     readStore(),
     getAllEvents(),
     listCompetitions(),
-    listEligiblePlayers()
+    listEligiblePlayers(),
+    listSportsData()
   ]);
 
   const pendingUsers = store.users.filter((entry) => entry.status === "pending");
@@ -83,7 +87,13 @@ export default async function AdminPage({
     query.eventsaved === "1" ? "Event saved and ready for public feed." : null,
     query.competition === "created" ? "Competition created." : null,
     query.assignment === "saved" ? "Player assigned to competition team." : null,
-    query.game === "created" ? "Competition game created." : null
+    query.game === "created" ? "Competition game created." : null,
+    query.data === "season_created" ? "Season created." : null,
+    query.data === "team_created" ? "Team created." : null,
+    query.data === "venue_created" ? "Venue created." : null,
+    query.data === "position_created" ? "Position created." : null,
+    query.data === "staff_created" ? "Staff profile created." : null,
+    query.data === "sponsor_created" ? "Sponsor created." : null
   ].filter(Boolean) as string[];
 
   return (
@@ -122,6 +132,150 @@ export default async function AdminPage({
             <li>Competitions: {competitions.length}</li>
           </ul>
         </article>
+      )}
+
+      {section === "sportsdata" && (
+        <>
+          <article className="card">
+            <h3>Create Season</h3>
+            <form className="grid-form" action="/api/admin/data/season" method="post">
+              <input name="label" placeholder="2026-2027" required />
+              <label>
+                Season start
+                <input name="startsAt" type="date" />
+              </label>
+              <label>
+                Season end
+                <input name="endsAt" type="date" />
+              </label>
+              <label><input name="isActive" type="checkbox" /> Mark as active season</label>
+              <label><input name="isArchived" type="checkbox" /> Archive immediately</label>
+              <button className="button" type="submit">Create Season</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Create Team</h3>
+            <form className="grid-form" action="/api/admin/data/team" method="post">
+              <input name="name" placeholder="Warriors Gold" required />
+              <input name="code" placeholder="WGOLD (optional)" />
+              <input name="colorTag" placeholder="gold / white / black" />
+              <input name="level" placeholder="Tournament / DVHL / Exhibition" />
+              <label>
+                Season
+                <select name="seasonId" defaultValue="">
+                  <option value="">No season</option>
+                  {sportsData.seasons.map((season) => (
+                    <option key={season.id} value={season.id}>{season.label}</option>
+                  ))}
+                </select>
+              </label>
+              <label><input name="isActive" type="checkbox" defaultChecked /> Team is active</label>
+              <button className="button" type="submit">Create Team</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Create Venue</h3>
+            <form className="grid-form" action="/api/admin/data/venue" method="post">
+              <input name="name" placeholder="Pittsburgh Ice Arena" required />
+              <input name="address1" placeholder="Address" />
+              <input name="city" placeholder="City" />
+              <input name="state" placeholder="State" />
+              <input name="postalCode" placeholder="Postal code" />
+              <input name="mapUrl" placeholder="Google Maps share URL" />
+              <button className="button" type="submit">Create Venue</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Create Position</h3>
+            <form className="grid-form" action="/api/admin/data/position" method="post">
+              <input name="code" placeholder="F / D / G / C / LW / RW" required />
+              <input name="label" placeholder="Forward / Defense / Goalie" required />
+              <button className="button" type="submit">Create Position</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Create Staff Profile</h3>
+            <form className="grid-form" action="/api/admin/data/staff" method="post">
+              <input name="fullName" placeholder="Staff name" required />
+              <input name="jobTitle" placeholder="Head Coach / GM / Equipment Manager" required />
+              <input name="email" placeholder="Email" />
+              <input name="phone" placeholder="Phone" />
+              <input name="bio" placeholder="Bio or notes" />
+              <label><input name="isActive" type="checkbox" defaultChecked /> Active staff</label>
+              <button className="button" type="submit">Create Staff Profile</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Create Sponsor</h3>
+            <form className="grid-form" action="/api/admin/data/sponsor" method="post">
+              <input name="name" placeholder="Sponsor name" required />
+              <input name="websiteUrl" placeholder="https://sponsor.com" />
+              <input name="logoUrl" placeholder="https://.../logo.png" />
+              <input name="notes" placeholder="Display notes" />
+              <label><input name="isActive" type="checkbox" defaultChecked /> Active sponsor</label>
+              <button className="button" type="submit">Create Sponsor</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Sports Data Directory</h3>
+            <div className="stack">
+              <div className="event-card">
+                <strong>Seasons ({sportsData.seasons.length})</strong>
+                <p>
+                  {sportsData.seasons.length > 0
+                    ? sportsData.seasons.map((season) => `${season.label}${season.isActive ? " (active)" : ""}`).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+              <div className="event-card">
+                <strong>Teams ({sportsData.teams.length})</strong>
+                <p>
+                  {sportsData.teams.length > 0
+                    ? sportsData.teams.map((team) => `${team.name}${team.season ? ` - ${team.season.label}` : ""}`).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+              <div className="event-card">
+                <strong>Venues ({sportsData.venues.length})</strong>
+                <p>
+                  {sportsData.venues.length > 0
+                    ? sportsData.venues.map((venue) => venue.name).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+              <div className="event-card">
+                <strong>Positions ({sportsData.positions.length})</strong>
+                <p>
+                  {sportsData.positions.length > 0
+                    ? sportsData.positions.map((position) => `${position.code}: ${position.label}`).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+              <div className="event-card">
+                <strong>Staff ({sportsData.staff.length})</strong>
+                <p>
+                  {sportsData.staff.length > 0
+                    ? sportsData.staff.map((staff) => `${staff.fullName} (${staff.jobTitle})`).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+              <div className="event-card">
+                <strong>Sponsors ({sportsData.sponsors.length})</strong>
+                <p>
+                  {sportsData.sponsors.length > 0
+                    ? sportsData.sponsors.map((sponsor) => `${sponsor.name} (${sponsor.impressions} views, ${sponsor.clicks} clicks)`).join(", ")
+                    : "None yet"}
+                </p>
+              </div>
+            </div>
+          </article>
+        </>
       )}
 
       {section === "competitions" && (

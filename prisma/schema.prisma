@@ -70,12 +70,19 @@ model Event {
   published       Boolean  @default(true)
   locationPublic  String?
   locationPrivate String?
+  seasonId        String?
+  venueId         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  season          Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  venue           Venue?   @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
   @@index([published])
   @@index([startsAt])
   @@index([visibility])
+  @@index([seasonId])
+  @@index([venueId])
 }
 
 model Competition {
@@ -93,6 +100,97 @@ model Competition {
 
   @@index([type])
   @@index([startsAt])
+}
+
+model Season {
+  id          String   @id @default(cuid())
+  label       String
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isActive    Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teams       Team[]
+  events      Event[]
+
+  @@index([isActive])
+  @@index([startsAt])
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  code        String?
+  colorTag    String?
+  level       String?
+  seasonId    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  season      Season?  @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+
+  @@index([seasonId])
+  @@index([isActive])
+  @@unique([name, seasonId])
+}
+
+model Venue {
+  id          String   @id @default(cuid())
+  name        String
+  address1    String?
+  city        String?
+  state       String?
+  postalCode  String?
+  mapUrl      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  events      Event[]
+
+  @@index([name])
+}
+
+model Position {
+  id          String   @id @default(cuid())
+  code        String
+  label       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([code])
+}
+
+model StaffProfile {
+  id          String   @id @default(cuid())
+  fullName    String
+  email       String?
+  phone       String?
+  jobTitle    String
+  bio         String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobTitle])
+  @@index([isActive])
+}
+
+model Sponsor {
+  id          String   @id @default(cuid())
+  name        String
+  websiteUrl  String?
+  logoUrl     String?
+  notes       String?
+  impressions Int      @default(0)
+  clicks      Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
 }
 
 model CompetitionTeam {
