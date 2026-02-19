@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getPrismaClient } from "@/lib/prisma";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { readStore, writeStore } from "@/lib/hq/store";
+import { MemberUser } from "@/lib/types";
 
 export const SESSION_COOKIE = "warriors_session";
 
@@ -12,6 +13,65 @@ function addDays(days: number) {
 
 function useDatabaseBackend() {
   return hasDatabaseUrl();
+}
+
+function mapDbUserToMemberUser(user: {
+  id: string;
+  fullName: string;
+  email: string;
+  passwordHash: string;
+  requestedPosition: string | null;
+  phone: string | null;
+  role: string;
+  status: string;
+  activityStatus: string;
+  rosterId: string | null;
+  jerseyNumber: number | null;
+  equipmentSizes: unknown;
+  createdAt: Date;
+  updatedAt: Date;
+}): MemberUser {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    passwordHash: user.passwordHash,
+    requestedPosition: user.requestedPosition ?? undefined,
+    phone: user.phone ?? undefined,
+    role: user.role as MemberUser["role"],
+    status: user.status as MemberUser["status"],
+    activityStatus: (user.activityStatus as MemberUser["activityStatus"]) ?? "active",
+    rosterId: user.rosterId ?? undefined,
+    jerseyNumber: user.jerseyNumber ?? undefined,
+    equipmentSizes: (user.equipmentSizes as Record<string, string>) ?? {},
+    createdAt: user.createdAt.toISOString(),
+    updatedAt: user.updatedAt.toISOString()
+  };
+}
+
+function parseCookieValue(cookieHeader: string | null, key: string) {
+  if (!cookieHeader) {
+    return "";
+  }
+
+  const match = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${key}=`));
+
+  if (!match) {
+    return "";
+  }
+
+  return decodeURIComponent(match.slice(key.length + 1));
+}
+
+export function getBearerTokenFromRequest(request: Request) {
+  const authHeader = request.headers.get("authorization") || "";
+  if (!authHeader.toLowerCase().startsWith("bearer ")) {
+    return "";
+  }
+  return authHeader.slice(7).trim();
 }
 
 export async function createSessionRecord(userId: string) {
@@ -59,6 +119,47 @@ export async function destroySessionByToken(token?: string) {
   await writeStore(store);
 }
 
+export async function getUserBySessionToken(token?: string | null) {
+  const normalizedToken = (token || "").trim();
+  if (!normalizedToken) {
+    return null;
+  }
+
+  if (useDatabaseBackend()) {
+    const session = await getPrismaClient().session.findUnique({
+      where: { token: normalizedToken },
+      include: { user: true }
+    });
+
+    if (!session || session.expiresAt <= new Date()) {
+      return null;
+    }
+
+    return mapDbUserToMemberUser(session.user);
+  }
+
+  const store = await readStore();
+  const session = store.sessions.find((entry) => entry.token === normalizedToken);
+
+  if (!session || new Date(session.expiresAt) <= new Date()) {
+    return null;
+  }
+
+  return store.users.find((user) => user.id === session.userId) ?? null;
+}
+
+export async function getCurrentUserFromRequest(request: Request) {
+  const tokenFromBearer = getBearerTokenFromRequest(request);
+  const tokenFromCookie = parseCookieValue(request.headers.get("cookie"), SESSION_COOKIE);
+  const token = tokenFromBearer || tokenFromCookie;
+
+  try {
+    return await getUserBySessionToken(token);
+  } catch {
+    return null;
+  }
+}
+
 export async function getCurrentUser() {
   const token = cookies().get(SESSION_COOKIE)?.value;
 
@@ -67,42 +168,7 @@ export async function getCurrentUser() {
   }
 
   try {
-    if (useDatabaseBackend()) {
-      const session = await getPrismaClient().session.findUnique({
-        where: { token },
-        include: { user: true }
-      });
-
-      if (!session || session.expiresAt <= new Date()) {
-        return null;
-      }
-
-      return {
-        id: session.user.id,
-        fullName: session.user.fullName,
-        email: session.user.email,
-        passwordHash: session.user.passwordHash,
-        requestedPosition: session.user.requestedPosition ?? undefined,
-        phone: session.user.phone ?? undefined,
-        role: session.user.role as "public" | "player" | "admin",
-        status: session.user.status as "pending" | "approved" | "rejected",
-        activityStatus: (session.user.activityStatus as "active" | "inactive") ?? "active",
-        rosterId: session.user.rosterId ?? undefined,
-        jerseyNumber: session.user.jerseyNumber ?? undefined,
-        equipmentSizes: (session.user.equipmentSizes as Record<string, string>) ?? {},
-        createdAt: session.user.createdAt.toISOString(),
-        updatedAt: session.user.updatedAt.toISOString()
-      };
-    }
-
-    const store = await readStore();
-    const session = store.sessions.find((entry) => entry.token === token);
-
-    if (!session || new Date(session.expiresAt) <= new Date()) {
-      return null;
-    }
-
-    return store.users.find((user) => user.id === session.userId) ?? null;
+    return await getUserBySessionToken(token);
   } catch {
     return null;
   }
