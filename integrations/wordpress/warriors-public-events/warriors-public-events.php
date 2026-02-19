@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Public Events Feed
  * Description: Pulls public events from the Warriors HQ API and renders them via shortcode.
- * Version: 0.3.3
+ * Version: 0.3.4
  */
 
 if (!defined('ABSPATH')) {
@@ -195,6 +195,69 @@ function warriors_public_events_enqueue_styles() {
   .warriors-public-events-link {
     color: #8dc8ff;
   }
+}
+html[class*="dark"] .warriors-public-events h2,
+html[class*="dark"] .warriors-public-events .intro,
+body.dark-mode .warriors-public-events h2,
+body.dark-mode .warriors-public-events .intro,
+body[data-theme="dark"] .warriors-public-events h2,
+body[data-theme="dark"] .warriors-public-events .intro,
+body.is-style-dark .warriors-public-events h2,
+body.is-style-dark .warriors-public-events .intro,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events h2,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events .intro {
+  color: #eef2f8;
+}
+html[class*="dark"] .warriors-public-events-card,
+body.dark-mode .warriors-public-events-card,
+body[data-theme="dark"] .warriors-public-events-card,
+body.is-style-dark .warriors-public-events-card,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-card {
+  background: linear-gradient(180deg,#1a2330 0%,#212d3d 100%);
+  border-color: #39485d;
+}
+html[class*="dark"] .warriors-public-events-card h3,
+body.dark-mode .warriors-public-events-card h3,
+body[data-theme="dark"] .warriors-public-events-card h3,
+body.is-style-dark .warriors-public-events-card h3,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-card h3 {
+  color: #f4f7fb;
+}
+html[class*="dark"] .warriors-public-events-meta,
+body.dark-mode .warriors-public-events-meta,
+body[data-theme="dark"] .warriors-public-events-meta,
+body.is-style-dark .warriors-public-events-meta,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-meta {
+  color: #ffd978;
+}
+html[class*="dark"] .warriors-public-events-location,
+html[class*="dark"] .warriors-public-events-type,
+html[class*="dark"] .warriors-public-events-card p,
+body.dark-mode .warriors-public-events-location,
+body.dark-mode .warriors-public-events-type,
+body.dark-mode .warriors-public-events-card p,
+body[data-theme="dark"] .warriors-public-events-location,
+body[data-theme="dark"] .warriors-public-events-type,
+body[data-theme="dark"] .warriors-public-events-card p,
+body.is-style-dark .warriors-public-events-location,
+body.is-style-dark .warriors-public-events-type,
+body.is-style-dark .warriors-public-events-card p,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-location,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-type,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-card p {
+  color: #d9e1ee;
+}
+html[class*="dark"] .warriors-public-events-open,
+html[class*="dark"] .warriors-public-events-link,
+body.dark-mode .warriors-public-events-open,
+body.dark-mode .warriors-public-events-link,
+body[data-theme="dark"] .warriors-public-events-open,
+body[data-theme="dark"] .warriors-public-events-link,
+body.is-style-dark .warriors-public-events-open,
+body.is-style-dark .warriors-public-events-link,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-open,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) .warriors-public-events-link {
+  color: #8dc8ff;
 }
 ';
     wp_register_style('warriors-public-events-inline', false);

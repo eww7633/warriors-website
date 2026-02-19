@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.3
+ * Version: 0.2.4
  */
 
 if (!defined('ABSPATH')) {
@@ -58,15 +58,22 @@ function warriors_theme_tools_enqueue_assets() {
   --warriors-link: #114b74;
 }
 body {
+  --warriors-page-bg: radial-gradient(circle at 8% 0%, #fdf9ef 0%, var(--warriors-cream) 46%, var(--warriors-cream-deep) 100%);
+  --warriors-text: #181c22;
+  --warriors-heading: #10141b;
   background: radial-gradient(circle at 8% 0%, #fdf9ef 0%, var(--warriors-cream) 46%, var(--warriors-cream-deep) 100%);
   color: var(--warriors-copy);
   line-height: 1.55;
+}
+html body {
+  background: var(--warriors-page-bg) !important;
+  color: var(--warriors-text) !important;
 }
 .site, #page {
   background: transparent;
 }
 h1, h2, h3, h4 {
-  color: #10141b;
+  color: var(--warriors-heading);
 }
 a {
   color: var(--warriors-link);
@@ -84,7 +91,7 @@ p.wp-block-site-title a,
 .entry-content li,
 main p,
 main li {
-  color: var(--warriors-copy) !important;
+  color: var(--warriors-text) !important;
 }
 header, .site-header, .main-navigation, .wp-block-navigation {
   background: linear-gradient(90deg, #050608 0%, #0d1218 48%, #161d27 100%);
@@ -223,6 +230,15 @@ input[type="submit"]:hover {
 .wp-block-social-links .wp-social-link.wp-social-link-github,
 .wp-block-social-links .wp-social-link.wp-social-link-x {
   display: none !important;
+}
+html[class*="dark"] body,
+body.dark-mode,
+body[data-theme="dark"],
+body.is-style-dark,
+body.default-mode-dark:not(.is-style-light):not(.is-style-system) {
+  --warriors-page-bg: linear-gradient(180deg, #090c11 0%, #121822 70%, #1a2230 100%);
+  --warriors-text: #eef2f8;
+  --warriors-heading: #f4f7fb;
 }
 .warriors-home-updates {
   border: 1px solid #20262f;
@@ -434,8 +450,8 @@ body .is-style-nfd-theme-dark p.wp-block-site-title a {
 body.dark-mode,
 html.dark-mode body,
 body[data-theme="dark"] {
-  background: linear-gradient(180deg, #090c11 0%, #121822 70%, #1a2230 100%);
-  color: #eef2f8;
+  background: var(--warriors-page-bg);
+  color: var(--warriors-text);
 }
 body.dark-mode .site,
 body.dark-mode #page,
@@ -472,7 +488,7 @@ body[data-theme="dark"] .entry-content p,
 body[data-theme="dark"] .entry-content li,
 body[data-theme="dark"] main p,
 body[data-theme="dark"] main li {
-  color: #eef2f8 !important;
+  color: var(--warriors-text) !important;
 }
 body.dark-mode .warriors-theme-tools-card,
 body.dark-mode .warriors-legacy-about,
@@ -497,11 +513,15 @@ window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
   const mapHref = (label) => {
     const t = (label || "").toLowerCase().replace(/\\s+/g, " ").trim();
     if (!t) return null;
-    if (t === "about") return "/about";
+    if (["about", "about us"].includes(t)) return "/about";
+    if (t === "history") return "/history";
+    if (["news", "updates"].includes(t)) return "/news";
+    if (["partners", "sponsors"].includes(t)) return "/partners";
     if (t.includes("log in") && t.includes("join")) return window.WARRIORS_HQ_BASE + "/login";
     if (["log in", "login", "sign in"].includes(t)) return window.WARRIORS_HQ_BASE + "/login";
     if (["join", "sign up", "register", "player registration"].includes(t)) return window.WARRIORS_HQ_BASE + "/register";
     if (["players", "roster"].includes(t)) return window.WARRIORS_HQ_BASE + "/roster";
+    if (["events", "calendar"].includes(t)) return window.WARRIORS_HQ_BASE + "/calendar";
     if (["donate", "donation", "donations"].includes(t)) return "/donate";
     if (["warrior hq", "my account", "hq"].includes(t)) return window.WARRIORS_HQ_BASE + "/player";
     return null;
@@ -544,11 +564,7 @@ window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
       }
 
       if (!mapped) return;
-      if (!a.getAttribute("href") || a.getAttribute("href") === "#" || a.getAttribute("href") === "") {
-        a.setAttribute("href", mapped);
-      } else if (mapped.startsWith("http")) {
-        a.setAttribute("href", mapped);
-      }
+      a.setAttribute("href", mapped);
       a.style.pointerEvents = "auto";
       a.style.cursor = "pointer";
     });
