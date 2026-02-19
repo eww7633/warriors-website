@@ -214,14 +214,31 @@ input[type="submit"]:hover {
 add_action('wp_enqueue_scripts', 'warriors_theme_tools_enqueue_assets');
 
 function warriors_theme_tools_normalize_menu_url($item, $hq_base_url) {
-    $title = strtolower(trim(wp_strip_all_tags($item->title)));
+    $title = strtolower(trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($item->title))));
+    $site_base_url = home_url('/');
 
     if (in_array($title, ['log in', 'login', 'sign in'], true)) {
         $item->url = $hq_base_url . '/login';
     }
 
-    if (in_array($title, ['sign up', 'join', 'register'], true)) {
+    if (in_array($title, ['sign up', 'join', 'register', 'player registration'], true)) {
         $item->url = $hq_base_url . '/register';
+    }
+
+    if (in_array($title, ['players', 'roster'], true)) {
+        $item->url = $hq_base_url . '/roster';
+    }
+
+    if ($title === 'about') {
+        $item->url = trailingslashit($site_base_url) . 'about';
+    }
+
+    if (in_array($title, ['donate', 'donation', 'donations'], true)) {
+        $item->url = trailingslashit($site_base_url) . 'donate';
+    }
+
+    if (strpos($title, 'log in') !== false && strpos($title, 'join') !== false) {
+        $item->url = $hq_base_url . '/login';
     }
 
     if (in_array($title, ['warrior hq', 'my account', 'hq'], true)) {
@@ -343,9 +360,58 @@ function warriors_theme_tools_home_updates_shortcode() {
 }
 add_shortcode('warriors_home_updates', 'warriors_theme_tools_home_updates_shortcode');
 
+function warriors_theme_tools_legacy_about_shortcode() {
+    return '<section class="warriors-theme-tools-card warriors-legacy-about">'
+        . '<h2>Mission</h2>'
+        . '<p>Pittsburgh Warriors Hockey is a 501(c)(3) organization of honorably discharged service members with a service-connected disability united around hockey and dedicated to provide a cathartic experience, promote physical and mental healing and growth, and enable team members to be even more productive members of society.</p>'
+        . '<h2>Vision</h2>'
+        . '<p>With the help of the community, the Pittsburgh Warriors use hockey as a catalyst to create a lasting culture of healing for disabled veterans.</p>'
+        . '<h2>Culture</h2>'
+        . '<p>There is no requirement for experience or ability to play. We promote brotherhood, camaraderie, accountability, and excellence on and off the ice.</p>'
+        . '<h3>Additional Services</h3>'
+        . '<ul>'
+        . '<li>Volunteer opportunities</li>'
+        . '<li>Fundraising opportunities</li>'
+        . '<li>Internal support for veteran issues</li>'
+        . '<li>Family and social events</li>'
+        . '<li>Leadership opportunities</li>'
+        . '</ul>'
+        . '<h3>Ice Hockey Provided</h3>'
+        . '<ul>'
+        . '<li>Access to weekly ice</li>'
+        . '<li>DVHL Disabled Veterans Hockey League play</li>'
+        . '<li>National and regional travel tournaments</li>'
+        . '<li>Jerseys and equipment (if needed)</li>'
+        . '</ul>'
+        . '<h3>Criteria to Register</h3>'
+        . '<ul>'
+        . '<li>Honorable discharge from any branch of the U.S. Armed Forces</li>'
+        . '<li>Service-connected disability</li>'
+        . '<li>DD-214</li>'
+        . '<li>Valid USA Hockey number</li>'
+        . '<li>No previous ice hockey experience required</li>'
+        . '</ul>'
+        . '<h3>Guiding Principles</h3>'
+        . '<ol>'
+        . '<li>Winning matters, but healing and brotherhood matter more.</li>'
+        . '<li>Every new player gets a formal introduction and full team support.</li>'
+        . '<li>Ability does not define your value as a teammate.</li>'
+        . '<li>On-ice communication with officials is handled by team captains.</li>'
+        . '</ol>'
+        . '</section>';
+}
+add_shortcode('warriors_legacy_about', 'warriors_theme_tools_legacy_about_shortcode');
+
 function warriors_theme_tools_inject_frontpage_content($content) {
     if (is_admin() || !is_main_query() || !is_singular()) {
         return $content;
+    }
+
+    if (is_page('about') || is_page('about-us')) {
+        if (has_shortcode($content, 'warriors_legacy_about')) {
+            return $content;
+        }
+        return warriors_theme_tools_legacy_about_shortcode() . $content;
     }
 
     if (!is_front_page()) {
