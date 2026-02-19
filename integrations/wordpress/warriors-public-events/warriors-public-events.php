@@ -164,6 +164,31 @@ function warriors_public_events_enqueue_styles() {
 .warriors-public-events-open:after{content:\"  ->\"}
 .warriors-public-events-link{font-weight:700;color:#0d4a74;text-decoration:underline}
 .warriors-public-events-map-link{position:relative;z-index:3}
+@media (prefers-color-scheme: dark) {
+  .warriors-public-events h2,
+  .warriors-public-events .intro {
+    color: #eef2f8;
+  }
+  .warriors-public-events-card {
+    background: linear-gradient(180deg,#1a2330 0%,#212d3d 100%);
+    border-color: #39485d;
+  }
+  .warriors-public-events-card h3 {
+    color: #f4f7fb;
+  }
+  .warriors-public-events-meta {
+    color: #ffd978;
+  }
+  .warriors-public-events-location,
+  .warriors-public-events-type,
+  .warriors-public-events-card p {
+    color: #d9e1ee;
+  }
+  .warriors-public-events-open,
+  .warriors-public-events-link {
+    color: #8dc8ff;
+  }
+}
 ';
     wp_register_style('warriors-public-events-inline', false);
     wp_enqueue_style('warriors-public-events-inline');
