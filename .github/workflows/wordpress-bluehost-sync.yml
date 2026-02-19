@@ -4,7 +4,9 @@ on:
   push:
     branches: ["main"]
     paths:
+      - "integrations/wordpress/warriors-public-events.php"
       - "integrations/wordpress/warriors-public-events/**"
+      - "integrations/wordpress/warriors-theme-tools.php"
       - "integrations/wordpress/warriors-theme-tools/**"
       - ".github/workflows/wordpress-bluehost-sync.yml"
   workflow_dispatch:
@@ -16,6 +18,7 @@ jobs:
       BLUEHOST_HOST: ${{ secrets.BLUEHOST_HOST != '' && secrets.BLUEHOST_HOST || vars.BLUEHOST_HOST }}
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
+      BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || '/public_html/wp-content/plugins/' }}
 
     steps:
       - name: Checkout
@@ -27,6 +30,14 @@ jobs:
           test -n "$BLUEHOST_USER" || (echo "Missing BLUEHOST_USER in secrets/vars" && exit 1)
           test -n "$BLUEHOST_PASS" || (echo "Missing BLUEHOST_PASS in secrets/vars" && exit 1)
 
+      - name: Resolve WordPress plugin directory
+        run: |
+          if [ -z "$BLUEHOST_WP_PLUGIN_DIR" ]; then
+            echo "Missing BLUEHOST_WP_PLUGIN_DIR and no fallback resolved" >&2
+            exit 1
+          fi
+          echo "Using BLUEHOST_WP_PLUGIN_DIR=$BLUEHOST_WP_PLUGIN_DIR"
+
       - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -36,7 +47,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: integrations/wordpress/
-          server-dir: /plugins/
+          server-dir: ${{ env.BLUEHOST_WP_PLUGIN_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
