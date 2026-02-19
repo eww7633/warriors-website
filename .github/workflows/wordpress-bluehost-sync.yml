@@ -18,7 +18,7 @@ jobs:
       BLUEHOST_HOST: ${{ secrets.BLUEHOST_HOST != '' && secrets.BLUEHOST_HOST || vars.BLUEHOST_HOST }}
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
-      BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || '/public_html/wp-content/plugins/' }}
+      BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'wp-content/plugins/' }}
 
     steps:
       - name: Checkout
@@ -36,7 +36,32 @@ jobs:
             echo "Missing BLUEHOST_WP_PLUGIN_DIR and no fallback resolved" >&2
             exit 1
           fi
-          echo "Using BLUEHOST_WP_PLUGIN_DIR=$BLUEHOST_WP_PLUGIN_DIR"
+
+          DEPLOY_DIR="$BLUEHOST_WP_PLUGIN_DIR"
+          DEPLOY_DIR="${DEPLOY_DIR#./}"
+          DEPLOY_DIR="${DEPLOY_DIR%/}/"
+
+          # Normalize common absolute-path input to FTP root-relative path.
+          DEPLOY_DIR="${DEPLOY_DIR#/home2/*/public_html/}"
+          DEPLOY_DIR="${DEPLOY_DIR#/home/*/public_html/}"
+          DEPLOY_DIR="${DEPLOY_DIR#/public_html/}"
+
+          # Collapse accidental duplication.
+          DEPLOY_DIR="${DEPLOY_DIR//public_html\/wp-content\/public_html\/wp-content\//wp-content/}"
+          DEPLOY_DIR="${DEPLOY_DIR//wp-content\/wp-content\//wp-content/}"
+
+          # Ensure we only ever deploy into the plugins directory.
+          case "$DEPLOY_DIR" in
+            wp-content/plugins/*)
+              ;;
+            *)
+              echo "Resolved plugin dir must be under wp-content/plugins/. Got: $DEPLOY_DIR" >&2
+              exit 1
+              ;;
+          esac
+
+          echo "DEPLOY_PLUGIN_DIR=/$DEPLOY_DIR" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_PLUGIN_DIR=/$DEPLOY_DIR"
 
       - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -47,7 +72,7 @@ jobs:
           protocol: ftp
           port: 21
           local-dir: integrations/wordpress/
-          server-dir: ${{ env.BLUEHOST_WP_PLUGIN_DIR }}
+          server-dir: ${{ env.DEPLOY_PLUGIN_DIR }}
           exclude: |
             **/.git*
             **/.git*/**
