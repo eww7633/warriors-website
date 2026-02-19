@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.3
+ * Version: 0.2.4
  */
 
 if (!defined('ABSPATH')) {
@@ -222,6 +222,12 @@ input[type="submit"]:hover {
 .wp-block-social-links .wp-social-link.wp-social-link-tiktok,
 .wp-block-social-links .wp-social-link.wp-social-link-github,
 .wp-block-social-links .wp-social-link.wp-social-link-x {
+  display: none !important;
+}
+.plover-hide-on-dark,
+.plover-hide-on-light,
+.wp-block-button.plover-hide-on-dark,
+.wp-block-button.plover-hide-on-light {
   display: none !important;
 }
 .warriors-home-updates {
@@ -596,6 +602,18 @@ function warriors_theme_tools_normalize_menu_url($item, $hq_base_url) {
 
     if ($title === 'about') {
         $item->url = trailingslashit($site_base_url) . 'about';
+    }
+
+    if ($title === 'news') {
+        $item->url = trailingslashit($site_base_url) . 'news';
+    }
+
+    if ($title === 'history') {
+        $item->url = trailingslashit($site_base_url) . 'history';
+    }
+
+    if ($title === 'partners') {
+        $item->url = trailingslashit($site_base_url) . 'partners';
     }
 
     if (in_array($title, ['donate', 'donation', 'donations'], true)) {
