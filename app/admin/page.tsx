@@ -11,6 +11,7 @@ import {
   listEligiblePlayers
 } from "@/lib/hq/competitions";
 import { listSportsData } from "@/lib/hq/ops-data";
+import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -63,13 +64,14 @@ export default async function AdminPage({
     ? (query.section as Section)
     : "overview";
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
     listCompetitions(),
     listEligiblePlayers(),
-    listSportsData()
+    listSportsData(),
+    summarizeAttendanceInsights()
   ]);
 
   const pendingUsers = store.users.filter((entry) => entry.status === "pending");
@@ -584,7 +586,7 @@ export default async function AdminPage({
             </div>
             <p>
               Invite link to share:{" "}
-              <code>https://pghwarriorhockey.us/register</code>
+              <code>https://pghwarriorhockey.us/join</code>
             </p>
           </article>
 
@@ -874,17 +876,31 @@ export default async function AdminPage({
                     <p>{candidate.email}</p>
                     <p>Requested position: {candidate.requestedPosition || "Not provided"}</p>
                     <label>
-                      Assign roster
+                      Assign main roster
                       <select name="rosterId" required defaultValue="">
                         <option value="" disabled>Select roster</option>
+                        <option value="main-player-roster">Main Player Roster</option>
                         {rosters.map((roster) => (
                           <option key={roster.id} value={roster.id}>{roster.name}</option>
                         ))}
                       </select>
                     </label>
                     <label>
-                      Official jersey number
-                      <input name="jerseyNumber" type="number" min="1" max="99" required />
+                      Primary sub-roster
+                      <select name="primarySubRoster" required defaultValue="">
+                        <option value="" disabled>Select color roster</option>
+                        <option value="gold">Gold (highest skill)</option>
+                        <option value="white">White (tweener)</option>
+                        <option value="black">Black (developing)</option>
+                      </select>
+                    </label>
+                    <label>
+                      <input type="checkbox" name="allowCrossColorJerseyOverlap" /> Allow cross-color number overlap
+                      (gold/black policy)
+                    </label>
+                    <label>
+                      Initial jersey number (optional)
+                      <input name="jerseyNumber" type="number" min="1" max="99" />
                     </label>
                     <div className="cta-row">
                       <button className="button" type="submit">Approve and Add to Roster</button>
@@ -960,6 +976,29 @@ export default async function AdminPage({
       {section === "attendance" && (
         <article className="card">
           <h3>Attendance Audit by Event</h3>
+          {attendanceInsights.fallbackMode ? (
+            <p className="muted">
+              Fallback file mode detected. RSVP analytics are approximate until database mode is enabled.
+            </p>
+          ) : null}
+          <div className="admin-kpi-grid">
+            <div className="admin-kpi">
+              <span className="muted">RSVP then no-show</span>
+              <strong>{attendanceInsights.totals.noShowAfterRsvp}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">Showed w/o RSVP</span>
+              <strong>{attendanceInsights.totals.walkInWithoutRsvp}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">RSVP no, still attended</span>
+              <strong>{attendanceInsights.totals.attendedAfterNotGoing}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">Tracked members</span>
+              <strong>{attendanceInsights.totalMembers}</strong>
+            </div>
+          </div>
           <div className="stack">
             {attendanceByEvent.map((entry) => (
               <div key={entry.eventId} className="event-card">
@@ -968,8 +1007,42 @@ export default async function AdminPage({
                 <p>Checked in + no-show: {entry.checkedInNoShow}</p>
                 <p>Walk-in attended: {entry.walkInAttended}</p>
                 <p>Absent: {entry.absent}</p>
+                {(() => {
+                  const insight = attendanceInsights.eventInsights.find((event) => event.eventId === entry.eventId);
+                  if (!insight) {
+                    return null;
+                  }
+                  return (
+                    <>
+                      <p className="muted">
+                        RSVP: going {insight.reservationsGoing}, maybe {insight.reservationsMaybe}, not going{" "}
+                        {insight.reservationsNotGoing}
+                      </p>
+                      <p className="muted">
+                        Reliability: RSVP no-shows {insight.noShowAfterRsvpCount}, no-RSVP attendees{" "}
+                        {insight.walkInWithoutRsvpCount}, attended after not-going {insight.attendedAfterNotGoingCount}
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
             ))}
+          </div>
+          <h3>Player Reliability Signals</h3>
+          <div className="stack">
+            {attendanceInsights.topNoShows.slice(0, 20).map((entry) => (
+              <div key={entry.userId} className="event-card">
+                <strong>{entry.fullName}</strong>
+                <p>{entry.email}</p>
+                <p>
+                  RSVP no-shows: {entry.noShowAfterRsvp} | Walk-ins without RSVP: {entry.walkInWithoutRsvp} |
+                  Attended after not-going: {entry.attendedAfterNotGoing}
+                </p>
+              </div>
+            ))}
+            {attendanceInsights.topNoShows.length === 0 ? (
+              <p className="muted">No reliability exceptions recorded yet.</p>
+            ) : null}
           </div>
         </article>
       )}

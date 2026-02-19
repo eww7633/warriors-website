@@ -331,7 +331,7 @@ export async function createPendingPlayer(input: {
   return user;
 }
 
-export async function approvePlayer(userId: string, rosterId: string, jerseyNumber: number) {
+export async function approvePlayer(userId: string, rosterId: string, jerseyNumber?: number) {
   if (useDatabaseBackend()) {
     await ensureAdminSeedDb();
     const user = await getPrismaClient().user.findUnique({ where: { id: userId } });
@@ -344,17 +344,19 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
       throw new Error("Only pending registrations can be approved.");
     }
 
-    const jerseyTaken = await getPrismaClient().user.findFirst({
-      where: {
-        id: { not: userId },
-        status: "approved",
-        rosterId,
-        jerseyNumber
-      }
-    });
+    if (typeof jerseyNumber !== "undefined") {
+      const jerseyTaken = await getPrismaClient().user.findFirst({
+        where: {
+          id: { not: userId },
+          status: "approved",
+          rosterId,
+          jerseyNumber
+        }
+      });
 
-    if (jerseyTaken) {
-      throw new Error("Jersey number is already assigned on this roster.");
+      if (jerseyTaken) {
+        throw new Error("Jersey number is already assigned on this roster.");
+      }
     }
 
     const updated = await getPrismaClient().user.update({
@@ -364,7 +366,7 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
         role: "player",
         activityStatus: "active",
         rosterId,
-        jerseyNumber
+        jerseyNumber: jerseyNumber ?? null
       }
     });
 
@@ -382,16 +384,18 @@ export async function approvePlayer(userId: string, rosterId: string, jerseyNumb
     throw new Error("Only pending registrations can be approved.");
   }
 
-  const jerseyTaken = store.users.some(
-    (entry) =>
-      entry.id !== userId &&
-      entry.status === "approved" &&
-      entry.rosterId === rosterId &&
-      entry.jerseyNumber === jerseyNumber
-  );
+  if (typeof jerseyNumber !== "undefined") {
+    const jerseyTaken = store.users.some(
+      (entry) =>
+        entry.id !== userId &&
+        entry.status === "approved" &&
+        entry.rosterId === rosterId &&
+        entry.jerseyNumber === jerseyNumber
+    );
 
-  if (jerseyTaken) {
-    throw new Error("Jersey number is already assigned on this roster.");
+    if (jerseyTaken) {
+      throw new Error("Jersey number is already assigned on this roster.");
+    }
   }
 
   user.status = "approved";

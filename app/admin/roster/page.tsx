@@ -1,13 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { rosters } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
+import {
+  listPendingJerseyNumberRequests,
+  listPendingPhotoSubmissionRequests
+} from "@/lib/hq/player-requests";
+import {
+  listAllTeamAssignments,
+  listPlayerProfileExtras,
+  listUsaHockeyRenewalCandidates,
+  usaHockeySeasonLabel
+} from "@/lib/hq/player-profiles";
 
 export const dynamic = "force-dynamic";
 
 type SortField = "name" | "number" | "roster" | "activity" | "updated";
 type SortDir = "asc" | "desc";
 type ActivityFilter = "all" | "active" | "inactive";
+const PRIMARY_SUB_ROSTER_OPTIONS = ["gold", "white", "black"] as const;
+const MAIN_ROSTER_OPTIONS = [
+  { id: "main-player-roster", label: "Main Player Roster" },
+  ...rosters.map((entry) => ({ id: entry.id, label: entry.name }))
+];
 
 export default async function CentralRosterPage({
   searchParams
@@ -22,6 +38,12 @@ export default async function CentralRosterPage({
     sharedTournaments?: string;
     q?: string;
     activity?: string;
+    request?: string;
+    assignmentDeleted?: string;
+    usaStatus?: string;
+    usaRollover?: string;
+    usaSeason?: string;
+    usaUpdated?: string;
   };
 }) {
   const user = await getCurrentUser();
@@ -47,7 +69,23 @@ export default async function CentralRosterPage({
     ? (query.activity as ActivityFilter)
     : "all";
 
-  const players = await listCentralRosterPlayers();
+  const [players, pendingPhotoRequests, pendingJerseyRequests, teamAssignments, profileExtras, renewalCandidates] = await Promise.all([
+    listCentralRosterPlayers(),
+    listPendingPhotoSubmissionRequests(),
+    listPendingJerseyNumberRequests(),
+    listAllTeamAssignments(),
+    listPlayerProfileExtras(),
+    listUsaHockeyRenewalCandidates()
+  ]);
+  const playersById = new Map(players.map((entry) => [entry.id, entry]));
+  const currentUsaSeason = usaHockeySeasonLabel();
+  const profileExtraByUserId = new Map(profileExtras.map((entry) => [entry.userId, entry]));
+  const assignmentsByUserId = teamAssignments.reduce((acc, assignment) => {
+    const list = acc.get(assignment.userId) ?? [];
+    list.push(assignment);
+    acc.set(assignment.userId, list);
+    return acc;
+  }, new Map<string, typeof teamAssignments>());
   const filtered = players.filter((player) => {
     if (activity !== "all" && player.activityStatus !== activity) {
       return false;
@@ -125,6 +163,9 @@ export default async function CentralRosterPage({
           <span className="badge">Total: {sorted.length}</span>
           <span className="badge">Active: {activeRoster.length}</span>
           <span className="badge">Inactive: {inactiveRoster.length}</span>
+          <span className="badge">
+            USA Hockey renewals ({currentUsaSeason}): {renewalCandidates.length}
+          </span>
         </div>
         <form className="grid-form" action="/admin/roster" method="get">
           <input name="q" placeholder="Search name, email, roster, number" defaultValue={q} />
@@ -142,6 +183,15 @@ export default async function CentralRosterPage({
         </form>
         {query.saved === "1" && <p className="badge">Player record updated.</p>}
         {query.deleted === "1" && <p className="badge">Player deleted.</p>}
+        {query.assignmentDeleted === "1" && <p className="badge">Team assignment removed.</p>}
+        {query.usaStatus === "updated" && <p className="badge">USA Hockey status updated.</p>}
+        {query.usaRollover === "1" && (
+          <p className="badge">
+            USA Hockey rollover complete for {query.usaSeason || currentUsaSeason}. Updated {query.usaUpdated || "0"} profiles.
+          </p>
+        )}
+        {query.request === "approved" && <p className="badge">Request approved.</p>}
+        {query.request === "rejected" && <p className="badge">Request rejected.</p>}
         {query.error && (
           <p className="muted">
             {query.error === "number_conflict"
@@ -151,6 +201,143 @@ export default async function CentralRosterPage({
               : query.error.replaceAll("_", " ")}
           </p>
         )}
+      </article>
+
+      <article className="card">
+        <h3>USA Hockey Compliance</h3>
+        <form className="grid-form" action="/api/admin/usa-hockey/rollover" method="post">
+          <label>
+            Active season
+            <input name="season" defaultValue={currentUsaSeason} />
+          </label>
+          <button className="button" type="submit">Run Season Rollover</button>
+        </form>
+        <p className="muted">
+          Rollover marks stale records as pending renewal for the selected season.
+        </p>
+
+        <div className="stack">
+          {renewalCandidates.length === 0 ? (
+            <p className="muted">No renewal candidates for {currentUsaSeason}.</p>
+          ) : (
+            renewalCandidates.map((candidate) => {
+              const player = playersById.get(candidate.userId);
+              return (
+                <div key={candidate.userId} className="event-card">
+                  <strong>{player?.fullName ?? candidate.userId}</strong>
+                  <p>{player?.email ?? "No email on file"}</p>
+                  <p>
+                    Number: {candidate.usaHockeyNumber || "Missing"} | Season: {candidate.usaHockeySeason || "Missing"} |
+                    Status: {candidate.usaHockeyStatus || "unverified"}
+                  </p>
+                  <div className="cta-row">
+                    <form action="/api/admin/usa-hockey/status" method="post">
+                      <input type="hidden" name="userId" value={candidate.userId} />
+                      <input type="hidden" name="status" value="verified" />
+                      <input type="hidden" name="season" value={currentUsaSeason} />
+                      <button className="button" type="submit" disabled={!candidate.usaHockeyNumber}>
+                        Mark Verified
+                      </button>
+                    </form>
+                    <form action="/api/admin/usa-hockey/status" method="post">
+                      <input type="hidden" name="userId" value={candidate.userId} />
+                      <input type="hidden" name="status" value="pending_renewal" />
+                      <input type="hidden" name="season" value={currentUsaSeason} />
+                      <button className="button ghost" type="submit">Set Pending Renewal</button>
+                    </form>
+                    <form action="/api/admin/usa-hockey/status" method="post">
+                      <input type="hidden" name="userId" value={candidate.userId} />
+                      <input type="hidden" name="status" value="expired" />
+                      <input type="hidden" name="season" value={currentUsaSeason} />
+                      <button className="button alt" type="submit">Mark Expired</button>
+                    </form>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </article>
+
+      <article className="card">
+        <h3>Pending Player Requests</h3>
+        <div className="stack">
+          <div className="event-card">
+            <strong>Photo submissions ({pendingPhotoRequests.length})</strong>
+            {pendingPhotoRequests.length === 0 ? (
+              <p className="muted">No pending photo requests.</p>
+            ) : (
+              <div className="stack">
+                {pendingPhotoRequests.map((entry) => {
+                  const player = playersById.get(entry.userId);
+                  return (
+                    <div key={entry.id} className="event-card">
+                      <p>
+                        <strong>{player?.fullName ?? entry.userId}</strong> submitted{" "}
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </p>
+                      <p>
+                        <a href={entry.imageUrl} target="_blank" rel="noreferrer">
+                          Review submitted photo
+                        </a>
+                      </p>
+                      <form className="grid-form" action="/api/admin/roster/requests/photo/review" method="post">
+                        <input type="hidden" name="requestId" value={entry.id} />
+                        <input name="reviewNotes" placeholder="Optional decision notes" />
+                        <div className="cta-row">
+                          <button className="button" type="submit" name="decision" value="approved">
+                            Approve and set official
+                          </button>
+                          <button className="button alt" type="submit" name="decision" value="rejected">
+                            Reject
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="event-card">
+            <strong>Jersey number requests ({pendingJerseyRequests.length})</strong>
+            {pendingJerseyRequests.length === 0 ? (
+              <p className="muted">No pending jersey requests.</p>
+            ) : (
+              <div className="stack">
+                {pendingJerseyRequests.map((entry) => {
+                  const player = playersById.get(entry.userId);
+                  return (
+                    <div key={entry.id} className="event-card">
+                      <p>
+                        <strong>{player?.fullName ?? entry.userId}</strong> requested #
+                        {entry.requestedJerseyNumber} (current #{entry.currentJerseyNumber ?? "-"})
+                      </p>
+                      <p className="muted">
+                        Roster: {entry.rosterId} | Sub-roster: {entry.primarySubRoster || "unassigned"} | Submitted:{" "}
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </p>
+                      {entry.approvalReason ? <p className="muted">{entry.approvalReason}</p> : null}
+                      <form className="grid-form" action="/api/admin/roster/requests/jersey/review" method="post">
+                        <input type="hidden" name="requestId" value={entry.id} />
+                        <input name="reviewNotes" placeholder="Optional decision notes" />
+                        <div className="cta-row">
+                          <button className="button" type="submit" name="decision" value="approved">
+                            Approve and apply number
+                          </button>
+                          <button className="button alt" type="submit" name="decision" value="rejected">
+                            Reject
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </article>
 
       <article className="card">
@@ -184,18 +371,126 @@ export default async function CentralRosterPage({
             {sorted.map((player) => (
               <tr key={player.id}>
                 <td>
+                  <form className="grid-form" action={`/api/admin/users/${player.id}/identity`} method="post">
+                    <strong>Identity + Account</strong>
+                    <label>
+                      Full name
+                      <input name="fullName" defaultValue={player.fullName} required />
+                    </label>
+                    <label>
+                      Email
+                      <input name="email" type="email" defaultValue={player.email} required />
+                    </label>
+                    <label>
+                      Phone
+                      <input name="phone" placeholder="Phone" defaultValue={player.phone ?? ""} />
+                    </label>
+                    <label>
+                      Preferred position
+                      <input name="requestedPosition" placeholder="Primary position" defaultValue={player.requestedPosition ?? ""} />
+                    </label>
+                    <label>
+                      Address line 1
+                      <input name="addressLine1" defaultValue={profileExtraByUserId.get(player.id)?.address?.line1 ?? ""} />
+                    </label>
+                    <label>
+                      Address line 2
+                      <input name="addressLine2" defaultValue={profileExtraByUserId.get(player.id)?.address?.line2 ?? ""} />
+                    </label>
+                    <label>
+                      City
+                      <input name="city" defaultValue={profileExtraByUserId.get(player.id)?.address?.city ?? ""} />
+                    </label>
+                    <label>
+                      State/Province
+                      <input name="stateProvince" defaultValue={profileExtraByUserId.get(player.id)?.address?.stateProvince ?? ""} />
+                    </label>
+                    <label>
+                      ZIP/Postal code
+                      <input name="postalCode" defaultValue={profileExtraByUserId.get(player.id)?.address?.postalCode ?? ""} />
+                    </label>
+                    <label>
+                      Country
+                      <input name="country" defaultValue={profileExtraByUserId.get(player.id)?.address?.country ?? ""} />
+                    </label>
+                    <label>
+                      Primary sub-roster
+                      <select
+                        name="primarySubRoster"
+                        defaultValue={profileExtraByUserId.get(player.id)?.primarySubRoster ?? ""}
+                      >
+                        <option value="">Not assigned</option>
+                        {PRIMARY_SUB_ROSTER_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="allowCrossColorJerseyOverlap"
+                        defaultChecked={Boolean(profileExtraByUserId.get(player.id)?.allowCrossColorJerseyOverlap)}
+                      />{" "}
+                      Allow cross-color jersey overlap (gold/black policy)
+                    </label>
+                    <label>
+                      USA Hockey #
+                      <input name="usaHockeyNumber" defaultValue={profileExtraByUserId.get(player.id)?.usaHockeyNumber ?? ""} />
+                    </label>
+                    <label>
+                      USA Hockey season (YYYY-YYYY)
+                      <input name="usaHockeySeason" defaultValue={profileExtraByUserId.get(player.id)?.usaHockeySeason ?? ""} />
+                    </label>
+                    <label>
+                      USA Hockey status
+                      <select name="usaHockeyStatus" defaultValue={profileExtraByUserId.get(player.id)?.usaHockeyStatus ?? "unverified"}>
+                        <option value="unverified">Unverified</option>
+                        <option value="verified">Verified</option>
+                        <option value="pending_renewal">Pending renewal</option>
+                        <option value="expired">Expired</option>
+                      </select>
+                    </label>
+                    <label>
+                      USA Hockey expires
+                      <input name="usaHockeyExpiresAt" type="date" defaultValue={profileExtraByUserId.get(player.id)?.usaHockeyExpiresAt?.slice(0, 10) ?? ""} />
+                    </label>
+                    <label>
+                      Reset password (optional)
+                      <input name="newPassword" type="password" placeholder="Temporary or reset password" />
+                    </label>
+                    <button className="button ghost" type="submit">Save Identity</button>
+                  </form>
+
                   <form className="grid-form" action="/api/admin/roster/update" method="post">
                     <input type="hidden" name="userId" value={player.id} />
-                    <input name="fullName" defaultValue={player.fullName} required />
-                    <input name="rosterId" defaultValue={player.rosterId ?? ""} placeholder="Roster ID" />
-                    <input
-                      name="jerseyNumber"
-                      type="number"
-                      min="1"
-                      max="99"
-                      defaultValue={player.jerseyNumber ?? ""}
-                      placeholder="Jersey #"
-                    />
+                    <strong>Main Roster Profile</strong>
+                    <label>
+                      Full name
+                      <input name="fullName" defaultValue={player.fullName} required />
+                    </label>
+                    <label>
+                      Main roster
+                      <select name="rosterId" defaultValue={player.rosterId ?? "main-player-roster"}>
+                        {MAIN_ROSTER_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Official jersey number
+                      <input
+                        name="jerseyNumber"
+                        type="number"
+                        min="1"
+                        max="99"
+                        defaultValue={player.jerseyNumber ?? ""}
+                        placeholder="Jersey #"
+                      />
+                    </label>
                     <label>
                       Activity
                       <select name="activityStatus" defaultValue={player.activityStatus}>
@@ -204,10 +499,90 @@ export default async function CentralRosterPage({
                       </select>
                     </label>
                     <label>
-                      <input type="checkbox" name="forceNumberOverlap" /> Allow number overlap (only if players will never share a tournament roster)
+                      <input type="checkbox" name="forceNumberOverlap" /> Allow manual number overlap override
                     </label>
-                    <button className="button" type="submit">Save</button>
+                    <button className="button" type="submit">Save Roster Profile</button>
                   </form>
+
+                  <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
+                    <input type="hidden" name="userId" value={player.id} />
+                    <strong>Add Team Assignment</strong>
+                    <input name="assignmentType" placeholder="Type (season, tournament, DVHL, custom)" required />
+                    <input name="seasonLabel" placeholder="Season label (e.g. 2025-2026)" />
+                    <input name="sessionLabel" placeholder="Session (e.g. Session 2)" />
+                    <input name="subRosterLabel" placeholder="Sub-roster (e.g. Warrior Classic)" />
+                    <input name="teamName" placeholder="Team (e.g. Gold, Khe Sahn)" required />
+                    <label>
+                      Starts
+                      <input name="startsAt" type="date" />
+                    </label>
+                    <label>
+                      Ends
+                      <input name="endsAt" type="date" />
+                    </label>
+                    <label>
+                      Status
+                      <select name="status" defaultValue="active">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive/Archived</option>
+                      </select>
+                    </label>
+                    <input name="notes" placeholder="Notes" />
+                    <button className="button ghost" type="submit">Add Assignment</button>
+                  </form>
+
+                  {(assignmentsByUserId.get(player.id) ?? []).length > 0 ? (
+                    <details className="event-card admin-disclosure">
+                      <summary>Team assignments ({(assignmentsByUserId.get(player.id) ?? []).length})</summary>
+                      <div className="stack">
+                        {(assignmentsByUserId.get(player.id) ?? []).map((assignment) => (
+                          <div className="event-card" key={assignment.id}>
+                            <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
+                              <input type="hidden" name="assignmentId" value={assignment.id} />
+                              <input type="hidden" name="userId" value={player.id} />
+                              <input name="assignmentType" defaultValue={assignment.assignmentType} required />
+                              <input name="seasonLabel" defaultValue={assignment.seasonLabel ?? ""} placeholder="Season" />
+                              <input name="sessionLabel" defaultValue={assignment.sessionLabel ?? ""} placeholder="Session" />
+                              <input name="subRosterLabel" defaultValue={assignment.subRosterLabel ?? ""} placeholder="Sub-roster" />
+                              <input name="teamName" defaultValue={assignment.teamName} required />
+                              <label>
+                                Starts
+                                <input
+                                  name="startsAt"
+                                  type="date"
+                                  defaultValue={assignment.startsAt ? assignment.startsAt.slice(0, 10) : ""}
+                                />
+                              </label>
+                              <label>
+                                Ends
+                                <input
+                                  name="endsAt"
+                                  type="date"
+                                  defaultValue={assignment.endsAt ? assignment.endsAt.slice(0, 10) : ""}
+                                />
+                              </label>
+                              <label>
+                                Status
+                                <select name="status" defaultValue={assignment.status}>
+                                  <option value="active">Active</option>
+                                  <option value="inactive">Inactive/Archived</option>
+                                </select>
+                              </label>
+                              <input name="notes" defaultValue={assignment.notes ?? ""} placeholder="Notes" />
+                              <button className="button ghost" type="submit">Save Assignment</button>
+                            </form>
+                            <form className="grid-form" action="/api/admin/team-assignments/delete" method="post">
+                              <input type="hidden" name="assignmentId" value={assignment.id} />
+                              <button className="button alt" type="submit">Remove Assignment</button>
+                            </form>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : (
+                    <p className="muted">No team assignments saved yet.</p>
+                  )}
+
                   <form className="grid-form" action="/api/admin/roster/photos/add" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <input name="imageUrl" placeholder="Photo URL (https://...)" required />

@@ -39,17 +39,6 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
-      if (result.reason === "shared_tournament_overlap") {
-        const shared = encodeURIComponent(result.conflict.sharedTournamentTitles.join(" | "));
-        return NextResponse.redirect(
-          new URL(
-            `/admin/roster?error=shared_tournament_overlap&conflictPlayer=${encodeURIComponent(result.conflict.name)}&sharedTournaments=${shared}`,
-            request.url
-          ),
-          303
-        );
-      }
-
       return NextResponse.redirect(
         new URL(
           `/admin/roster?error=number_conflict&conflictPlayer=${encodeURIComponent(result.conflict.name)}`,

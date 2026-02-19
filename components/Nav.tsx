@@ -4,14 +4,16 @@ import { siteConfig } from "@/lib/siteConfig";
 import { getCurrentUser } from "@/lib/hq/session";
 
 export async function Nav() {
-  const user = await getCurrentUser();
-  const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
+  const user = await Promise.race([
+    getCurrentUser(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200))
+  ]);
   const publicLinks = [
-    ["About Us", siteConfig.publicSite.links.about],
-    ["Donate", siteConfig.publicSite.links.donate],
-    ["Partners", siteConfig.publicSite.links.partners],
-    ["Join", siteConfig.publicSite.links.join],
-    ["Events", siteConfig.publicSite.links.events]
+    ["About Us", "/about"],
+    ["Donate", "/donate"],
+    ["Partners", "/partners"],
+    ["Join", "/join"],
+    ["Events", "/events"]
   ] as const;
   const hqLinks = [
     ["Calendar", "/calendar"],
@@ -28,7 +30,7 @@ export async function Nav() {
   return (
     <div className="header-shell">
       <div className="header-top-row">
-        <a href={publicBase} className="brand-link">
+        <Link href="/" className="brand-link">
           <Image
             src="/brand/warriors-logo-font.svg"
             alt="Pittsburgh Warriors logo"
@@ -36,14 +38,17 @@ export async function Nav() {
             height={62}
             priority
           />
-          <span className="brand-name">Pittsburgh Warriors Hockey Club</span>
-        </a>
+          <span className="brand-block">
+            <span className="brand-name">Pittsburgh Warriors Hockey Club</span>
+            <span className="brand-tagline">Veterans healing through hockey</span>
+          </span>
+        </Link>
 
         <nav className="main-nav" aria-label="Primary">
           <ul className="nav-list">
             {publicLinks.map(([label, href]) => (
               <li key={href} className="nav-public-link">
-                <a href={href}>{label}</a>
+                <Link href={href}>{label}</Link>
               </li>
             ))}
           </ul>
@@ -60,6 +65,9 @@ export async function Nav() {
         </ul>
 
         <div className="auth-actions">
+          <Link className="button alt" href="/donate">
+            Donate
+          </Link>
           {user ? (
             <>
               <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
@@ -71,8 +79,8 @@ export async function Nav() {
             </>
           ) : (
             <>
-              <Link className="button ghost" href="/register">
-                Join HQ
+              <Link className="button ghost" href="/join">
+                Request Access
               </Link>
               <Link className="button" href="/login">
                 Log in

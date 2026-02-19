@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createPendingPlayer } from "@/lib/hq/store";
+import { upsertPlayerContactProfile, usaHockeySeasonLabel } from "@/lib/hq/player-profiles";
 
 export async function POST(request: Request) {
   const formData = (await request.formData()) as unknown as {
@@ -10,28 +11,50 @@ export async function POST(request: Request) {
   const password = String(formData.get("password") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const requestedPosition = String(formData.get("position") ?? "").trim();
+  const addressLine1 = String(formData.get("addressLine1") ?? "").trim();
+  const addressLine2 = String(formData.get("addressLine2") ?? "").trim();
+  const city = String(formData.get("city") ?? "").trim();
+  const stateProvince = String(formData.get("stateProvince") ?? "").trim();
+  const postalCode = String(formData.get("postalCode") ?? "").trim();
+  const country = String(formData.get("country") ?? "").trim();
+  const usaHockeyNumber = String(formData.get("usaHockeyNumber") ?? "").trim();
 
   if (!fullName || !email || !password) {
-    return NextResponse.redirect(new URL("/register?error=missing_fields", request.url), 303);
+    return NextResponse.redirect(new URL("/join?error=missing_fields", request.url), 303);
   }
 
   if (password.length < 8) {
-    return NextResponse.redirect(new URL("/register?error=password_too_short", request.url), 303);
+    return NextResponse.redirect(new URL("/join?error=password_too_short", request.url), 303);
   }
 
   try {
-    await createPendingPlayer({
+    const created = await createPendingPlayer({
       fullName,
       email,
       password,
       phone,
       requestedPosition
     });
+    await upsertPlayerContactProfile({
+      userId: created.id,
+      address: {
+        line1: addressLine1,
+        line2: addressLine2,
+        city,
+        stateProvince,
+        postalCode,
+        country
+      },
+      usaHockeyNumber: usaHockeyNumber || undefined,
+      usaHockeySeason: usaHockeyNumber ? usaHockeySeasonLabel() : undefined,
+      usaHockeyStatus: usaHockeyNumber ? "unverified" : "pending_renewal",
+      usaHockeySource: "player"
+    });
     return NextResponse.redirect(new URL("/login?registered=1", request.url), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed.";
     return NextResponse.redirect(
-      new URL(`/register?error=${encodeURIComponent(message)}`, request.url),
+      new URL(`/join?error=${encodeURIComponent(message)}`, request.url),
       303
     );
   }

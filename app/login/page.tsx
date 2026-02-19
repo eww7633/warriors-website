@@ -42,7 +42,7 @@ export default async function LoginPage({
         <button className="button" type="submit">Sign In</button>
       </form>
       <p>
-        Need an account? <Link href="/register">Request player access</Link>
+        Need an account? <Link href="/join">Request player access</Link>
       </p>
     </section>
   );

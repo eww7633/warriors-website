@@ -17,7 +17,7 @@ export async function GET() {
       eventType: event.eventTypeName || "General",
       eventUrl: `${baseUrl}/calendar?event=${encodeURIComponent(event.id)}`,
       loginUrl: `${baseUrl}/login`,
-      registerUrl: `${baseUrl}/register`
+      registerUrl: `${baseUrl}/join`
     }))
   });
 }

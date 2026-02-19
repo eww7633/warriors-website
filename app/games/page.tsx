@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listLiveGames } from "@/lib/hq/live-games";
-
-function statusLabel(status: string) {
-  if (status === "live") return "LIVE";
-  if (status === "final") return "FINAL";
-  return "SCHEDULED";
-}
+import GameScoreCard from "@/components/GameScoreCard";
 
 export default async function GamesPage({
   searchParams
@@ -33,18 +28,23 @@ export default async function GamesPage({
           );
 
           return (
-            <article key={game.id} className="event-card stack">
-              <p className="kicker">{statusLabel(game.liveStatus)}</p>
-              <h3>{game.title}</h3>
-              <p>{new Date(game.startsAt).toLocaleString()} | {game.location || "TBD"}</p>
-              <p><strong>{game.warriorsScore} - {game.opponentScore}</strong></p>
-              <p>{game.competitionTitle} | {game.teamName}</p>
-              <p>
-                Period/Clock: {game.period || "P1"} {game.clock || ""}
-              </p>
+            <article key={game.id} id={game.id} className="event-card stack">
+              <GameScoreCard
+                gameId={game.id}
+                startsAt={game.startsAt}
+                location={game.location}
+                liveStatus={game.liveStatus}
+                competitionTitle={game.competitionTitle}
+                homeTeamName={game.teamName}
+                awayTeamName={game.opponent || "Opponent"}
+                homeScore={game.warriorsScore}
+                awayScore={game.opponentScore}
+                period={game.period}
+                clock={game.clock}
+              />
               <p>
                 Scorekeeper: {game.scorekeeperName || game.scorekeeperStaffName || "Unassigned"}
-                {!canScorekeep && game.scorekeeperStaffName && " (staff assignment is view-only unless admin)"}
+                {!canScorekeep && game.scorekeeperStaffName ? " (staff assignment is view-only unless admin)" : ""}
               </p>
 
               {canScorekeep ? (

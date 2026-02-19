@@ -6,6 +6,8 @@ export type CentralRosterPlayer = {
   id: string;
   fullName: string;
   email: string;
+  phone?: string;
+  requestedPosition?: string;
   status: string;
   activityStatus: "active" | "inactive";
   rosterId?: string;
@@ -38,6 +40,8 @@ export async function listCentralRosterPlayers() {
         id: user.id,
         fullName: user.fullName,
         email: user.email,
+        phone: user.phone,
+        requestedPosition: user.requestedPosition,
         status: user.status,
         activityStatus: user.activityStatus ?? "active",
         rosterId: user.rosterId,
@@ -74,6 +78,8 @@ export async function listCentralRosterPlayers() {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
+    phone: user.phone ?? undefined,
+    requestedPosition: user.requestedPosition ?? undefined,
     status: user.status,
     activityStatus: (user.activityStatus as "active" | "inactive") ?? "active",
     rosterId: user.rosterId ?? undefined,
@@ -232,14 +238,6 @@ export async function updateCentralRosterPlayer(input: {
     };
   }
 
-  if (conflict && input.forceNumberOverlap && conflict.sharedTournamentTitles.length > 0) {
-    return {
-      ok: false as const,
-      conflict,
-      reason: "shared_tournament_overlap" as const
-    };
-  }
-
   if (!hasDatabaseUrl()) {
     const store = await readStore();
     const user = store.users.find((entry) => entry.id === input.userId);
@@ -335,4 +333,113 @@ export async function addPlayerPhoto(input: {
       isPrimary: input.makePrimary || hasAny === 0
     }
   });
+}
+
+export async function getPlayerRosterProfile(userId: string) {
+  if (!hasDatabaseUrl()) {
+    const store = await readStore();
+    const user = store.users.find((entry) => entry.id === userId && entry.role === "player");
+    if (!user) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      rosterId: user.rosterId,
+      jerseyNumber: user.jerseyNumber,
+      requestedPosition: user.requestedPosition,
+      photos: [] as Array<{ id: string; imageUrl: string; caption?: string; isPrimary: boolean; createdAt: string }>
+    };
+  }
+
+  const user = await getPrismaClient().user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      fullName: true,
+      role: true,
+      rosterId: true,
+      jerseyNumber: true,
+      requestedPosition: true,
+      photos: {
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }]
+      }
+    }
+  });
+
+  if (!user || user.role !== "player") {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    rosterId: user.rosterId ?? undefined,
+    jerseyNumber: user.jerseyNumber ?? undefined,
+    requestedPosition: user.requestedPosition ?? undefined,
+    photos: user.photos.map((photo) => ({
+      id: photo.id,
+      imageUrl: photo.imageUrl,
+      caption: photo.caption ?? undefined,
+      isPrimary: photo.isPrimary,
+      createdAt: photo.createdAt.toISOString()
+    }))
+  };
+}
+
+export async function listAvailableJerseyNumbers(input: {
+  rosterId: string;
+  includeUserId?: string;
+}) {
+  const rosterId = input.rosterId.trim();
+  if (!rosterId) {
+    return [] as number[];
+  }
+
+  const taken = new Set<number>();
+
+  if (!hasDatabaseUrl()) {
+    const store = await readStore();
+    for (const user of store.users) {
+      if (
+        user.role === "player" &&
+        user.status === "approved" &&
+        (user.activityStatus ?? "active") === "active" &&
+        user.rosterId === rosterId &&
+        user.jerseyNumber &&
+        user.id !== input.includeUserId
+      ) {
+        taken.add(user.jerseyNumber);
+      }
+    }
+  } else {
+    const players = await getPrismaClient().user.findMany({
+      where: {
+        role: "player",
+        status: "approved",
+        activityStatus: "active",
+        rosterId,
+        id: input.includeUserId ? { not: input.includeUserId } : undefined
+      },
+      select: {
+        jerseyNumber: true
+      }
+    });
+
+    for (const player of players) {
+      if (player.jerseyNumber) {
+        taken.add(player.jerseyNumber);
+      }
+    }
+  }
+
+  const available: number[] = [];
+  for (let jersey = 1; jersey <= 99; jersey += 1) {
+    if (!taken.has(jersey)) {
+      available.push(jersey);
+    }
+  }
+
+  return available;
 }

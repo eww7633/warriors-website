@@ -21,11 +21,13 @@ export async function POST(request: Request) {
   const { token, expiresAt } = await createSessionRecord(user.id);
   const destination = user.role === "admin" ? "/admin" : "/player";
   const response = NextResponse.redirect(new URL(destination, request.url), 303);
+  const requestHost = new URL(request.url).hostname;
+  const isLocalHost = requestHost === "localhost" || requestHost === "127.0.0.1";
 
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && !isLocalHost,
     expires: new Date(expiresAt),
     path: "/"
   });

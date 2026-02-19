@@ -22,6 +22,7 @@ export async function listLiveGames() {
       return {
         id: game.id,
         title: `${roster?.name ?? "Warriors"} vs ${game.opponent}`,
+        opponent: game.opponent,
         startsAt: game.startsAt,
         location: game.location,
         liveStatus: game.status,
@@ -91,6 +92,7 @@ export async function listLiveGames() {
   return rows.map((row) => ({
     id: row.id,
     title: `${row.team.name} vs ${row.opponent}`,
+    opponent: row.opponent,
     startsAt: row.startsAt?.toISOString() ?? row.createdAt.toISOString(),
     location: row.location ?? undefined,
     liveStatus: row.liveStatus,

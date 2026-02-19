@@ -1,0 +1,21 @@
+{
+  "profiles": [
+    {
+      "userId": "cmlsv2tot0000rpreb6tovnap",
+      "updatedAt": "2026-02-19T16:17:09.502Z",
+      "usaHockeyNumber": "275600152WAWRY",
+      "usaHockeyVerifiedAt": "2026-02-19T16:17:09.502Z",
+      "usaHockeySeason": "2025-2026",
+      "usaHockeyStatus": "unverified",
+      "usaHockeySource": "player",
+      "address": {
+        "line1": "434 Camilla Street",
+        "city": "Baden",
+        "stateProvince": "PA",
+        "postalCode": "15005",
+        "country": "USA"
+      }
+    }
+  ],
+  "teamAssignments": []
+}
