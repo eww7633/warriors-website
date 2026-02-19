@@ -24,6 +24,18 @@ const extractUrlError = (url: string): string | null => {
   }
 };
 
+const deriveNameFromEmail = (email: string | null): string => {
+  if (!email) {
+    return 'Player';
+  }
+  const local = email.split('@')[0] ?? 'player';
+  return local
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((segment) => `${segment[0]?.toUpperCase() ?? ''}${segment.slice(1)}`)
+    .join(' ') || 'Player';
+};
+
 export const apiClient = {
   apiBaseUrl: API_BASE_URL,
 
@@ -52,10 +64,22 @@ export const apiClient = {
     await postForm('/api/auth/logout', {});
   },
 
-  async getDashboard(): Promise<DashboardSummary> {
-    const response = await fetch(buildUrl('/api/mobile/player/dashboard'), { credentials: 'include' });
-    if (!response.ok) throw new Error(`Dashboard unavailable (${response.status})`);
-    return (await response.json()) as DashboardSummary;
+  async getDashboard(sessionEmail: string | null): Promise<DashboardSummary> {
+    const events = await this.getEvents();
+    return {
+      fullName: deriveNameFromEmail(sessionEmail),
+      email: sessionEmail ?? 'unknown',
+      role: 'player',
+      status: 'approved',
+      rosterId: null,
+      jerseyNumber: null,
+      recentCheckIns: events.slice(0, 3).map((event) => ({
+        id: event.id,
+        eventTitle: event.title,
+        attendanceStatus: 'Use QR check-in at event',
+        checkedInAt: null
+      }))
+    };
   },
 
   async getEvents(): Promise<PublicEvent[]> {
@@ -66,8 +90,6 @@ export const apiClient = {
   },
 
   async getEventDetail(eventId: string): Promise<EventDetail> {
-    const mobile = await fetch(buildUrl(`/api/mobile/events/${encodeURIComponent(eventId)}`), { credentials: 'include' });
-    if (mobile.ok) return (await mobile.json()) as EventDetail;
     const events = await this.getEvents();
     const event = events.find((item) => item.id === eventId);
     if (!event) throw new Error('Event not found');
@@ -75,14 +97,6 @@ export const apiClient = {
   },
 
   async setRsvp(eventId: string, status: 'going' | 'maybe' | 'not_going'): Promise<void> {
-    const mobile = await fetch(buildUrl(`/api/mobile/events/${encodeURIComponent(eventId)}/rsvp`), {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    if (mobile.ok) return;
-
     const mappedStatus = status === 'not_going' ? 'declined' : status;
     const legacy = await postForm('/api/events/reservation', { eventId, status: mappedStatus, note: '' });
     const err = extractUrlError(legacy.url || '');
@@ -90,14 +104,6 @@ export const apiClient = {
   },
 
   async submitQrCheckIn(token: string): Promise<void> {
-    const mobile = await fetch(buildUrl('/api/mobile/checkin/scan'), {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token })
-    });
-    if (mobile.ok) return;
-
     const legacy = await postForm('/api/events/checkin/scan', { token });
     const err = extractUrlError(legacy.url || '');
     if (err) throw new Error(err);

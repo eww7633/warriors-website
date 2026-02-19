@@ -15,13 +15,13 @@ export default function DashboardScreen() {
   useEffect(() => {
     const run = async () => {
       try {
-        setData(await apiClient.getDashboard());
+        setData(await apiClient.getDashboard(session.email));
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Dashboard unavailable');
       }
     };
     run();
-  }, []);
+  }, [session.email]);
 
   return (
     <ScrollView style={{ backgroundColor: '#0b1320' }} contentContainerStyle={{ padding: 16, gap: 12 }}>
@@ -37,6 +37,10 @@ export default function DashboardScreen() {
           <Text style={{ color: '#f8fafc', fontWeight: '700' }}>{data.fullName}</Text>
           <Text style={{ color: '#cbd5e1' }}>Status: {data.status}</Text>
           <Text style={{ color: '#cbd5e1' }}>Roster ID: {data.rosterId ?? 'Not assigned'}</Text>
+          <Text style={{ color: '#cbd5e1', marginTop: 8, fontWeight: '700' }}>Upcoming/Recent Event Context</Text>
+          {data.recentCheckIns.map((item) => (
+            <Text key={item.id} style={{ color: '#cbd5e1' }}>{item.eventTitle}: {item.attendanceStatus}</Text>
+          ))}
         </Card>
       ) : null}
       <Button label="View Events" onPress={() => router.push('/(app)/events')} />
