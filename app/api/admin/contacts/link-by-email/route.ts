@@ -18,7 +18,13 @@ export async function POST(request: Request) {
   try {
     await linkContactLeadToMatchingUser(contactLeadId);
     return NextResponse.redirect(new URL("/admin?section=contacts&contact=linked", request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=link_failed", request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(
+      error instanceof Error ? error.message : "Unable to link contact."
+    );
+    return NextResponse.redirect(
+      new URL(`/admin?section=contacts&error=link_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }

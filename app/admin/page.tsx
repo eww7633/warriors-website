@@ -40,6 +40,7 @@ export default async function AdminPage({
     game?: string;
     data?: string;
     contact?: string;
+    errorDetail?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -70,6 +71,11 @@ export default async function AdminPage({
     (entry) => entry.status === "approved" && entry.role === "player"
   );
   const rejectedUsers = store.users.filter((entry) => entry.status === "rejected");
+  const usersByEmail = new Map(
+    store.users
+      .filter((entry) => entry.email)
+      .map((entry) => [entry.email.trim().toLowerCase(), entry])
+  );
 
   const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
@@ -128,7 +134,15 @@ export default async function AdminPage({
         {statusMessages.map((message) => (
           <p className="badge" key={message}>{message}</p>
         ))}
-        {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
+        {query.error && (
+          <p className="muted">
+            {query.error === "link_failed"
+              ? query.errorDetail
+                ? decodeURIComponent(query.errorDetail)
+                : "Unable to link this contact by email."
+              : query.error.replaceAll("_", " ")}
+          </p>
+        )}
 
         <nav className="ops-tabs" aria-label="Admin sections">
           {sections.map(([key, label]) => (
@@ -491,6 +505,12 @@ export default async function AdminPage({
               <div className="stack">
                 {sportsData.contactLeads.map((lead) => (
                   <div key={lead.id} className="event-card stack">
+                    {(() => {
+                      const matchingUser = lead.email
+                        ? usersByEmail.get(lead.email.trim().toLowerCase())
+                        : undefined;
+                      return (
+                        <>
                     <strong>{lead.fullName || "Unnamed contact"}</strong>
                     <p>{lead.email || "No email"} {lead.phone ? `| ${lead.phone}` : ""}</p>
                     <p>Status: {lead.onboardingStatus}</p>
@@ -499,6 +519,11 @@ export default async function AdminPage({
                         ? `${lead.linkedUser.fullName} (${lead.linkedUser.email})`
                         : "Not linked yet"}
                     </p>
+                    <p>
+                      Match check: {matchingUser
+                        ? `Found account ${matchingUser.fullName} (${matchingUser.email})`
+                        : "No matching account yet. Ask them to register first with this exact email."}
+                    </p>
                     <div className="cta-row">
                       {!lead.linkedUser && (
                         <form action="/api/admin/contacts/mark-invited" method="post">
@@ -506,7 +531,7 @@ export default async function AdminPage({
                           <button className="button alt" type="submit">Mark Invited</button>
                         </form>
                       )}
-                      {!lead.linkedUser && lead.email && (
+                      {!lead.linkedUser && lead.email && matchingUser && (
                         <form action="/api/admin/contacts/link-by-email" method="post">
                           <input type="hidden" name="contactLeadId" value={lead.id} />
                           <button className="button ghost" type="submit">Link Existing Account by Email</button>
@@ -514,6 +539,9 @@ export default async function AdminPage({
                       )}
                     </div>
                     {lead.tags && <p className="muted">Tags: {lead.tags}</p>}
+                        </>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>
