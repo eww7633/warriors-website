@@ -62,11 +62,8 @@ export async function Nav() {
         <div className="auth-actions">
           {user ? (
             <>
-              <span className="user-pill">
-                Signed in: {user.fullName} ({user.role})
-              </span>
               <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
-                {user.role === "admin" ? "Hockey Ops" : "My Account"}
+                {user.role === "admin" ? "Hockey Ops" : "Warrior HQ"}
               </Link>
               <form action="/api/auth/logout" method="post">
                 <button className="button" type="submit">Log out</button>
@@ -85,15 +82,17 @@ export async function Nav() {
         </div>
       </div>
 
-      <nav className="hq-subnav" aria-label="HQ sections">
-        <ul className="hq-subnav-list">
-          {hqLinks.map(([label, href]) => (
-            <li key={href}>
-              <Link href={href}>{label}</Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      {user ? (
+        <nav className="hq-subnav" aria-label="HQ sections">
+          <ul className="hq-subnav-list">
+            {hqLinks.map(([label, href]) => (
+              <li key={href}>
+                <Link href={href}>{label}</Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </div>
   );
 }

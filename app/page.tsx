@@ -28,44 +28,40 @@ export default async function HomePage() {
       return Date.now() - new Date(stamp).getTime() <= 7 * 24 * 60 * 60 * 1000;
     })
     .length;
+  const upcomingDateLabel =
+    upcomingEvents.length > 0 ? new Date(upcomingEvents[0].date).toLocaleString() : "No upcoming events";
+  const welcomeName = user?.fullName?.trim().split(" ")[0] ?? "Warrior";
 
   return (
     <section className="grid-home">
-      <article className="card hero-card">
-        <p className="eyebrow">Warrior HQ Live Updates</p>
-        <h2>Latest activity across players, events, and attendance</h2>
-        <div className="home-live-grid">
-          <div className="event-card">
-            <strong>Pending registrations</strong>
-            <p>{pendingRegistrations}</p>
+      <article className="card hero-card hero-sleek">
+        <p className="eyebrow">Pittsburgh Warriors Hockey Club</p>
+        <h1>{user ? `Welcome back, ${welcomeName}.` : "Healing Through Hockey."}</h1>
+        <p className="hero-lead">
+          Unified public website and Warrior HQ operations for players, events, rosters, and attendance.
+        </p>
+        <div className="hero-stat-row">
+          <div className="hero-stat">
+            <span>Pending</span>
+            <strong>{pendingRegistrations}</strong>
           </div>
-          <div className="event-card">
-            <strong>Approved players</strong>
-            <p>{approvedPlayers}</p>
+          <div className="hero-stat">
+            <span>Active players</span>
+            <strong>{approvedPlayers}</strong>
           </div>
-          <div className="event-card">
-            <strong>7-day check-ins</strong>
-            <p>{recentCheckIns}</p>
+          <div className="hero-stat">
+            <span>7-day check-ins</span>
+            <strong>{recentCheckIns}</strong>
           </div>
-          <div className="event-card">
-            <strong>Upcoming events</strong>
-            <p>{upcomingEvents.length}</p>
+          <div className="hero-stat">
+            <span>Next event</span>
+            <strong>{upcomingDateLabel}</strong>
           </div>
-        </div>
-        <div className="stack">
-          {upcomingEvents.map((event) => (
-            <div key={event.id} className="event-card">
-              <strong>{event.title}</strong>
-              <p>{new Date(event.date).toLocaleString()}</p>
-              {event.locationPublic && <p>{event.locationPublic}</p>}
-            </div>
-          ))}
-          {upcomingEvents.length === 0 && <p className="muted">No upcoming events found.</p>}
         </div>
         <div className="cta-row">
           {user ? (
-            <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
-              {user.role === "admin" ? "Open Hockey Ops" : "Open My Account"}
+            <Link className="button" href={user.role === "admin" ? "/admin" : "/player"}>
+              {user.role === "admin" ? "Open Hockey Ops" : "Open Warrior HQ"}
             </Link>
           ) : (
             <>
@@ -77,48 +73,29 @@ export default async function HomePage() {
               </Link>
             </>
           )}
+          <a className="button ghost" href={`${publicBase}/events`}>
+            Public Events
+          </a>
         </div>
       </article>
 
-      <article className="card home-grid-2">
-        <div className="event-card">
-          <h3>Public Website</h3>
-          <ul>
-            <li>Program story, leadership, donor messaging</li>
-            <li>Partners, sponsors, and social visibility</li>
-            <li>Public events preview and recruitment funnel</li>
-          </ul>
-          <p>
-            <a href={`${publicBase}/events`}>View public events page</a>
-          </p>
-        </div>
-
-        <div className="event-card">
-          <h3>Warrior HQ</h3>
-          <ul>
-            <li>Player approvals, roster control, jersey management</li>
-            <li>Reservations, attendance truth, QR check-in tracking</li>
-            <li>Competition, game scorekeeper, and live scoring tools</li>
-          </ul>
-          <p>
-            <Link href={user?.role === "admin" ? "/admin" : "/player"}>
-              Open {user?.role === "admin" ? "Hockey Ops dashboard" : "player account"}
-            </Link>
-          </p>
+      <article className="card sleek-events">
+        <h3>Upcoming Events</h3>
+        <div className="stack">
+          {upcomingEvents.map((event) => (
+            <div key={event.id} className="event-card">
+              <strong>{event.title}</strong>
+              <p>{new Date(event.date).toLocaleString()}</p>
+              {event.locationPublic ? <p>{event.locationPublic}</p> : null}
+            </div>
+          ))}
+          {upcomingEvents.length === 0 ? <p className="muted">No upcoming events scheduled yet.</p> : null}
         </div>
       </article>
 
-      <article className="card">
-        <h3>Player Access Policy</h3>
-        <p>
-          HQ is restricted to approved players and Hockey Ops staff. Registration alone does not
-          grant roster-protected access until an admin approves and assigns roster status.
-        </p>
-      </article>
-
-      <article className="card">
+      <article className="card home-gallery">
         <h3>Warriors In Action</h3>
-        <p>Featured directly from your shared Drive media library.</p>
+        <p className="muted">Featured from your shared media folders.</p>
         <div className="photo-grid">
           {showcase.map((photo) => (
             <a key={photo.id} href={photo.viewUrl} target="_blank" rel="noreferrer" className="photo-card">
