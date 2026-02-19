@@ -35,11 +35,14 @@ export default async function AdminPage({
     approved?: string;
     rejected?: string;
     eventsaved?: string;
+    eventupdated?: string;
+    eventdeleted?: string;
     competition?: string;
     assignment?: string;
     game?: string;
     data?: string;
     contact?: string;
+    userrole?: string;
     errorDetail?: string;
   };
 }) {
@@ -93,6 +96,8 @@ export default async function AdminPage({
     query.approved === "1" ? "Player approved and rostered." : null,
     query.rejected === "1" ? "Registration request rejected." : null,
     query.eventsaved === "1" ? "Event saved and ready for public feed." : null,
+    query.eventupdated === "1" ? "Event updated." : null,
+    query.eventdeleted === "1" ? "Event deleted." : null,
     query.competition === "created" ? "Competition created." : null,
     query.assignment === "saved" ? "Player assigned to competition team." : null,
     query.game === "created" ? "Competition game created." : null,
@@ -104,7 +109,8 @@ export default async function AdminPage({
     query.data === "sponsor_created" ? "Sponsor created." : null,
     query.contact === "invited" ? "Contact marked as invited." : null,
     query.contact === "linked" ? "Contact linked to existing user account." : null,
-    query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null
+    query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
+    query.userrole === "updated" ? "User role updated." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -146,6 +152,10 @@ export default async function AdminPage({
               ? query.errorDetail
                 ? decodeURIComponent(query.errorDetail)
                 : "Unable to send invite email."
+              : query.error === "role_update_failed"
+              ? query.errorDetail
+                ? decodeURIComponent(query.errorDetail)
+                : "Unable to update user role."
               : query.error.replaceAll("_", " ")}
           </p>
         )}
@@ -579,8 +589,9 @@ export default async function AdminPage({
       )}
 
       {section === "events" && (
-        <>
-          <article className="card">
+        <div className="stack">
+          <details className="card admin-disclosure" open>
+            <summary>Create Event</summary>
             <h3>Publish Event (WordPress feed source)</h3>
             <form className="grid-form" action="/api/admin/events" method="post">
               <input name="title" placeholder="Event title" required />
@@ -611,22 +622,69 @@ export default async function AdminPage({
               </label>
               <button className="button" type="submit">Save Event</button>
             </form>
-          </article>
+          </details>
 
-          <article className="card">
+          <details className="card admin-disclosure" open>
+            <summary>Event Manager</summary>
             <h3>Current Event Feed Inventory</h3>
             <div className="stack">
               {allEvents.map((event) => (
-                <div key={event.id} className="event-card">
-                  <strong>{event.title}</strong>
-                  <p>{new Date(event.date).toLocaleString()}</p>
-                  <p>Visibility: {event.visibility}</p>
-                  <p>Published: {event.published ? "Yes" : "No"}</p>
-                </div>
+                <details key={event.id} className="event-card admin-disclosure">
+                  <summary>{event.title} | {new Date(event.date).toLocaleString()}</summary>
+                  <form className="grid-form" action="/api/admin/events/update" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input name="title" defaultValue={event.title} required />
+                    <label>
+                      Start date/time
+                      <input
+                        name="startsAt"
+                        type="datetime-local"
+                        defaultValue={new Date(event.date).toISOString().slice(0, 16)}
+                        required
+                      />
+                    </label>
+                    <input name="locationPublic" defaultValue={event.locationPublic || ""} placeholder="Public location" />
+                    <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
+                    <label>
+                      Public details
+                      <input name="publicDetails" defaultValue={event.publicDetails} required />
+                    </label>
+                    <label>
+                      Private details
+                      <input name="privateDetails" defaultValue={event.privateDetails} />
+                    </label>
+                    <label>
+                      Visibility
+                      <select name="visibility" defaultValue={event.visibility}>
+                        <option value="public">Public</option>
+                        <option value="player_only">Player only</option>
+                        <option value="internal">Internal (admin only)</option>
+                      </select>
+                    </label>
+                    <label>
+                      <input name="published" type="checkbox" defaultChecked={event.published} /> Publish to public feed
+                    </label>
+                    <button className="button" type="submit">Update Event</button>
+                  </form>
+                  <form action="/api/admin/events/delete" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <button className="button alt" type="submit">Delete Event</button>
+                  </form>
+                </details>
               ))}
+              {allEvents.length === 0 && <p className="muted">No events yet.</p>}
             </div>
-          </article>
-        </>
+          </details>
+
+          <details className="card admin-disclosure">
+            <summary>WordPress Sync</summary>
+            <p className="muted">Public feed URL for your WordPress shortcode plugin:</p>
+            <code>{`${process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us"}/api/public/events`}</code>
+            <p className="muted">
+              Only events marked <strong>Public</strong> and <strong>Published</strong> appear on WordPress.
+            </p>
+          </details>
+        </div>
       )}
 
       {section === "players" && (
@@ -642,6 +700,36 @@ export default async function AdminPage({
               </Link>
             </p>
           </article>
+
+          <details className="card admin-disclosure" open>
+            <summary>User Access Controls</summary>
+            <p className="muted">
+              Grant or revoke admin access. Role changes apply immediately.
+            </p>
+            <div className="stack">
+              {store.users.map((member) => (
+                <form
+                  key={member.id}
+                  className="event-card grid-form"
+                  action={`/api/admin/users/${member.id}/access`}
+                  method="post"
+                >
+                  <strong>{member.fullName}</strong>
+                  <p>{member.email}</p>
+                  <p>Current role: {member.role} | Status: {member.status}</p>
+                  <label>
+                    Set role
+                    <select name="role" defaultValue={member.role}>
+                      <option value="public">Public</option>
+                      <option value="player">Player</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <button className="button ghost" type="submit">Update Access</button>
+                </form>
+              ))}
+            </div>
+          </details>
 
           <article className="card">
             <h3>Pending Registration Requests</h3>

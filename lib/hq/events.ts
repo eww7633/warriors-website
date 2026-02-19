@@ -112,3 +112,48 @@ export async function createEvent(input: {
     }
   });
 }
+
+export async function updateEvent(input: {
+  eventId: string;
+  title: string;
+  startsAt: string;
+  publicDetails: string;
+  privateDetails?: string;
+  visibility: EventVisibility;
+  published: boolean;
+  locationPublic?: string;
+  locationPrivate?: string;
+}) {
+  if (!hasDatabaseUrl()) {
+    throw new Error("Database mode is required to update events.");
+  }
+
+  const startsAtDate = new Date(input.startsAt);
+  if (Number.isNaN(startsAtDate.getTime())) {
+    throw new Error("Invalid event start date.");
+  }
+
+  return getPrismaClient().event.update({
+    where: { id: input.eventId },
+    data: {
+      title: input.title,
+      startsAt: startsAtDate,
+      publicDetails: input.publicDetails,
+      privateDetails: input.privateDetails,
+      visibility: input.visibility,
+      published: input.published,
+      locationPublic: input.locationPublic,
+      locationPrivate: input.locationPrivate
+    }
+  });
+}
+
+export async function deleteEvent(eventId: string) {
+  if (!hasDatabaseUrl()) {
+    throw new Error("Database mode is required to delete events.");
+  }
+
+  return getPrismaClient().event.delete({
+    where: { id: eventId }
+  });
+}
