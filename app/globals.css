@@ -259,6 +259,14 @@ body {
   max-width: 62ch;
 }
 
+.session-label {
+  margin-top: 0.45rem;
+  margin-bottom: 0;
+  font-size: 0.84rem;
+  color: #4d525b;
+  font-weight: 700;
+}
+
 .hero-stat-row {
   display: grid;
   gap: 0.7rem;

@@ -41,12 +41,16 @@ export default async function HomePage() {
   const upcomingDateLabel =
     upcomingEvents.length > 0 ? new Date(upcomingEvents[0].date).toLocaleString() : "No upcoming events";
   const welcomeName = user?.fullName?.trim().split(" ")[0] ?? "Warrior";
+  const signedInSummary = user
+    ? `${user.fullName} | ${user.role === "admin" ? "Hockey Ops" : "Player"}${user.status ? ` | ${user.status}` : ""}`
+    : "";
 
   return (
     <section className="grid-home">
       <article className="card hero-card hero-sleek">
         <p className="eyebrow">Pittsburgh Warriors Hockey Club</p>
         <h1>{user ? `Welcome back, ${welcomeName}.` : "Healing Through Hockey."}</h1>
+        {user ? <p className="session-label">Signed in as {signedInSummary}</p> : null}
         <p className="hero-lead">
           Unified public website and Warrior HQ operations for players, events, rosters, and attendance.
         </p>
@@ -97,6 +101,11 @@ export default async function HomePage() {
               <strong>{event.title}</strong>
               <p>{new Date(event.date).toLocaleString()}</p>
               {event.locationPublic ? <p>{event.locationPublic}</p> : null}
+              <p>
+                <Link href={`/calendar?event=${encodeURIComponent(event.id)}`}>
+                  Open event details
+                </Link>
+              </p>
             </div>
           ))}
           {upcomingEvents.length === 0 ? <p className="muted">No upcoming events scheduled yet.</p> : null}
