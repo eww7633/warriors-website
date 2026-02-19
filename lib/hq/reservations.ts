@@ -60,7 +60,7 @@ export async function listReservationBoards(eventIds: string[], viewerUserId?: s
     };
   }
 
-  if (!hasDatabaseUrl()) {
+  const fromStore = async () => {
     const store = await readStore();
     const byEvent: Record<string, Array<{ userId: string; fullName: string; status: ReservationStatus; note?: string }>> = {};
     const viewerStatusByEvent: Record<string, ReservationStatus | undefined> = {};
@@ -88,24 +88,43 @@ export async function listReservationBoards(eventIds: string[], viewerUserId?: s
     }
 
     return { byEvent, viewerStatusByEvent };
+  };
+
+  if (!hasDatabaseUrl()) {
+    return fromStore();
   }
 
-  const rows = await getPrismaClient().eventReservation.findMany({
-    where: {
-      eventId: { in: eventIds }
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          fullName: true,
-          status: true,
-          role: true
+  let rows: Array<{
+    eventId: string;
+    userId: string;
+    status: string;
+    note: string | null;
+    user: {
+      fullName: string;
+      role: string;
+      status: string;
+    };
+  }> = [];
+  try {
+    rows = await getPrismaClient().eventReservation.findMany({
+      where: {
+        eventId: { in: eventIds }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            status: true,
+            role: true
+          }
         }
-      }
-    },
-    orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
-  });
+      },
+      orderBy: [{ status: "asc" }, { updatedAt: "desc" }]
+    });
+  } catch {
+    return fromStore();
+  }
 
   const byEvent: Record<string, Array<{ userId: string; fullName: string; status: ReservationStatus; note?: string }>> = {};
   const viewerStatusByEvent: Record<string, ReservationStatus | undefined> = {};

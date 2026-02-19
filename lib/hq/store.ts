@@ -165,31 +165,37 @@ async function ensureStoreFile() {
 
 export async function readStore() {
   if (useDatabaseBackend()) {
-    await ensureAdminSeedDb();
+    try {
+      await ensureAdminSeedDb();
 
-    const [users, sessions, checkIns] = await Promise.all([
-      getPrismaClient().user.findMany({ orderBy: { createdAt: "asc" } }),
-      getPrismaClient().session.findMany({ orderBy: { createdAt: "asc" } }),
-      getPrismaClient().checkIn.findMany({ orderBy: { createdAt: "asc" } })
-    ]);
+      const [users, sessions, checkIns] = await Promise.all([
+        getPrismaClient().user.findMany({ orderBy: { createdAt: "asc" } }),
+        getPrismaClient().session.findMany({ orderBy: { createdAt: "asc" } }),
+        getPrismaClient().checkIn.findMany({ orderBy: { createdAt: "asc" } })
+      ]);
 
-    return {
-      users: users.map(mapUser),
-      sessions: sessions.map((entry) => ({
-        token: entry.token,
-        userId: entry.userId,
-        expiresAt: entry.expiresAt.toISOString()
-      })),
-      checkIns: checkIns.map((entry) => ({
-        id: entry.id,
-        userId: entry.userId,
-        eventId: entry.eventId,
-        checkedInAt: entry.checkedInAt?.toISOString(),
-        arrivedAt: entry.arrivedAt?.toISOString(),
-        attendanceStatus: entry.attendanceStatus as CheckInRecord["attendanceStatus"],
-        note: entry.note ?? undefined
-      }))
-    } satisfies HQStore;
+      return {
+        users: users.map(mapUser),
+        sessions: sessions.map((entry) => ({
+          token: entry.token,
+          userId: entry.userId,
+          expiresAt: entry.expiresAt.toISOString()
+        })),
+        checkIns: checkIns.map((entry) => ({
+          id: entry.id,
+          userId: entry.userId,
+          eventId: entry.eventId,
+          checkedInAt: entry.checkedInAt?.toISOString(),
+          arrivedAt: entry.arrivedAt?.toISOString(),
+          attendanceStatus: entry.attendanceStatus as CheckInRecord["attendanceStatus"],
+          note: entry.note ?? undefined
+        }))
+      } satisfies HQStore;
+    } catch {
+      const storePath = resolvedStorePath();
+      await ensureStoreFile();
+      return JSON.parse(await fs.readFile(storePath, "utf-8")) as HQStore;
+    }
   }
 
   const storePath = resolvedStorePath();
