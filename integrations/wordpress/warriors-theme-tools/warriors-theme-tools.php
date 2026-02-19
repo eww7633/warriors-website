@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Theme Tools
  * Description: Brand styling and HQ navigation/link integration for the Pittsburgh Warriors WordPress site.
- * Version: 0.2.2
+ * Version: 0.2.3
  */
 
 if (!defined('ABSPATH')) {
@@ -70,6 +70,19 @@ h1, h2, h3, h4 {
 }
 a {
   color: var(--warriors-link);
+}
+.site-title a,
+.wp-block-site-title a,
+.entry-title,
+.wp-block-post-title,
+.wp-block-heading {
+  color: #10141b;
+}
+.entry-content p,
+.entry-content li,
+main p,
+main li {
+  color: var(--warriors-copy);
 }
 header, .site-header, .main-navigation, .wp-block-navigation {
   background: linear-gradient(90deg, #050608 0%, #0d1218 48%, #161d27 100%);
@@ -177,10 +190,21 @@ input[type="submit"]:hover {
   display: flex;
   gap: 0.85rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 .warriors-theme-tools-social a {
-  color: #123f61;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #c99d1e;
+  border-radius: 999px;
+  padding: 0.38rem 0.72rem;
+  background: linear-gradient(180deg, #ffd866 0%, #ffcc33 100%);
+  color: #11161d !important;
   font-weight: 800;
+  text-decoration: none;
+}
+.warriors-theme-tools-social a[href*="linkedin"] {
+  display: none !important;
 }
 .warriors-home-updates {
   border: 1px solid #20262f;
@@ -348,6 +372,69 @@ input[type="submit"]:hover {
   a, .warriors-home-event-card .event-link, .warriors-theme-tools-social a {
     color: #8dc8ff;
   }
+  .site-title a,
+  .wp-block-site-title a,
+  .entry-title,
+  .wp-block-post-title,
+  .wp-block-heading,
+  .entry-content p,
+  .entry-content li,
+  main p,
+  main li {
+    color: #eef2f8;
+  }
+}
+body.dark-mode,
+html.dark-mode body,
+body[data-theme="dark"] {
+  background: linear-gradient(180deg, #090c11 0%, #121822 70%, #1a2230 100%);
+  color: #eef2f8;
+}
+body.dark-mode .site,
+body.dark-mode #page,
+html.dark-mode body .site,
+html.dark-mode body #page,
+body[data-theme="dark"] .site,
+body[data-theme="dark"] #page {
+  background: transparent;
+}
+body.dark-mode .site-title a,
+body.dark-mode .wp-block-site-title a,
+body.dark-mode .entry-title,
+body.dark-mode .wp-block-post-title,
+body.dark-mode .wp-block-heading,
+body.dark-mode .entry-content p,
+body.dark-mode .entry-content li,
+body.dark-mode main p,
+body.dark-mode main li,
+html.dark-mode body .site-title a,
+html.dark-mode body .wp-block-site-title a,
+html.dark-mode body .entry-title,
+html.dark-mode body .wp-block-post-title,
+html.dark-mode body .wp-block-heading,
+html.dark-mode body .entry-content p,
+html.dark-mode body .entry-content li,
+html.dark-mode body main p,
+html.dark-mode body main li,
+body[data-theme="dark"] .site-title a,
+body[data-theme="dark"] .wp-block-site-title a,
+body[data-theme="dark"] .entry-title,
+body[data-theme="dark"] .wp-block-post-title,
+body[data-theme="dark"] .wp-block-heading,
+body[data-theme="dark"] .entry-content p,
+body[data-theme="dark"] .entry-content li,
+body[data-theme="dark"] main p,
+body[data-theme="dark"] main li {
+  color: #eef2f8 !important;
+}
+body.dark-mode .warriors-theme-tools-card,
+body.dark-mode .warriors-legacy-about,
+html.dark-mode body .warriors-theme-tools-card,
+html.dark-mode body .warriors-legacy-about,
+body[data-theme="dark"] .warriors-theme-tools-card,
+body[data-theme="dark"] .warriors-legacy-about {
+  background: linear-gradient(180deg, #141b24 0%, #1c2531 100%);
+  border-color: #313b4a;
 }
 ';
 
@@ -356,6 +443,7 @@ input[type="submit"]:hover {
     wp_add_inline_style('warriors-theme-tools-inline', $css);
 
     $js = 'window.WARRIORS_HQ_BASE = ' . wp_json_encode($hq) . ';
+window.WARRIORS_WP_LOGGED_IN = ' . wp_json_encode(is_user_logged_in()) . ';
 (() => {
   const mapHref = (label) => {
     const t = (label || "").toLowerCase().replace(/\\s+/g, " ").trim();
@@ -380,7 +468,25 @@ input[type="submit"]:hover {
     ];
     document.querySelectorAll(navSelectors.join(",")).forEach((a) => {
       const label = (a.textContent || "").trim();
+      const normalized = label.toLowerCase().replace(/\\s+/g, " ").trim();
       const mapped = mapHref(label);
+      const isAuthLink = normalized.includes("log in")
+        || normalized.includes("sign in")
+        || normalized.includes("sign up")
+        || normalized === "join"
+        || normalized === "register"
+        || normalized === "player registration";
+
+      if (window.WARRIORS_WP_LOGGED_IN && isAuthLink) {
+        const row = a.closest("li, .wp-block-navigation-item, .menu-item");
+        if (row) {
+          row.style.display = "none";
+        } else {
+          a.style.display = "none";
+        }
+        return;
+      }
+
       if (!mapped) return;
       if (!a.getAttribute("href") || a.getAttribute("href") === "#" || a.getAttribute("href") === "") {
         a.setAttribute("href", mapped);
@@ -439,18 +545,40 @@ function warriors_theme_tools_normalize_menu_url($item, $hq_base_url) {
 function warriors_theme_tools_patch_menu_links($items) {
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
+    $is_logged_in = is_user_logged_in();
 
     foreach ($items as $index => $item) {
+        $title = strtolower(trim(preg_replace('/\s+/', ' ', wp_strip_all_tags($item->title))));
+        if ($is_logged_in && (
+            strpos($title, 'log in') !== false
+            || $title === 'login'
+            || $title === 'sign in'
+            || $title === 'join'
+            || $title === 'sign up'
+            || $title === 'register'
+            || $title === 'player registration'
+        )) {
+            unset($items[$index]);
+            continue;
+        }
         $items[$index] = warriors_theme_tools_normalize_menu_url($item, $hq);
     }
 
-    return $items;
+    return array_values($items);
 }
 add_filter('wp_nav_menu_objects', 'warriors_theme_tools_patch_menu_links', 20, 1);
 
 function warriors_theme_tools_hq_cta_shortcode() {
     $opts = warriors_theme_tools_get_options();
     $hq = untrailingslashit($opts['hq_base_url']);
+    $is_logged_in = is_user_logged_in();
+
+    if ($is_logged_in) {
+        return '<div class="warriors-theme-tools-banner">'
+            . '<a class="warriors-theme-tools-cta alt" href="' . esc_url($hq . '/player') . '">Open Player Dashboard</a>'
+            . '<a class="warriors-theme-tools-cta" href="' . esc_url($hq . '/calendar') . '">View Events</a>'
+            . '</div>';
+    }
 
     return '<div class="warriors-theme-tools-banner">'
         . '<a class="warriors-theme-tools-cta alt" href="' . esc_url($hq . '/login') . '">Player Login</a>'

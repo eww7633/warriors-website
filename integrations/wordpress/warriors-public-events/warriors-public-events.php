@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Warriors Public Events Feed
  * Description: Pulls public events from the Warriors HQ API and renders them via shortcode.
- * Version: 0.3.2
+ * Version: 0.3.3
  */
 
 if (!defined('ABSPATH')) {
@@ -84,6 +84,8 @@ function warriors_render_public_events_shortcode($atts) {
     $hq_base_url = untrailingslashit($atts['hq_base_url']);
     $login_url = $hq_base_url . '/login';
     $register_url = $hq_base_url . '/register';
+    $player_url = $hq_base_url . '/player';
+    $is_logged_in = is_user_logged_in();
 
     $items = warriors_public_events_fetch_items($atts['feed_url'], $options['cache_minutes']);
     if (is_wp_error($items)) {
@@ -102,8 +104,13 @@ function warriors_render_public_events_shortcode($atts) {
         <h2><?php echo esc_html($atts['title']); ?></h2>
         <p class="intro">Tap any event card to open the full Warrior HQ details and RSVP/signup flow.</p>
         <div class="warriors-public-events-cta">
-            <a class="warriors-public-events-button alt" href="<?php echo esc_url($login_url); ?>">Player Login</a>
-            <a class="warriors-public-events-button" href="<?php echo esc_url($register_url); ?>">Request Player Access</a>
+            <?php if ($is_logged_in): ?>
+                <a class="warriors-public-events-button alt" href="<?php echo esc_url($player_url); ?>">Open Player Dashboard</a>
+                <a class="warriors-public-events-button" href="<?php echo esc_url($hq_base_url . '/calendar'); ?>">View Full Calendar</a>
+            <?php else: ?>
+                <a class="warriors-public-events-button alt" href="<?php echo esc_url($login_url); ?>">Player Login</a>
+                <a class="warriors-public-events-button" href="<?php echo esc_url($register_url); ?>">Request Player Access</a>
+            <?php endif; ?>
         </div>
         <div class="warriors-public-events-grid">
             <?php foreach ($items as $event): ?>
