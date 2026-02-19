@@ -113,6 +113,8 @@ export default async function AdminPage({
     ["Competitions", competitions.length],
     ["Check-ins", store.checkIns.length]
   ] as const;
+  const inviteBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
+  const inviteFromEmail = process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
 
   return (
     <section className="stack admin-shell">
@@ -473,6 +475,10 @@ export default async function AdminPage({
               Imported contacts are stored in DB and can be moved through invited to linked.
               When someone registers with the same email, they link automatically.
             </p>
+            <p className="muted">
+              Workflow: send invite email, mark invited, wait for registration, then use Link Existing
+              Account by Email when a matching account appears.
+            </p>
             <div className="admin-kpi-grid">
               <div className="admin-kpi">
                 <span className="muted">Total contacts</span>
@@ -509,6 +515,26 @@ export default async function AdminPage({
                       const matchingUser = lead.email
                         ? usersByEmail.get(lead.email.trim().toLowerCase())
                         : undefined;
+                      const inviteSubject = "Pittsburgh Warriors Hockey Club Registration Invite";
+                      const inviteBody = [
+                        `Hi ${lead.fullName || "there"},`,
+                        "",
+                        "We imported your contact into our new Warriors system.",
+                        "Please register using this exact email address so we can link your record:",
+                        lead.email || "[your-email]",
+                        "",
+                        `${inviteBaseUrl}/register`,
+                        "",
+                        "After you register, Hockey Ops will approve your player access.",
+                        "",
+                        "Thank you,",
+                        "Pittsburgh Warriors Hockey Ops"
+                      ].join("\n");
+                      const gmailInviteHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                        lead.email || ""
+                      )}&su=${encodeURIComponent(inviteSubject)}&body=${encodeURIComponent(
+                        inviteBody
+                      )}`;
                       return (
                         <>
                     <strong>{lead.fullName || "Unnamed contact"}</strong>
@@ -524,7 +550,18 @@ export default async function AdminPage({
                         ? `Found account ${matchingUser.fullName} (${matchingUser.email})`
                         : "No matching account yet. Ask them to register first with this exact email."}
                     </p>
+                    <p className="muted">Invite sender account: {inviteFromEmail}</p>
                     <div className="cta-row">
+                      {lead.email && (
+                        <a
+                          className="button"
+                          href={gmailInviteHref}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open Gmail Invite
+                        </a>
+                      )}
                       {!lead.linkedUser && (
                         <form action="/api/admin/contacts/mark-invited" method="post">
                           <input type="hidden" name="contactLeadId" value={lead.id} />
