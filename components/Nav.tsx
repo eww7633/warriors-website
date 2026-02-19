@@ -7,11 +7,11 @@ export async function Nav() {
   const user = await getCurrentUser();
   const publicBase = siteConfig.publicSite.baseUrl.replace(/\/$/, "");
   const publicLinks = [
-    ["Main Site", `${publicBase}/`],
-    ["About Us", `${publicBase}/about`],
-    ["Donate", `${publicBase}/donate`],
-    ["Partners", `${publicBase}/partners`],
-    ["Public Events", `${publicBase}/events`]
+    ["About Us", siteConfig.publicSite.links.about],
+    ["Donate", siteConfig.publicSite.links.donate],
+    ["Partners", siteConfig.publicSite.links.partners],
+    ["Join", siteConfig.publicSite.links.join],
+    ["Events", siteConfig.publicSite.links.events]
   ] as const;
   const hqLinks = [
     ["Calendar", "/calendar"],
@@ -27,7 +27,7 @@ export async function Nav() {
 
   return (
     <div className="header-shell">
-      <Link href="/" className="brand-link">
+      <a href={publicBase} className="brand-link">
         <Image
           src="/brand/warriors-logo-font.svg"
           alt="Pittsburgh Warriors logo"
@@ -36,7 +36,7 @@ export async function Nav() {
           priority
         />
         <span className="brand-name">Pittsburgh Warriors Hockey Club</span>
-      </Link>
+      </a>
 
       <nav className="main-nav" aria-label="Primary">
         <ul className="nav-list">
@@ -66,11 +66,9 @@ export async function Nav() {
       <div className="auth-actions">
         {user ? (
           <>
-            <a className="button alt" href={publicBase}>
-              Main Website
-            </a>
+            <span className="hq-badge">Warrior HQ</span>
             <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
-              {user.role === "admin" ? "Warrior HQ" : "My Account"}
+              {user.role === "admin" ? "HQ Console" : "My Account"}
             </Link>
             <form action="/api/auth/logout" method="post">
               <button className="button" type="submit">Log out</button>
@@ -79,13 +77,13 @@ export async function Nav() {
         ) : (
           <>
             <a className="button alt" href={publicBase}>
-              Main Website
+              Main Site
             </a>
             <Link className="button ghost" href="/register">
-              Player Register
+              Join HQ
             </Link>
             <Link className="button" href="/login">
-              Player Log in
+              Log in
             </Link>
           </>
         )}
