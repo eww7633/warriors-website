@@ -8,7 +8,12 @@ This Next.js app is the private Hockey Ops and player management platform.
 - Admin approval workflow (pending -> approved)
 - Admin rejection workflow (pending -> rejected)
 - Mandatory roster assignment and jersey number assignment on approval
-- Jersey numbers enforced as unique within each roster
+- Central roster manager with:
+  - Active/inactive player status
+  - CSV export
+  - Sortable/searchable roster table
+  - Competition history per player
+  - Jersey overlap warnings (with tournament-overlap guardrails)
 - Protected player portal (approved rostered players only)
 - Protected check-in workflow with attendance truth states
 - SportsPress-style seasons, rosters, and games views
@@ -19,6 +24,10 @@ This Next.js app is the private Hockey Ops and player management platform.
   - DVHL sessions with 4 custom drafted teams
   - Assign approved players to competition teams
   - Admin dashboard organized by tabs: Overview, Competitions, Events, Players, Attendance
+- Sports data management:
+  - Seasons, teams, venues, positions, staff profiles, sponsors
+  - Sponsor impression and click tracking
+  - Public partners page at `/partners`
 
 ## Access rules
 - Public users can view only public pages.
@@ -88,4 +97,35 @@ Use shortcode on any WordPress page:
 Optional shortcode attributes:
 ```text
 [warriors_public_events feed_url="https://hq.pghwarriorhockey.us/api/public/events" limit="8" title="Upcoming Events"]
+```
+
+## Wix migration (public site scrape)
+To capture public pages/content/images from your current Wix site:
+
+```bash
+npm run migrate:wix -- https://pghwarriorhockey.org
+```
+
+Output is written to:
+- `/migration/wix/pages.json` (structured page content)
+- `/migration/wix/images.txt` (image URLs found)
+- `/migration/wix/html/*.html` (raw page snapshots)
+
+Notes:
+- This captures public content only.
+- Player/member passwords cannot be migrated by scraping.
+- Private user/contact/event records should be exported from Wix as CSV and imported separately.
+
+To import Wix contacts CSV into the database:
+
+1. Put the CSV at `/migration/wix/contacts.csv` (or pass a custom path).
+2. Ensure `DATABASE_URL` is set in `.env`.
+3. Run:
+   ```bash
+   npm run import:wix:contacts
+   ```
+
+Custom CSV path example:
+```bash
+npm run import:wix:contacts -- "./nigration/contacts.csv"
 ```

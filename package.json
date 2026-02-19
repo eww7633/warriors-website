@@ -9,6 +9,8 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
+    "migrate:wix": "node scripts/wix-migrate.mjs",
+    "import:wix:contacts": "node scripts/import-wix-contacts.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {

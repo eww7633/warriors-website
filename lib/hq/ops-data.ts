@@ -15,11 +15,12 @@ export async function listSportsData() {
       venues: [],
       positions: [],
       staff: [],
-      sponsors: []
+      sponsors: [],
+      contactLeads: []
     };
   }
 
-  const [seasons, teams, venues, positions, staff, sponsors] = await Promise.all([
+  const [seasons, teams, venues, positions, staff, sponsors, contactLeads] = await Promise.all([
     getPrismaClient().season.findMany({ orderBy: [{ isActive: "desc" }, { startsAt: "desc" }] }),
     getPrismaClient().team.findMany({
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
@@ -32,10 +33,14 @@ export async function listSportsData() {
     }),
     getPrismaClient().sponsor.findMany({
       orderBy: [{ isActive: "desc" }, { name: "asc" }]
+    }),
+    getPrismaClient().contactLead.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 25
     })
   ]);
 
-  return { seasons, teams, venues, positions, staff, sponsors };
+  return { seasons, teams, venues, positions, staff, sponsors, contactLeads };
 }
 
 export async function createSeason(input: {

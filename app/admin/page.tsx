@@ -273,6 +273,16 @@ export default async function AdminPage({
                     : "None yet"}
                 </p>
               </div>
+              <div className="event-card">
+                <strong>Imported Contact Leads ({sportsData.contactLeads.length})</strong>
+                <p>
+                  {sportsData.contactLeads.length > 0
+                    ? sportsData.contactLeads
+                        .map((lead) => lead.fullName || lead.email || lead.phone || "Unnamed contact")
+                        .join(", ")
+                    : "No imported contacts yet"}
+                </p>
+              </div>
             </div>
           </article>
         </>

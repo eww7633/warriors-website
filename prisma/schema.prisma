@@ -193,6 +193,22 @@ model Sponsor {
   @@index([isActive])
 }
 
+model ContactLead {
+  id          String   @id @default(cuid())
+  fullName    String?
+  email       String?
+  phone       String?
+  source      String   @default("wix")
+  notes       String?
+  tags        String?
+  rawJson     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([email])
+  @@index([source])
+}
+
 model CompetitionTeam {
   id            String   @id @default(cuid())
   competitionId String
