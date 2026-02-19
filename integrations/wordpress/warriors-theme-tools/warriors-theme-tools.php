@@ -75,12 +75,59 @@ header, .site-header, .main-navigation, .wp-block-navigation {
   background: linear-gradient(90deg, #050608 0%, #0d1218 48%, #161d27 100%);
   border-bottom: 1px solid rgba(255, 204, 51, 0.34);
 }
+header,
+.site-header,
+.wp-site-blocks > header,
+.wp-block-template-part {
+  min-height: 72px;
+}
+header .wp-block-group,
+.site-header .wp-block-group,
+header .inside-header,
+.site-header .inside-header {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+header nav,
+.site-header nav,
+.wp-block-navigation__container {
+  gap: 0.45rem;
+  align-items: center;
+}
 header a, .site-header a, .main-navigation a, .wp-block-navigation a {
   color: #fbf7ec !important;
   font-weight: 700;
   letter-spacing: 0.01em;
+  text-decoration: none;
 }
 header a:hover, .site-header a:hover, .main-navigation a:hover, .wp-block-navigation a:hover {
+  color: var(--warriors-gold) !important;
+}
+header .current-menu-item > a,
+header .current_page_item > a,
+.site-header .current-menu-item > a,
+.site-header .current_page_item > a,
+.wp-block-navigation-item.current-menu-item > a {
+  color: var(--warriors-gold) !important;
+}
+header .menu-item > a,
+.site-header .menu-item > a,
+.wp-block-navigation .wp-block-navigation-item__content {
+  border-radius: 8px;
+  padding: 0.35rem 0.55rem;
+}
+header .menu-item > a:hover,
+.site-header .menu-item > a:hover,
+.wp-block-navigation .wp-block-navigation-item__content:hover {
+  background: rgba(255, 204, 51, 0.12);
+}
+.wp-block-navigation__responsive-container.is-menu-open {
+  background: linear-gradient(180deg, #0b1016 0%, #141c27 100%) !important;
+}
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content a {
+  color: #fbf7ec !important;
+}
+.wp-block-navigation__responsive-container.is-menu-open .wp-block-navigation__responsive-container-content a:hover {
   color: var(--warriors-gold) !important;
 }
 .warriors-theme-tools-cta,
@@ -256,6 +303,12 @@ input[type="submit"]:hover {
   margin: 0.25rem 0 0.8rem 1.2rem;
 }
 @media (max-width: 640px) {
+  header,
+  .site-header,
+  .wp-site-blocks > header,
+  .wp-block-template-part {
+    min-height: 64px;
+  }
   .warriors-theme-tools-banner .warriors-theme-tools-cta {
     flex: 1 1 auto;
   }
