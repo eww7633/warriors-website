@@ -27,8 +27,11 @@ export async function Nav() {
     ["Facebook", siteConfig.social.facebook]
   ] as const;
 
-  const authLabel = user ? (user.role === "admin" ? "Hockey Ops" : "Warrior HQ") : "Log in";
-  const authHref = user ? (user.role === "admin" ? "/admin" : "/player") : "/login";
+  const isPlayer = user?.role === "player";
+  const authPrimaryLabel = user ? (isPlayer ? "HQ" : "Support") : "Join";
+  const authPrimaryHref = user ? (isPlayer ? "/player" : "/donate") : "/join";
+  const authSecondaryLabel = user ? "LogOut" : "Login";
+  const authSecondaryHref = user ? null : "/login";
 
   return (
     <div className="header-shell">
@@ -76,17 +79,18 @@ export async function Nav() {
         </ul>
 
         <div className="auth-actions">
-          <Link className="button alt" href="/donate">
-            Donate
-          </Link>
-          <Link className="button" href={authHref}>
-            {authLabel}
+          <Link className="button ghost" href={authPrimaryHref}>
+            {authPrimaryLabel}
           </Link>
           {user ? (
             <form action="/api/auth/logout" method="post">
-              <button className="button ghost" type="submit">Log out</button>
+              <button className="button" type="submit">{authSecondaryLabel}</button>
             </form>
-          ) : null}
+          ) : (
+            <Link className="button" href={authSecondaryHref ?? "/login"}>
+              {authSecondaryLabel}
+            </Link>
+          )}
         </div>
 
         <details className="mobile-nav">
@@ -99,15 +103,19 @@ export async function Nav() {
                 </li>
               ))}
               <li>
-                <Link href={authHref}>{authLabel}</Link>
+                <Link href={authPrimaryHref}>{authPrimaryLabel}</Link>
               </li>
               {user ? (
                 <li>
                   <form action="/api/auth/logout" method="post">
-                    <button className="button ghost" type="submit">Log out</button>
+                    <button className="button" type="submit">{authSecondaryLabel}</button>
                   </form>
                 </li>
-              ) : null}
+              ) : (
+                <li>
+                  <Link href={authSecondaryHref ?? "/login"}>{authSecondaryLabel}</Link>
+                </li>
+              )}
             </ul>
             <div className="mobile-social-row">
               {socials.map(([name, href]) => (
@@ -123,9 +131,6 @@ export async function Nav() {
                   )}
                 </a>
               ))}
-              <Link className="button alt" href="/donate">
-                Donate
-              </Link>
             </div>
           </div>
         </details>
