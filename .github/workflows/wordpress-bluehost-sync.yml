@@ -20,7 +20,6 @@ jobs:
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
       BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'wp-content/plugins/' }}
-      BLUEHOST_WP_THEME_DIR: ${{ vars.BLUEHOST_WP_THEME_DIR }}
 
     steps:
       - name: Checkout
@@ -67,36 +66,8 @@ jobs:
 
       - name: Resolve WordPress theme directory
         run: |
-          if [ -n "$BLUEHOST_WP_THEME_DIR" ]; then
-            DEPLOY_DIR="$BLUEHOST_WP_THEME_DIR"
-          elif [[ "$BLUEHOST_WP_PLUGIN_DIR" == *"/public_html/wp-content/plugins/"* ]]; then
-            DEPLOY_DIR="public_html/wp-content/themes/"
-          elif [[ "$BLUEHOST_WP_PLUGIN_DIR" == *"wp-content/plugins/"* ]]; then
-            DEPLOY_DIR="${BLUEHOST_WP_PLUGIN_DIR%plugins/}themes/"
-          else
-            DEPLOY_DIR="wp-content/themes/"
-          fi
-          DEPLOY_DIR="${DEPLOY_DIR#./}"
-          DEPLOY_DIR="${DEPLOY_DIR%/}/"
-
-          DEPLOY_DIR="${DEPLOY_DIR#/home2/*/public_html/}"
-          DEPLOY_DIR="${DEPLOY_DIR#/home/*/public_html/}"
-          DEPLOY_DIR="${DEPLOY_DIR#/public_html/}"
-
-          DEPLOY_DIR="${DEPLOY_DIR//public_html\/wp-content\/public_html\/wp-content\//wp-content/}"
-          DEPLOY_DIR="${DEPLOY_DIR//wp-content\/wp-content\//wp-content/}"
-
-          case "$DEPLOY_DIR" in
-            wp-content/themes/*|public_html/wp-content/themes/*)
-              ;;
-            *)
-              echo "Resolved theme dir must be under wp-content/themes/ or public_html/wp-content/themes/. Got: $DEPLOY_DIR" >&2
-              exit 1
-              ;;
-          esac
-
-          echo "DEPLOY_THEME_DIR=/$DEPLOY_DIR" >> "$GITHUB_ENV"
-          echo "Using DEPLOY_THEME_DIR=/$DEPLOY_DIR"
+          echo "DEPLOY_THEME_DIR=/wp-content/themes/" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_THEME_DIR=/wp-content/themes/"
 
       - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
