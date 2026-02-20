@@ -19,7 +19,7 @@ jobs:
       BLUEHOST_HOST: ${{ secrets.BLUEHOST_HOST != '' && secrets.BLUEHOST_HOST || vars.BLUEHOST_HOST }}
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
-      BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'wp-content/plugins/' }}
+      BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'plugins/' }}
 
     steps:
       - name: Checkout
@@ -53,10 +53,10 @@ jobs:
 
           # Ensure we only ever deploy into the plugins directory.
           case "$DEPLOY_DIR" in
-            wp-content/plugins/*)
+            plugins/*|wp-content/plugins/*)
               ;;
             *)
-              echo "Resolved plugin dir must be under wp-content/plugins/. Got: $DEPLOY_DIR" >&2
+              echo "Resolved plugin dir must be under plugins/ or wp-content/plugins/. Got: $DEPLOY_DIR" >&2
               exit 1
               ;;
           esac
@@ -66,8 +66,8 @@ jobs:
 
       - name: Resolve WordPress theme directory
         run: |
-          echo "DEPLOY_THEME_DIR=/wp-content/themes/" >> "$GITHUB_ENV"
-          echo "Using DEPLOY_THEME_DIR=/wp-content/themes/"
+          echo "DEPLOY_THEME_DIR=/themes/" >> "$GITHUB_ENV"
+          echo "Using DEPLOY_THEME_DIR=/themes/"
 
       - name: Upload WordPress plugin folders
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -99,44 +99,6 @@ jobs:
           port: 21
           local-dir: integrations/wordpress/themes/
           server-dir: ${{ env.DEPLOY_THEME_DIR }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/README.md
-            **/*.zip
-            **/.DS_Store
-          dangerous-clean-slate: false
-
-      - name: Upload WordPress themes (public_html mirror)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ env.BLUEHOST_HOST }}
-          username: ${{ env.BLUEHOST_USER }}
-          password: ${{ env.BLUEHOST_PASS }}
-          protocol: ftp
-          port: 21
-          local-dir: integrations/wordpress/themes/
-          server-dir: /public_html/wp-content/themes/
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/README.md
-            **/*.zip
-            **/.DS_Store
-          dangerous-clean-slate: false
-
-      - name: Upload WordPress themes (absolute path mirror)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ env.BLUEHOST_HOST }}
-          username: ${{ env.BLUEHOST_USER }}
-          password: ${{ env.BLUEHOST_PASS }}
-          protocol: ftp
-          port: 21
-          local-dir: integrations/wordpress/themes/
-          server-dir: /home2/nqjlxnmy/public_html/wp-content/themes/
           exclude: |
             **/.git*
             **/.git*/**
