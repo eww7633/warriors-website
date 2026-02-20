@@ -299,8 +299,8 @@ export async function assignPlayerToCompetitionTeam(input: { teamId: string; use
   ensureDbMode();
 
   const user = await getPrismaClient().user.findUnique({ where: { id: input.userId } });
-  if (!user || user.role !== "player" || user.status !== "approved") {
-    throw new Error("Only approved players can be assigned to competition teams.");
+  if (!user || (user.role !== "player" && user.role !== "admin") || user.status !== "approved") {
+    throw new Error("Only approved player/admin accounts can be assigned to competition teams.");
   }
 
   return getPrismaClient().competitionTeamMember.upsert({
@@ -338,8 +338,8 @@ export async function listEligiblePlayers() {
 
   return getPrismaClient().user.findMany({
     where: {
-      role: "player",
-      status: "approved"
+      status: "approved",
+      OR: [{ role: "player" }, { role: "admin" }]
     },
     orderBy: { fullName: "asc" },
     select: {

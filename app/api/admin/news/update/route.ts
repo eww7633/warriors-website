@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   const published = String(formData.get("published") ?? "").trim() === "on";
 
   if (!postId || !title || !summary || !body) {
-    return NextResponse.redirect(new URL("/admin?section=players&error=missing_news_fields", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=news&error=missing_news_fields", request.url), 303);
   }
 
   await upsertNewsPost({
@@ -46,5 +46,5 @@ export async function POST(request: Request) {
     authorUserId: actor.id
   });
 
-  return NextResponse.redirect(new URL("/admin?section=players&news=updated", request.url), 303);
+  return NextResponse.redirect(new URL("/admin?section=news&news=updated", request.url), 303);
 }

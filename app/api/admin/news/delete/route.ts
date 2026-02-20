@@ -13,9 +13,9 @@ export async function POST(request: Request) {
   const postId = String(formData.get("postId") ?? "").trim();
 
   if (!postId) {
-    return NextResponse.redirect(new URL("/admin?section=players&error=missing_news_post_id", request.url), 303);
+    return NextResponse.redirect(new URL("/admin?section=news&error=missing_news_post_id", request.url), 303);
   }
 
   await deleteNewsPost(postId);
-  return NextResponse.redirect(new URL("/admin?section=players&news=deleted", request.url), 303);
+  return NextResponse.redirect(new URL("/admin?section=news&news=deleted", request.url), 303);
 }

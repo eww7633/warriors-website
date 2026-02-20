@@ -17,6 +17,10 @@ import {
   usaHockeySeasonLabel
 } from "@/lib/hq/player-profiles";
 import {
+  getPlayerOnboardingState,
+  isPlayerOnboardingComplete
+} from "@/lib/hq/player-onboarding";
+import {
   canEventCollectGuests,
   getEventGuestIntentMap,
   getEventRosterSelectionMap,
@@ -29,6 +33,7 @@ export const dynamic = "force-dynamic";
 
 const sections = [
   ["overview", "Overview"],
+  ["onboarding", "Onboarding"],
   ["profile", "Profile"],
   ["events", "Events"],
   ["dvhl", "DVHL"],
@@ -61,18 +66,22 @@ export default async function PlayerPage({
     redirect("/login?error=sign_in_required");
   }
 
-  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments] = await Promise.all([
+  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments, onboardingState] = await Promise.all([
     readStore(),
     getPlayerRosterProfile(user.id),
     listPhotoSubmissionRequestsByUser(user.id),
     listJerseyNumberRequestsByUser(user.id),
     getPlayerProfileExtra(user.id),
-    listTeamAssignmentsByUser(user.id)
+    listTeamAssignmentsByUser(user.id),
+    getPlayerOnboardingState(user.id)
   ]);
 
   const latestUser = store.users.find((entry) => entry.id === user.id) ?? user;
+  const onboardingComplete = isPlayerOnboardingComplete(onboardingState);
   const section: Section = sections.some(([value]) => value === querySection)
     ? (querySection as Section)
+    : latestUser.status === "approved" && !onboardingComplete
+    ? "onboarding"
     : "overview";
   const checkIns = store.checkIns.filter((entry) => entry.userId === latestUser.id).slice(-10).reverse();
 
@@ -118,6 +127,7 @@ export default async function PlayerPage({
         </p>
         {querySaved === "equipment" && <p className="badge">Equipment profile saved.</p>}
         {querySaved === "profile" && <p className="badge">Contact profile saved.</p>}
+        {querySaved === "onboarding" && <p className="badge">Onboarding completed. Hockey Ops can now finalize your assignments.</p>}
         {querySaved === "photo_request" && <p className="badge">Photo submission sent to Hockey Ops for review.</p>}
         {querySaved === "jersey_request" && <p className="badge">Jersey number request sent to Hockey Ops.</p>}
         {querySaved === "jersey_auto_granted" && <p className="badge">Jersey number updated automatically.</p>}
@@ -137,6 +147,11 @@ export default async function PlayerPage({
           </p>
         ) : (
           <>
+            {!onboardingComplete ? (
+              <p className="badge">Onboarding incomplete: complete the onboarding checklist to unlock full HQ setup.</p>
+            ) : (
+              <p className="badge">Onboarding complete.</p>
+            )}
             <p>Main roster: {latestUser.rosterId === "main-player-roster" ? "Main Player Roster" : (latestUser.rosterId || "Unassigned")}</p>
             <p>Official jersey number: #{latestUser.jerseyNumber}</p>
             <p>Primary sub-roster: {profileExtra.primarySubRoster?.toUpperCase() || "Not assigned yet"}</p>
@@ -212,6 +227,54 @@ export default async function PlayerPage({
         )}
       </article>
       </>
+      )}
+
+      {section === "onboarding" && (
+      <article className="card">
+        <h3>Onboarding Checklist</h3>
+        {latestUser.status !== "approved" ? (
+          <p className="muted">Onboarding opens after Hockey Ops approves your account.</p>
+        ) : onboardingComplete ? (
+          <div className="stack">
+            <p className="badge">You have completed onboarding.</p>
+            <p className="muted">
+              Hockey Ops can now assign your teams, finalize jersey setup, and publish role access.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="muted">
+              Complete this once after invite acceptance. Hockey Ops will use this to finalize team placement.
+            </p>
+            <form className="grid-form" action="/api/player/onboarding/complete" method="post">
+              <h4>1) Contact Details</h4>
+              <input name="addressLine1" placeholder="Address line 1" defaultValue={profileExtra.address?.line1 || ""} required />
+              <input name="city" placeholder="City" defaultValue={profileExtra.address?.city || ""} required />
+              <input name="stateProvince" placeholder="State" defaultValue={profileExtra.address?.stateProvince || ""} required />
+              <input name="postalCode" placeholder="ZIP code" defaultValue={profileExtra.address?.postalCode || ""} required />
+              <input name="usaHockeyNumber" placeholder="USA Hockey number (if available)" defaultValue={profileExtra.usaHockeyNumber || ""} />
+              <label><input name="needsEquipment" type="checkbox" defaultChecked={Boolean(profileExtra.needsEquipment)} /> I need equipment support</label>
+
+              <h4>2) Equipment Sizes</h4>
+              <input name="helmet" placeholder="Helmet size" defaultValue={equipment.helmet || ""} />
+              <input name="gloves" placeholder="Glove size" defaultValue={equipment.gloves || ""} />
+              <input name="skates" placeholder="Skate size" defaultValue={equipment.skates || ""} />
+              <input name="pants" placeholder="Pants size" defaultValue={equipment.pants || ""} />
+              <input name="stick" placeholder="Stick specs" defaultValue={equipment.stick || ""} />
+              <input name="jersey" placeholder="Jersey size" defaultValue={equipment.jersey || ""} />
+              <input name="shell" placeholder="Shell size" defaultValue={equipment.shell || ""} />
+              <input name="warmupTop" placeholder="Warmup top size" defaultValue={equipment.warmupTop || ""} />
+              <input name="warmupBottom" placeholder="Warmup bottom size" defaultValue={equipment.warmupBottom || ""} />
+
+              <h4>3) Acknowledgement</h4>
+              <label>
+                <input name="acknowledgementsCompleted" type="checkbox" required /> I confirm this information is accurate and can be used by Hockey Ops for rostering.
+              </label>
+              <button className="button" type="submit">Complete Onboarding</button>
+            </form>
+          </>
+        )}
+      </article>
       )}
 
       {section === "profile" && (

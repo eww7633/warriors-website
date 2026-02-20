@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { siteConfig } from "@/lib/siteConfig";
-import { news } from "@/lib/mockData";
 import { getHomepageShowcasePhotos } from "@/lib/showcase-photos";
 import { getCurrentUser } from "@/lib/hq/session";
 import { getAllEvents } from "@/lib/hq/events";
 import { listLiveGames } from "@/lib/hq/live-games";
+import { listPublishedNewsPosts } from "@/lib/hq/news";
+import { getHomepageSocialPosts } from "@/lib/social-feed";
 import GameScoreCard from "@/components/GameScoreCard";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -21,16 +22,20 @@ export default async function HomePage({
 }) {
   const donateUrl = "/donate";
   const query = searchParams ?? {};
-  const [showcaseResult, userResult, eventsResult, gamesResult] = await Promise.allSettled([
+  const [showcaseResult, userResult, eventsResult, gamesResult, newsResult, socialResult] = await Promise.allSettled([
     withTimeout(getHomepageShowcasePhotos(12), 1800),
     withTimeout(getCurrentUser(), 1200),
     withTimeout(getAllEvents(), 1800),
-    withTimeout(listLiveGames(), 1800)
+    withTimeout(listLiveGames(), 1800),
+    withTimeout(listPublishedNewsPosts(3), 1800),
+    withTimeout(getHomepageSocialPosts(), 1800)
   ]);
   const showcase = showcaseResult.status === "fulfilled" ? showcaseResult.value : [];
   const user = userResult.status === "fulfilled" ? userResult.value : null;
   const events = eventsResult.status === "fulfilled" ? eventsResult.value : [];
   const games = gamesResult.status === "fulfilled" ? gamesResult.value : [];
+  const newsPosts = newsResult.status === "fulfilled" ? newsResult.value : [];
+  const socialPosts = socialResult.status === "fulfilled" ? socialResult.value : [];
   const featuredGames = games.slice(0, 3);
   const now = Date.now();
   const upcomingEvents = events
@@ -82,7 +87,7 @@ export default async function HomePage({
   const impactStats = [
     { label: "Upcoming Public Events", value: String(upcomingEvents.length || 0) },
     { label: "Live / Scheduled Games", value: String(games.length || 0) },
-    { label: "Program News Updates", value: String(news.length || 0) },
+    { label: "Program News Updates", value: String(newsPosts.length || 0) },
     { label: "Next Event", value: nextPublicEvent ? new Date(nextPublicEvent.date).toLocaleDateString() : "TBD" }
   ];
   const impactPillars = [
@@ -265,13 +270,49 @@ export default async function HomePage({
           </a>
         </div>
         <div className="about-card-grid">
-          {news.map((item) => (
-            <article key={item.id} className="event-card">
-              <p className="kicker">{new Date(item.date).toLocaleDateString()}</p>
-              <h4>{item.title}</h4>
-              <p>{item.summary}</p>
-            </article>
-          ))}
+          {newsPosts.length > 0 ? (
+            newsPosts.map((item) => (
+              <article key={item.id} className="event-card">
+                <p className="kicker">
+                  {new Date(item.publishedAt || item.createdAt).toLocaleDateString()}
+                </p>
+                <h4>{item.title}</h4>
+                <p>{item.summary}</p>
+                <p>
+                  <Link href={`/news/${item.slug}`}>Read story</Link>
+                </p>
+              </article>
+            ))
+          ) : (
+            <p className="muted">No published news yet. Hockey Ops can publish stories in Admin News.</p>
+          )}
+        </div>
+      </article>
+
+      <article className="card home-news">
+        <div className="section-heading">
+          <h3>Latest Social Highlights</h3>
+          <a href={siteConfig.social.instagram} target="_blank" rel="noreferrer">
+            Open socials
+          </a>
+        </div>
+        <div className="about-card-grid">
+          {socialPosts.length > 0 ? (
+            socialPosts.map((post) => (
+              <article key={`${post.platform}-${post.id}`} className="event-card">
+                <p className="kicker">{post.platform === "instagram" ? "Instagram" : "Facebook"}</p>
+                {post.imageUrl ? <img src={post.imageUrl} alt={`${post.platform} update`} loading="lazy" /> : null}
+                <p>{post.text || "New post available."}</p>
+                <p>
+                  <a href={post.permalink} target="_blank" rel="noreferrer">Open post</a>
+                </p>
+              </article>
+            ))
+          ) : (
+            <p className="muted">
+              Connect Meta Business API credentials to display live Instagram/Facebook posts.
+            </p>
+          )}
         </div>
       </article>
 
