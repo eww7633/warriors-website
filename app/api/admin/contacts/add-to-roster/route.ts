@@ -3,8 +3,21 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
-import { findBlockingRosterReservation, upsertRosterReservations } from "@/lib/hq/roster-reservations";
+import {
+  findBlockingRosterReservation,
+  listRosterReservations,
+  upsertRosterReservations
+} from "@/lib/hq/roster-reservations";
 import { readStore } from "@/lib/hq/store";
+
+function nextAvailableNumber(used: Set<number>) {
+  for (let number = 1; number <= 99; number += 1) {
+    if (!used.has(number)) {
+      return number;
+    }
+  }
+  return null;
+}
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
@@ -20,9 +33,13 @@ export async function POST(request: Request) {
   const contactLeadId = String(formData.get("contactLeadId") ?? "").trim();
   const jerseyNumberRaw = String(formData.get("jerseyNumber") ?? "").trim();
   const primarySubRoster = String(formData.get("primarySubRoster") ?? "").trim();
+  const requestedNumber = Number(jerseyNumberRaw);
+  const hasManualNumber = Number.isFinite(requestedNumber) && requestedNumber >= 1 && requestedNumber <= 99;
 
-  const jerseyNumber = Number(jerseyNumberRaw);
-  if (!contactLeadId || !Number.isFinite(jerseyNumber) || jerseyNumber < 1 || jerseyNumber > 99) {
+  if (!contactLeadId) {
+    return NextResponse.redirect(new URL("/admin?section=contacts&error=invalid_roster_lock_fields", request.url), 303);
+  }
+  if (jerseyNumberRaw && !hasManualNumber) {
     return NextResponse.redirect(new URL("/admin?section=contacts&error=invalid_roster_lock_fields", request.url), 303);
   }
 
@@ -49,8 +66,38 @@ export async function POST(request: Request) {
     }
 
     const fullName = lead.fullName?.trim() || lead.email || `Lead ${lead.id.slice(0, 6)}`;
+    const rosterId = "main-player-roster";
+    let jerseyNumber = hasManualNumber ? requestedNumber : NaN;
+
+    if (!hasManualNumber) {
+      const [reservations, store] = await Promise.all([listRosterReservations(), readStore()]);
+      const used = new Set<number>();
+      for (const reservation of reservations) {
+        if (reservation.rosterId === rosterId) {
+          used.add(reservation.jerseyNumber);
+        }
+      }
+      for (const user of store.users) {
+        if (
+          user.rosterId === rosterId &&
+          Number.isFinite(user.jerseyNumber) &&
+          typeof user.jerseyNumber === "number"
+        ) {
+          used.add(user.jerseyNumber);
+        }
+      }
+      const auto = nextAvailableNumber(used);
+      if (!auto) {
+        return NextResponse.redirect(
+          new URL("/admin?section=contacts&error=no_available_jersey_numbers", request.url),
+          303
+        );
+      }
+      jerseyNumber = auto;
+    }
+
     const conflict = await findBlockingRosterReservation({
-      rosterId: "main-player-roster",
+      rosterId,
       jerseyNumber,
       candidateEmail: lead.email || undefined,
       candidateFullName: fullName,
@@ -70,7 +117,7 @@ export async function POST(request: Request) {
           fullName,
           email: lead.email || undefined,
           phone: lead.phone || undefined,
-          rosterId: "main-player-roster",
+          rosterId,
           primarySubRoster: primarySubRoster as "gold" | "white" | "black",
           jerseyNumber,
           notes: lead.notes || undefined

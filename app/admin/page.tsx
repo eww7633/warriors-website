@@ -42,14 +42,14 @@ import {
 export const dynamic = "force-dynamic";
 
 const sectionDefs = [
-  { key: "overview", label: "Overview", permission: null },
+  { key: "overview", label: "Command Center", permission: null },
   { key: "dvhl", label: "DVHL", permission: "manage_dvhl" },
-  { key: "sportsdata", label: "Directory", permission: "manage_site_users" },
-  { key: "contacts", label: "Contacts", permission: "manage_site_users" },
+  { key: "events", label: "Event Operations", permission: "manage_events" },
+  { key: "contacts", label: "People & Onboarding", permission: "manage_site_users" },
+  { key: "players", label: "Roster & Roles", permission: "manage_players" },
   { key: "news", label: "News", permission: "manage_news" },
+  { key: "sportsdata", label: "Directory", permission: "manage_site_users" },
   { key: "competitions", label: "Other Competitions", permission: "manage_events" },
-  { key: "events", label: "Events", permission: "manage_events" },
-  { key: "players", label: "Players", permission: "manage_players" },
   { key: "attendance", label: "Attendance", permission: "manage_events" },
   { key: "fundraising", label: "Fundraising", permission: "manage_fundraising" }
 ] as const;
@@ -287,17 +287,30 @@ export default async function AdminPage({
         </aside>
         <div className="stack admin-panel-content">
       {section === "overview" && (
-        <article className="card">
-          <h3>Overview</h3>
-          <ul>
-            <li>Pending Registrations: {pendingUsers.length}</li>
-            <li>Approved Players: {approvedPlayers.length}</li>
-            <li>Rejected Requests: {rejectedUsers.length}</li>
-            <li>Attendance Records: {store.checkIns.length}</li>
-            <li>Events in HQ: {allEvents.length}</li>
-            <li>Competitions: {competitions.length}</li>
-          </ul>
-        </article>
+        <>
+          <article className="card">
+            <h3>Overview</h3>
+            <ul>
+              <li>Pending Registrations: {pendingUsers.length}</li>
+              <li>Approved Players: {approvedPlayers.length}</li>
+              <li>Rejected Requests: {rejectedUsers.length}</li>
+              <li>Attendance Records: {store.checkIns.length}</li>
+              <li>Events in HQ: {allEvents.length}</li>
+              <li>Competitions: {competitions.length}</li>
+            </ul>
+          </article>
+          <article className="card">
+            <h3>Operations Playbook</h3>
+            <p className="muted">Recommended daily workflow for any Hockey Ops admin.</p>
+            <ol>
+              <li><Link href="/admin?section=contacts">People & Onboarding: review imports, send invites, and lock roster spots.</Link></li>
+              <li><Link href="/admin?section=events">Event Operations: create non-DVHL events using Quick Builder.</Link></li>
+              <li><Link href="/admin/dvhl">DVHL: manage seasons, teams, schedule, and sub pools.</Link></li>
+              <li><Link href="/admin?section=players">Roster & Roles: finalize team assignments, roles, and approvals.</Link></li>
+              <li><Link href="/admin?section=news">News: publish updates for homepage and supporter visibility.</Link></li>
+            </ol>
+          </article>
+        </>
       )}
 
       {section === "dvhl" && (
@@ -820,8 +833,8 @@ export default async function AdminPage({
                     <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
                       <input type="hidden" name="contactLeadId" value={lead.id} />
                       <label>
-                        Assign jersey number
-                        <input name="jerseyNumber" type="number" min={1} max={99} required />
+                        Jersey number (optional)
+                        <input name="jerseyNumber" type="number" min={1} max={99} placeholder="Leave blank for auto-assign" />
                       </label>
                       <label>
                         Primary sub-roster
@@ -959,6 +972,37 @@ export default async function AdminPage({
 
       {section === "events" && (
         <div className="stack">
+          <article className="card">
+            <h3>Quick Event Builder (Non-DVHL)</h3>
+            <p className="muted">
+              Use this for all non-DVHL events. DVHL events and schedule are managed in the dedicated DVHL hub.
+            </p>
+            <p>
+              <Link className="button ghost" href="/admin/dvhl">
+                Open DVHL Hub
+              </Link>
+            </p>
+            <form className="grid-form" action="/api/admin/events/quick" method="post">
+              <input type="hidden" name="returnTo" value="/admin?section=events" />
+              <input name="title" placeholder="Event title" required />
+              <label>
+                Date/time
+                <input name="startsAt" type="datetime-local" required />
+              </label>
+              <input name="locationPublic" placeholder="Location (optional)" />
+              <label>
+                Event template
+                <select name="eventKind" defaultValue="off_ice">
+                  <option value="off_ice">Off-Ice Community Event (Straight RSVP)</option>
+                  <option value="volunteer">Volunteer Event (Straight RSVP)</option>
+                  <option value="hockey_interest">Hockey Event (Interest Gathering)</option>
+                  <option value="hockey_rsvp">Hockey Event (Straight RSVP)</option>
+                </select>
+              </label>
+              <button className="button" type="submit">Create Quick Event</button>
+            </form>
+          </article>
+
           <details className="card admin-disclosure" open>
             <summary>Event Types</summary>
             <p className="muted">
@@ -1307,7 +1351,11 @@ export default async function AdminPage({
           <article className="card">
             <h3>Import Roster Number Locks</h3>
             <p className="muted">
-              Use this to reserve existing players and jersey numbers before they register.
+              Advanced tool. Most admins should use <strong>People & Onboarding</strong> to add contacts to roster
+              queue with auto-assigned numbers.
+            </p>
+            <p className="muted">
+              Use this only for large legacy imports to reserve existing players and jersey numbers before they register.
               CSV format per line: <code>fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes</code>
             </p>
             <form className="grid-form" action="/api/admin/roster/import" method="post">
