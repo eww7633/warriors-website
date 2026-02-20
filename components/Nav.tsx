@@ -23,9 +23,12 @@ export async function Nav() {
   ] as const;
 
   const socials = [
-    ["Instagram", siteConfig.social.instagram, "IG"],
-    ["Facebook", siteConfig.social.facebook, "FB"]
+    ["Instagram", siteConfig.social.instagram],
+    ["Facebook", siteConfig.social.facebook]
   ] as const;
+
+  const authLabel = user ? (user.role === "admin" ? "Hockey Ops" : "Warrior HQ") : "Log in";
+  const authHref = user ? (user.role === "admin" ? "/admin" : "/player") : "/login";
 
   return (
     <div className="header-shell">
@@ -55,10 +58,18 @@ export async function Nav() {
         </nav>
 
         <ul className="social-list" aria-label="Social links">
-          {socials.map(([name, href, short]) => (
+          {socials.map(([name, href]) => (
             <li key={name}>
               <a href={href} aria-label={name} target="_blank" rel="noreferrer">
-                {short}
+                {name === "Instagram" ? (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm10 2H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3Zm-5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5Zm5.2-2.4a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M13.5 22v-8h2.8l.5-3h-3.3V9.2c0-.9.3-1.5 1.6-1.5H17V4.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V11H8v3h2.5v8h3Z" />
+                  </svg>
+                )}
               </a>
             </li>
           ))}
@@ -68,26 +79,56 @@ export async function Nav() {
           <Link className="button alt" href="/donate">
             Donate
           </Link>
+          <Link className="button" href={authHref}>
+            {authLabel}
+          </Link>
           {user ? (
-            <>
-              <Link className="button ghost" href={user.role === "admin" ? "/admin" : "/player"}>
-                {user.role === "admin" ? "Hockey Ops" : "Warrior HQ"}
-              </Link>
-              <form action="/api/auth/logout" method="post">
-                <button className="button" type="submit">Log out</button>
-              </form>
-            </>
-          ) : (
-            <>
-              <Link className="button ghost" href="/join">
-                Request Access
-              </Link>
-              <Link className="button" href="/login">
-                Log in
-              </Link>
-            </>
-          )}
+            <form action="/api/auth/logout" method="post">
+              <button className="button ghost" type="submit">Log out</button>
+            </form>
+          ) : null}
         </div>
+
+        <details className="mobile-nav">
+          <summary>Menu</summary>
+          <div className="mobile-nav-panel">
+            <ul className="mobile-nav-list">
+              {publicLinks.map(([label, href]) => (
+                <li key={href}>
+                  <Link href={href}>{label}</Link>
+                </li>
+              ))}
+              <li>
+                <Link href={authHref}>{authLabel}</Link>
+              </li>
+              {user ? (
+                <li>
+                  <form action="/api/auth/logout" method="post">
+                    <button className="button ghost" type="submit">Log out</button>
+                  </form>
+                </li>
+              ) : null}
+            </ul>
+            <div className="mobile-social-row">
+              {socials.map(([name, href]) => (
+                <a key={name} href={href} aria-label={name} target="_blank" rel="noreferrer">
+                  {name === "Instagram" ? (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm10 2H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3Zm-5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5Zm5.2-2.4a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M13.5 22v-8h2.8l.5-3h-3.3V9.2c0-.9.3-1.5 1.6-1.5H17V4.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V11H8v3h2.5v8h3Z" />
+                    </svg>
+                  )}
+                </a>
+              ))}
+              <Link className="button alt" href="/donate">
+                Donate
+              </Link>
+            </div>
+          </div>
+        </details>
       </div>
 
       {user ? (
