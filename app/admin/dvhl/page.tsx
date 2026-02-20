@@ -55,9 +55,12 @@ function buildStandings(competitions: Awaited<ReturnType<typeof listCompetitions
   const records = new Map<string, TeamRecord>();
 
   for (const competition of competitions) {
+    const competitionRecords = new Map<string, TeamRecord>();
+    const teamByName = new Map<string, string>();
+
     for (const team of competition.teams) {
       const key = `${competition.id}:${team.id}`;
-      records.set(key, {
+      const seeded: TeamRecord = {
         teamId: team.id,
         teamName: team.name,
         competitionId: competition.id,
@@ -69,32 +72,52 @@ function buildStandings(competitions: Awaited<ReturnType<typeof listCompetitions
         goalsFor: 0,
         goalsAgainst: 0,
         points: 0
-      });
+      };
+      records.set(key, seeded);
+      competitionRecords.set(team.id, seeded);
+      teamByName.set(team.name, team.id);
     }
 
     for (const team of competition.teams) {
-      const key = `${competition.id}:${team.id}`;
-      const record = records.get(key);
-      if (!record) continue;
-
       for (const game of team.games) {
         if (!isFinalGame(game)) continue;
 
+        const homeRecord = competitionRecords.get(team.id);
+        if (!homeRecord) continue;
+
+        const awayTeamId = teamByName.get(game.opponent || "");
+        const awayRecord = awayTeamId ? competitionRecords.get(awayTeamId) : undefined;
         const gf = game.warriorsScore ?? 0;
         const ga = game.opponentScore ?? 0;
 
-        record.gamesPlayed += 1;
-        record.goalsFor += gf;
-        record.goalsAgainst += ga;
+        homeRecord.gamesPlayed += 1;
+        homeRecord.goalsFor += gf;
+        homeRecord.goalsAgainst += ga;
 
         if (gf > ga) {
-          record.wins += 1;
-          record.points += 2;
+          homeRecord.wins += 1;
+          homeRecord.points += 2;
         } else if (gf < ga) {
-          record.losses += 1;
+          homeRecord.losses += 1;
         } else {
-          record.ties += 1;
-          record.points += 1;
+          homeRecord.ties += 1;
+          homeRecord.points += 1;
+        }
+
+        if (awayRecord) {
+          awayRecord.gamesPlayed += 1;
+          awayRecord.goalsFor += ga;
+          awayRecord.goalsAgainst += gf;
+
+          if (ga > gf) {
+            awayRecord.wins += 1;
+            awayRecord.points += 2;
+          } else if (ga < gf) {
+            awayRecord.losses += 1;
+          } else {
+            awayRecord.ties += 1;
+            awayRecord.points += 1;
+          }
         }
       }
     }
@@ -107,6 +130,21 @@ function buildStandings(competitions: Awaited<ReturnType<typeof listCompetitions
     if (gdB !== gdA) return gdB - gdA;
     return a.teamName.localeCompare(b.teamName);
   });
+}
+
+function defaultDvhlPairings(teamIds: string[]) {
+  if (teamIds.length < 4) {
+    return [];
+  }
+  const [t1, t2, t3, t4] = teamIds;
+  return [
+    { week: 1, game1: [t1, t2], game2: [t3, t4] },
+    { week: 2, game1: [t1, t3], game2: [t2, t4] },
+    { week: 3, game1: [t1, t4], game2: [t2, t3] },
+    { week: 4, game1: [t1, t2], game2: [t3, t4] },
+    { week: 5, game1: [t1, t3], game2: [t2, t4] },
+    { week: 6, game1: [t1, t4], game2: [t2, t3] }
+  ];
 }
 
 export default async function AdminDvhlPage({
@@ -168,6 +206,7 @@ export default async function AdminDvhlPage({
     searchParams?.dvhl === "team_removed" ? "DVHL team removed." : null,
     searchParams?.dvhl === "captain_saved" ? "Captain saved." : null,
     searchParams?.dvhl === "subpool_saved" ? "Sub pool updated." : null,
+    searchParams?.dvhl === "schedule_saved" ? "DVHL schedule saved." : null,
     searchParams?.assignment === "saved" ? "Player added to team." : null,
     searchParams?.assignment === "removed" ? "Player removed from team." : null,
     searchParams?.game === "created" ? "Game added to schedule." : null,
@@ -427,96 +466,137 @@ export default async function AdminDvhlPage({
 
           {tab === "schedule" && (
             <div className="stack">
-              {dvhlTeams.length === 0 ? (
-                <article className="card"><p className="muted">Create DVHL teams first to manage schedule.</p></article>
+              {dvhlCompetitions.length === 0 ? (
+                <article className="card"><p className="muted">Create a DVHL season first to build schedule.</p></article>
               ) : (
-                dvhlTeams.map(({ competition, team }) => (
-                  <article key={team.id} className="card">
-                    <h3>{team.name} Schedule</h3>
-                    <p className="muted">{competition.title}</p>
-                    <form className="grid-form" action="/api/admin/competitions/add-game" method="post">
-                      <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
-                      <input type="hidden" name="teamId" value={team.id} />
-                      <input name="opponent" placeholder="Opponent" required />
-                      <label>
-                        Game date/time
-                        <input name="startsAt" type="datetime-local" />
-                      </label>
-                      <input name="location" placeholder="Location" />
-                      <input name="notes" placeholder="Notes" />
-                      <label>
-                        Scorekeeper type
-                        <select name="scorekeeperType" defaultValue="none">
-                          <option value="none">None</option>
-                          <option value="player">Player/Admin</option>
-                          <option value="staff">Staff</option>
-                        </select>
-                      </label>
-                      <label>
-                        Scorekeeper player/admin
-                        <select name="scorekeeperUserId" defaultValue="">
-                          <option value="">No assignment</option>
-                          {eligiblePlayers.map((player) => (
-                            <option key={player.id} value={player.id}>{player.fullName}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <label>
-                        Scorekeeper staff
-                        <select name="scorekeeperStaffId" defaultValue="">
-                          <option value="">No assignment</option>
-                          {sportsData.staff.map((staff) => (
-                            <option key={staff.id} value={staff.id}>{staff.fullName}</option>
-                          ))}
-                        </select>
-                      </label>
-                      <button className="button" type="submit">Add Game</button>
-                    </form>
+                dvhlCompetitions.map((competition) => {
+                  const pairings = defaultDvhlPairings(competition.teams.map((team) => team.id));
+                  const allGames = competition.teams
+                    .flatMap((team) => team.games.map((game) => ({ game, homeTeam: team.name })))
+                    .sort((a, b) => {
+                      const left = a.game.startsAt ? new Date(a.game.startsAt).getTime() : 0;
+                      const right = b.game.startsAt ? new Date(b.game.startsAt).getTime() : 0;
+                      return left - right;
+                    });
+                  return (
+                    <article key={competition.id} className="card">
+                      <h3>{competition.title} Schedule Builder</h3>
+                      <p className="muted">
+                        Default rotation: 1v2 + 3v4, then 1v3 + 2v4, then 1v4 + 2v3, repeated for weeks 4-6.
+                      </p>
+                      {competition.teams.length < 4 ? (
+                        <p className="muted">Add at least 4 teams to use the guided DVHL weekly builder.</p>
+                      ) : (
+                        <form className="grid-form" action="/api/admin/competitions/dvhl-schedule" method="post">
+                          <input type="hidden" name="competitionId" value={competition.id} />
+                          <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
+                          <label><input type="checkbox" name="clearExisting" defaultChecked /> Replace existing season schedule</label>
+                          {pairings.map((row) => (
+                            <details key={`${competition.id}-week-${row.week}`} className="event-card admin-disclosure" open>
+                              <summary>Week {row.week}</summary>
+                              <div className="stack">
+                                <strong>Game 1</strong>
+                                <label>
+                                  Home team
+                                  <select name={`w${row.week}g1Home`} defaultValue={row.game1[0]}>
+                                    <option value="">No game</option>
+                                    {competition.teams.map((team) => (
+                                      <option key={`${team.id}-w${row.week}g1home`} value={team.id}>{team.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label>
+                                  Away team
+                                  <select name={`w${row.week}g1Away`} defaultValue={row.game1[1]}>
+                                    <option value="">No game</option>
+                                    {competition.teams.map((team) => (
+                                      <option key={`${team.id}-w${row.week}g1away`} value={team.id}>{team.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label>
+                                  Date/time (optional)
+                                  <input name={`w${row.week}g1StartsAt`} type="datetime-local" />
+                                </label>
+                                <input name={`w${row.week}g1Location`} placeholder="Location (optional)" />
 
-                    {team.games.length === 0 ? (
-                      <p className="muted">No games scheduled yet.</p>
-                    ) : (
-                      <div className="stack">
-                        {team.games.map((game) => (
-                          <form key={game.id} className="event-card grid-form" action="/api/admin/competitions/assign-scorekeeper" method="post">
-                            <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
-                            <input type="hidden" name="gameId" value={game.id} />
-                            <strong>vs {game.opponent}</strong>
-                            <p>{toDateLabel(game.startsAt)} | {game.location || "No location"}</p>
-                            <p>Score: {game.warriorsScore} - {game.opponentScore} | {game.liveStatus}</p>
-                            <label>
-                              Scorekeeper type
-                              <select name="scorekeeperType" defaultValue={game.scorekeeperUser ? "player" : game.scorekeeperStaff ? "staff" : "none"}>
-                                <option value="none">None</option>
-                                <option value="player">Player/Admin</option>
-                                <option value="staff">Staff</option>
-                              </select>
-                            </label>
-                            <label>
-                              Player/Admin
-                              <select name="scorekeeperUserId" defaultValue={game.scorekeeperUser?.id || ""}>
-                                <option value="">No assignment</option>
-                                {eligiblePlayers.map((player) => (
-                                  <option key={player.id} value={player.id}>{player.fullName}</option>
-                                ))}
-                              </select>
-                            </label>
-                            <label>
-                              Staff
-                              <select name="scorekeeperStaffId" defaultValue={game.scorekeeperStaff?.id || ""}>
-                                <option value="">No assignment</option>
-                                {sportsData.staff.map((staff) => (
-                                  <option key={staff.id} value={staff.id}>{staff.fullName}</option>
-                                ))}
-                              </select>
-                            </label>
-                            <button className="button ghost" type="submit">Save Scorekeeper</button>
-                          </form>
-                        ))}
-                      </div>
-                    )}
-                  </article>
-                ))
+                                <strong>Game 2</strong>
+                                <label>
+                                  Home team
+                                  <select name={`w${row.week}g2Home`} defaultValue={row.game2[0]}>
+                                    <option value="">No game</option>
+                                    {competition.teams.map((team) => (
+                                      <option key={`${team.id}-w${row.week}g2home`} value={team.id}>{team.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label>
+                                  Away team
+                                  <select name={`w${row.week}g2Away`} defaultValue={row.game2[1]}>
+                                    <option value="">No game</option>
+                                    {competition.teams.map((team) => (
+                                      <option key={`${team.id}-w${row.week}g2away`} value={team.id}>{team.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label>
+                                  Date/time (optional)
+                                  <input name={`w${row.week}g2StartsAt`} type="datetime-local" />
+                                </label>
+                                <input name={`w${row.week}g2Location`} placeholder="Location (optional)" />
+                              </div>
+                            </details>
+                          ))}
+                          <button className="button" type="submit">Save Weekly Schedule</button>
+                        </form>
+                      )}
+
+                      <h4>Current Scheduled Games</h4>
+                      {allGames.length === 0 ? (
+                        <p className="muted">No games scheduled yet.</p>
+                      ) : (
+                        <div className="stack">
+                          {allGames.map(({ game, homeTeam }) => (
+                            <form key={game.id} className="event-card grid-form" action="/api/admin/competitions/assign-scorekeeper" method="post">
+                              <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
+                              <input type="hidden" name="gameId" value={game.id} />
+                              <strong>{homeTeam} vs {game.opponent}</strong>
+                              <p>{toDateLabel(game.startsAt)} | {game.location || "No location"}</p>
+                              <p>Score: {game.warriorsScore} - {game.opponentScore} | {game.liveStatus}</p>
+                              <label>
+                                Scorekeeper type
+                                <select name="scorekeeperType" defaultValue={game.scorekeeperUser ? "player" : game.scorekeeperStaff ? "staff" : "none"}>
+                                  <option value="none">None</option>
+                                  <option value="player">Player/Admin</option>
+                                  <option value="staff">Staff</option>
+                                </select>
+                              </label>
+                              <label>
+                                Player/Admin
+                                <select name="scorekeeperUserId" defaultValue={game.scorekeeperUser?.id || ""}>
+                                  <option value="">No assignment</option>
+                                  {eligiblePlayers.map((player) => (
+                                    <option key={player.id} value={player.id}>{player.fullName}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Staff
+                                <select name="scorekeeperStaffId" defaultValue={game.scorekeeperStaff?.id || ""}>
+                                  <option value="">No assignment</option>
+                                  {sportsData.staff.map((staff) => (
+                                    <option key={staff.id} value={staff.id}>{staff.fullName}</option>
+                                  ))}
+                                </select>
+                              </label>
+                              <button className="button ghost" type="submit">Save Scorekeeper</button>
+                            </form>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })
               )}
             </div>
           )}

@@ -61,47 +61,85 @@ export default async function PlayerDvhlPage({
     entry.team.members.some((member) => member.user.id === user.id)
   );
   const myTeamIds = new Set(myTeams.map((entry) => entry.team.id));
-  const myUpcomingGames = myTeams
-    .flatMap((entry) =>
-      entry.team.games.map((game) => ({ game, teamName: entry.team.name, seasonTitle: entry.competition.title }))
+  const myUpcomingGames = dvhlCompetitions
+    .flatMap((competition) =>
+      competition.teams.flatMap((team) =>
+        team.games
+          .filter((game) => {
+            const isHomeTeam = myTeamIds.has(team.id);
+            const isAwayTeam = myTeams.some((entry) => entry.team.name === game.opponent);
+            return isHomeTeam || isAwayTeam;
+          })
+          .map((game) => ({ game, teamName: team.name, seasonTitle: competition.title }))
+      )
     )
+    .filter((entry, index, list) => list.findIndex((candidate) => candidate.game.id === entry.game.id) === index)
     .sort((a, b) => {
       const left = a.game.startsAt ? new Date(a.game.startsAt).getTime() : 0;
       const right = b.game.startsAt ? new Date(b.game.startsAt).getTime() : 0;
       return left - right;
     });
 
-  const standings = dvhlTeams
-    .map(({ competition, team }) => {
-      const finals = team.games.filter((game) => isFinalGame(game));
-      let wins = 0;
-      let losses = 0;
-      let ties = 0;
-      let gf = 0;
-      let ga = 0;
-
-      for (const game of finals) {
-        const forScore = game.warriorsScore ?? 0;
-        const againstScore = game.opponentScore ?? 0;
-        gf += forScore;
-        ga += againstScore;
-        if (forScore > againstScore) wins += 1;
-        else if (forScore < againstScore) losses += 1;
-        else ties += 1;
-      }
-
-      return {
+  const standings = dvhlCompetitions
+    .flatMap((competition) => {
+      const records = competition.teams.map((team) => ({
         id: team.id,
         teamName: team.name,
         competitionTitle: competition.title,
-        gp: finals.length,
-        wins,
-        losses,
-        ties,
-        gf,
-        ga,
-        points: wins * 2 + ties
-      };
+        gp: 0,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        gf: 0,
+        ga: 0,
+        points: 0
+      }));
+      const recordByTeamId = new Map(records.map((entry) => [entry.id, entry]));
+      const teamIdByName = new Map(competition.teams.map((team) => [team.name, team.id]));
+
+      for (const team of competition.teams) {
+        for (const game of team.games) {
+          if (!isFinalGame(game)) continue;
+
+          const home = recordByTeamId.get(team.id);
+          if (!home) continue;
+
+          const awayId = teamIdByName.get(game.opponent || "");
+          const away = awayId ? recordByTeamId.get(awayId) : undefined;
+          const gf = game.warriorsScore ?? 0;
+          const ga = game.opponentScore ?? 0;
+
+          home.gp += 1;
+          home.gf += gf;
+          home.ga += ga;
+          if (gf > ga) {
+            home.wins += 1;
+            home.points += 2;
+          } else if (gf < ga) {
+            home.losses += 1;
+          } else {
+            home.ties += 1;
+            home.points += 1;
+          }
+
+          if (away) {
+            away.gp += 1;
+            away.gf += ga;
+            away.ga += gf;
+            if (ga > gf) {
+              away.wins += 1;
+              away.points += 2;
+            } else if (ga < gf) {
+              away.losses += 1;
+            } else {
+              away.ties += 1;
+              away.points += 1;
+            }
+          }
+        }
+      }
+
+      return records;
     })
     .sort((a, b) => b.points - a.points || (b.gf - b.ga) - (a.gf - a.ga));
 

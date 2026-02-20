@@ -331,6 +331,76 @@ export async function removePlayerFromCompetitionTeam(input: { teamId: string; u
   });
 }
 
+export async function replaceDvhlSchedule(input: {
+  competitionId: string;
+  clearExisting: boolean;
+  weeks: Array<{
+    weekNumber: number;
+    games: Array<{
+      homeTeamId: string;
+      awayTeamId: string;
+      startsAt?: string;
+      location?: string;
+    }>;
+  }>;
+}) {
+  ensureDbMode();
+
+  const competition = await getPrismaClient().competition.findUnique({
+    where: { id: input.competitionId },
+    include: {
+      teams: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+  });
+
+  if (!competition || competition.type !== "DVHL") {
+    throw new Error("DVHL competition not found.");
+  }
+
+  const teamById = new Map(competition.teams.map((team) => [team.id, team]));
+
+  if (input.clearExisting) {
+    await getPrismaClient().competitionGame.deleteMany({
+      where: { competitionId: input.competitionId }
+    });
+  }
+
+  let created = 0;
+
+  for (const week of input.weeks) {
+    for (const game of week.games) {
+      if (!game.homeTeamId || !game.awayTeamId || game.homeTeamId === game.awayTeamId) {
+        continue;
+      }
+
+      const homeTeam = teamById.get(game.homeTeamId);
+      const awayTeam = teamById.get(game.awayTeamId);
+      if (!homeTeam || !awayTeam) {
+        continue;
+      }
+
+      await getPrismaClient().competitionGame.create({
+        data: {
+          competitionId: input.competitionId,
+          teamId: homeTeam.id,
+          opponent: awayTeam.name,
+          startsAt: parseOptionalDate(game.startsAt),
+          location: game.location || undefined,
+          notes: `[DVHL-SCHED] week ${week.weekNumber}`
+        }
+      });
+      created += 1;
+    }
+  }
+
+  return { created };
+}
+
 export async function listEligiblePlayers() {
   if (!hasDatabaseUrl()) {
     return [];
