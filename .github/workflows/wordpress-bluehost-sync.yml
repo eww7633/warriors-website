@@ -20,7 +20,7 @@ jobs:
       BLUEHOST_USER: ${{ secrets.BLUEHOST_USER != '' && secrets.BLUEHOST_USER || vars.BLUEHOST_USER }}
       BLUEHOST_PASS: ${{ secrets.BLUEHOST_PASS != '' && secrets.BLUEHOST_PASS || vars.BLUEHOST_PASS }}
       BLUEHOST_WP_PLUGIN_DIR: ${{ vars.BLUEHOST_WP_PLUGIN_DIR != '' && vars.BLUEHOST_WP_PLUGIN_DIR || 'wp-content/plugins/' }}
-      BLUEHOST_WP_THEME_DIR: ${{ vars.BLUEHOST_WP_THEME_DIR != '' && vars.BLUEHOST_WP_THEME_DIR || 'wp-content/themes/' }}
+      BLUEHOST_WP_THEME_DIR: ${{ vars.BLUEHOST_WP_THEME_DIR }}
 
     steps:
       - name: Checkout
@@ -67,12 +67,13 @@ jobs:
 
       - name: Resolve WordPress theme directory
         run: |
-          if [ -z "$BLUEHOST_WP_THEME_DIR" ]; then
-            echo "Missing BLUEHOST_WP_THEME_DIR and no fallback resolved" >&2
-            exit 1
+          if [ -n "$BLUEHOST_WP_THEME_DIR" ]; then
+            DEPLOY_DIR="$BLUEHOST_WP_THEME_DIR"
+          elif [[ "$BLUEHOST_WP_PLUGIN_DIR" == *"wp-content/plugins/"* ]]; then
+            DEPLOY_DIR="${BLUEHOST_WP_PLUGIN_DIR%plugins/}themes/"
+          else
+            DEPLOY_DIR="wp-content/themes/"
           fi
-
-          DEPLOY_DIR="$BLUEHOST_WP_THEME_DIR"
           DEPLOY_DIR="${DEPLOY_DIR#./}"
           DEPLOY_DIR="${DEPLOY_DIR%/}/"
 
