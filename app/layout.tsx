@@ -31,6 +31,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="site-main">{children}</main>
         <footer className="site-footer">
           <div className="site-footer-shell">
+            <div className="footer-supported-by">
+              <p className="footer-supported-title">Supported By</p>
+              <div className="footer-sponsor-grid">
+                <img src="/sponsors/operation-hat-trick.avif" alt="Operation Hat Trick" loading="lazy" />
+                <img src="/sponsors/ppf-grant.avif" alt="PPF Grant" loading="lazy" />
+                <img src="/sponsors/ugf-logo-horz.avif" alt="UGF" loading="lazy" />
+                <div className="footer-sponsor-placeholder">Malone Family Foundation</div>
+              </div>
+            </div>
             <p>
               <strong>Pittsburgh Warriors Hockey Club</strong> &copy; {year}
             </p>
