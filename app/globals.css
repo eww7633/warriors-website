@@ -429,6 +429,46 @@ html[data-theme="dark"] .brand-logo-dark {
   font-size: 0.9rem;
 }
 
+.footer-supported-by {
+  margin-bottom: 0.8rem;
+}
+
+.footer-supported-title {
+  margin: 0 0 0.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+}
+
+.footer-sponsor-grid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  align-items: center;
+}
+
+.footer-sponsor-grid img,
+.footer-sponsor-placeholder {
+  width: 100%;
+  max-height: 68px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-soft) 92%, transparent);
+  padding: 0.4rem;
+}
+
+.footer-sponsor-placeholder {
+  display: grid;
+  place-items: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
 .card {
   background: linear-gradient(160deg, var(--surface) 0%, #faf6ef 100%);
   border: 1px solid var(--line);
