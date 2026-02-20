@@ -16,10 +16,15 @@ type PublicEvent = {
   category: EventCategory;
   heroImageUrl?: string;
   thumbnailImageUrl?: string;
+  signupMode: "straight_rsvp" | "interest_gathering";
 };
 
 type Props = {
   events: PublicEvent[];
+  hubCta: {
+    href: string;
+    label: string;
+  };
 };
 
 function dayKey(date: Date) {
@@ -105,7 +110,7 @@ function outlookCalendarUrl(event: PublicEvent) {
   return `https://outlook.live.com/calendar/0/deeplink/compose?${params.toString()}`;
 }
 
-export default function PublicEventsExperience({ events }: Props) {
+export default function PublicEventsExperience({ events, hubCta }: Props) {
   const sorted = useMemo(
     () => [...events].sort((a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime()),
     [events]
@@ -176,6 +181,9 @@ export default function PublicEventsExperience({ events }: Props) {
                 <strong>{event.title}</strong>
                 <p className="muted">{parseDate(event.date).toLocaleString()}</p>
                 <p className={`events-type-pill ${event.category}`}>{categoryLabel(event.category)}</p>
+                <a className="button ghost" href={hubCta.href}>
+                  {event.signupMode === "interest_gathering" ? "Submit Interest" : hubCta.label}
+                </a>
               </article>
             ))}
           </div>
@@ -269,6 +277,9 @@ export default function PublicEventsExperience({ events }: Props) {
           />
 
           <div className="cta-row">
+            <a className="button" href={hubCta.href}>
+              {selectedEvent.signupMode === "interest_gathering" ? "Submit Interest in HQ" : hubCta.label}
+            </a>
             <a className="button ghost" href={mapSearchUrl(selectedEvent.locationPublic, selectedEvent.locationPublicMapUrl)} target="_blank" rel="noreferrer">
               Open Map
             </a>

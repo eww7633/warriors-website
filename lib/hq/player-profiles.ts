@@ -45,6 +45,7 @@ export type PlayerProfileExtra = {
   address?: PlayerAddress;
   primarySubRoster?: PrimarySubRoster;
   allowCrossColorJerseyOverlap?: boolean;
+  needsEquipment?: boolean;
   usaHockeyNumber?: string;
   usaHockeySeason?: string;
   usaHockeyStatus?: UsaHockeyStatus;
@@ -198,6 +199,7 @@ export async function upsertPlayerContactProfile(input: {
   address?: PlayerAddress;
   primarySubRoster?: PrimarySubRoster;
   allowCrossColorJerseyOverlap?: boolean;
+  needsEquipment?: boolean;
   usaHockeyNumber?: string;
   usaHockeySeason?: string;
   usaHockeyStatus?: UsaHockeyStatus;
@@ -212,6 +214,9 @@ export async function upsertPlayerContactProfile(input: {
   }
   if (typeof input.allowCrossColorJerseyOverlap !== "undefined") {
     profile.allowCrossColorJerseyOverlap = input.allowCrossColorJerseyOverlap;
+  }
+  if (typeof input.needsEquipment !== "undefined") {
+    profile.needsEquipment = input.needsEquipment;
   }
   if (typeof input.usaHockeyNumber !== "undefined") {
     profile.usaHockeyNumber = normalizeOptionalText(input.usaHockeyNumber);

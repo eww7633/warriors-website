@@ -22,6 +22,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               "(function(){try{var saved=localStorage.getItem('warriors-theme');var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=(saved==='dark'||saved==='light')?saved:(prefersDark?'dark':'light');document.documentElement.setAttribute('data-theme',theme);}catch(e){}})();"
           }}
         />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.addEventListener('click',function(e){var target=e.target;var details=target&&target.closest?target.closest('.mobile-nav'):null;if(!details)return;var actionable=target.closest&&target.closest('a,button');if(actionable){details.removeAttribute('open');}});"
+          }}
+        />
       </head>
       <body>
         <div className="top-stripe" />

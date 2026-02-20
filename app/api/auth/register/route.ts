@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   const postalCode = String(formData.get("postalCode") ?? "").trim();
   const country = String(formData.get("country") ?? "").trim();
   const usaHockeyNumber = String(formData.get("usaHockeyNumber") ?? "").trim();
+  const needsEquipment = String(formData.get("needsEquipment") ?? "").trim() === "on";
 
   if (!fullName || !email || !password) {
     return NextResponse.redirect(new URL("/join?error=missing_fields", request.url), 303);
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
         postalCode,
         country
       },
+      needsEquipment,
       usaHockeyNumber: usaHockeyNumber || undefined,
       usaHockeySeason: usaHockeyNumber ? usaHockeySeasonLabel() : undefined,
       usaHockeyStatus: usaHockeyNumber ? "unverified" : "pending_renewal",

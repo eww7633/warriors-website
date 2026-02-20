@@ -67,9 +67,10 @@ export async function POST(request: Request) {
     const eventTypeName =
       eventTypes.find((entry) => entry.id === (eventTypeId || ""))?.name || "";
     const guestsAllowedForEventType = allowGuestRequests && !isDvhlEvent(eventTypeName);
+    const effectiveSignupMode = isDvhlEvent(eventTypeName) ? "straight_rsvp" : signupMode;
     await upsertEventSignupConfig({
       eventId,
-      signupMode,
+      signupMode: effectiveSignupMode,
       interestClosesAt,
       targetRosterSize: Number.isFinite(targetRosterSize) ? targetRosterSize : undefined,
       heroImageUrl,

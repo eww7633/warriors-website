@@ -22,6 +22,11 @@ import { listSportsData } from "@/lib/hq/ops-data";
 import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
 import { listRosterReservations } from "@/lib/hq/roster-reservations";
 import { listReservationBoards } from "@/lib/hq/reservations";
+import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
+import {
+  listOnboardingChecklistByUserIds,
+  listOnboardingChecklistTemplate
+} from "@/lib/hq/onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +67,9 @@ export default async function AdminPage({
     skipped?: string;
     reservationlinked?: string;
     rosterselected?: string;
+    onboardingTemplate?: string;
+    onboardingCheck?: string;
+    dvhl?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -89,6 +97,17 @@ export default async function AdminPage({
     summarizeAttendanceInsights(),
     listRosterReservations()
   ]);
+  const onboardingTemplate = await listOnboardingChecklistTemplate();
+  const onboardingByLinkedUsers = await listOnboardingChecklistByUserIds(
+    sportsData.contactLeads
+      .map((lead) => lead.linkedUserId || "")
+      .filter(Boolean)
+  );
+  const dvhlTeamControlByTeamId = await getDvhlTeamControlMap(
+    competitions
+      .filter((competition) => competition.type === "DVHL")
+      .flatMap((competition) => competition.teams.map((team) => team.id))
+  );
   const [reservationBoards, signupConfigsByEvent, rosterSelectionsByEvent, guestIntentsByEvent] = await Promise.all([
     listReservationBoards(allEvents.map((event) => event.id)),
     getEventSignupConfigMap(allEvents.map((event) => event.id)),
@@ -144,7 +163,11 @@ export default async function AdminPage({
     query.updated ? `Updated roster locks: ${query.updated}` : null,
     query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
     query.reservationlinked === "1" ? "Reservation linked to player account." : null,
-    query.rosterselected === "1" ? "Final roster selection saved." : null
+    query.rosterselected === "1" ? "Final roster selection saved." : null,
+    query.onboardingTemplate === "updated" ? "Onboarding checklist template updated." : null,
+    query.onboardingCheck === "saved" ? "Onboarding checklist item updated." : null,
+    query.dvhl === "captain_saved" ? "DVHL captain assignment saved." : null,
+    query.dvhl === "subpool_saved" ? "DVHL sub pool updated." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -466,6 +489,65 @@ export default async function AdminPage({
                               ? team.members.map((member) => member.user.fullName).join(", ")
                               : "No players assigned"}
                           </p>
+                          {competition.type === "DVHL" ? (
+                            <div className="stack">
+                              <form className="grid-form" action="/api/admin/competitions/dvhl-captain" method="post">
+                                <input type="hidden" name="teamId" value={team.id} />
+                                <label>
+                                  Team captain
+                                  <select
+                                    name="captainUserId"
+                                    defaultValue={dvhlTeamControlByTeamId[team.id]?.captainUserId || ""}
+                                  >
+                                    <option value="">No captain selected</option>
+                                    {team.members.map((member) => (
+                                      <option key={member.user.id} value={member.user.id}>
+                                        {member.user.fullName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <button className="button ghost" type="submit">Save Captain</button>
+                              </form>
+                              <form className="grid-form" action="/api/admin/competitions/dvhl-sub-pool" method="post">
+                                <input type="hidden" name="teamId" value={team.id} />
+                                <input type="hidden" name="action" value="add" />
+                                <label>
+                                  Add player to sub pool
+                                  <select name="userId" defaultValue="">
+                                    <option value="" disabled>Select eligible player</option>
+                                    {eligiblePlayers.map((player) => (
+                                      <option key={player.id} value={player.id}>
+                                        {player.fullName}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <button className="button ghost" type="submit">Add Sub</button>
+                              </form>
+                              <div className="event-card">
+                                <strong>Sub pool</strong>
+                                {(dvhlTeamControlByTeamId[team.id]?.subPoolUserIds || []).length === 0 ? (
+                                  <p className="muted">No subs assigned.</p>
+                                ) : (
+                                  <div className="stack">
+                                    {dvhlTeamControlByTeamId[team.id].subPoolUserIds.map((subUserId) => {
+                                      const sub = eligiblePlayers.find((entry) => entry.id === subUserId);
+                                      return (
+                                        <form key={`${team.id}-${subUserId}`} className="cta-row" action="/api/admin/competitions/dvhl-sub-pool" method="post">
+                                          <input type="hidden" name="teamId" value={team.id} />
+                                          <input type="hidden" name="userId" value={subUserId} />
+                                          <input type="hidden" name="action" value="remove" />
+                                          <span>{sub?.fullName || subUserId}</span>
+                                          <button className="button alt" type="submit">Remove</button>
+                                        </form>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : null}
 
                           <form className="grid-form" action="/api/admin/competitions/assign-player" method="post">
                             <input type="hidden" name="teamId" value={team.id} />
@@ -624,6 +706,20 @@ export default async function AdminPage({
 
           <article className="card">
             <h3>Imported Contacts</h3>
+            <details className="event-card admin-disclosure" open>
+              <summary>Onboarding Checklist Template</summary>
+              <p className="muted">
+                One checklist item per line. This template is used for all linked player onboarding tracking.
+              </p>
+              <form className="grid-form" action="/api/admin/onboarding/template" method="post">
+                <textarea
+                  name="template"
+                  rows={8}
+                  defaultValue={onboardingTemplate.map((item) => item.label).join("\n")}
+                />
+                <button className="button" type="submit">Save Onboarding Template</button>
+              </form>
+            </details>
             {sportsData.contactLeads.length === 0 ? (
               <p className="muted">No contacts imported yet.</p>
             ) : (
@@ -650,6 +746,35 @@ export default async function AdminPage({
                         : "No matching account yet. Ask them to register first with this exact email."}
                     </p>
                     <p className="muted">Invite sender account: {inviteFromEmail}</p>
+                    {lead.linkedUserId ? (
+                      <details className="event-card admin-disclosure">
+                        <summary>Linked user onboarding checklist</summary>
+                        <div className="stack">
+                          {onboardingByLinkedUsers.template.map((item) => {
+                            const completion = onboardingByLinkedUsers.completionMap[lead.linkedUserId!]?.[item.id];
+                            return (
+                              <form key={`${lead.id}-${item.id}`} className="grid-form" action="/api/admin/onboarding/check-item" method="post">
+                                <input type="hidden" name="userId" value={lead.linkedUserId!} />
+                                <input type="hidden" name="checklistItemId" value={item.id} />
+                                <input type="hidden" name="completed" value={completion?.completed ? "0" : "1"} />
+                                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+                                <p>
+                                  <strong>{item.label}</strong>
+                                </p>
+                                <p className="muted">
+                                  Status: {completion?.completed ? "Completed" : "Not completed"}
+                                  {completion?.updatedAt ? ` | ${new Date(completion.updatedAt).toLocaleString()}` : ""}
+                                </p>
+                                <input name="note" placeholder="Optional note" defaultValue={completion?.note || ""} />
+                                <button className="button ghost" type="submit">
+                                  {completion?.completed ? "Mark Incomplete" : "Mark Complete"}
+                                </button>
+                              </form>
+                            );
+                          })}
+                        </div>
+                      </details>
+                    ) : null}
                     <div className="cta-row">
                       {lead.email && (
                         <form action="/api/admin/contacts/send-invite" method="post">

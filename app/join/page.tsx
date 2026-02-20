@@ -37,6 +37,9 @@ export default function JoinPage({
           <input name="postalCode" placeholder="ZIP/Postal code" />
           <input name="country" placeholder="Country" defaultValue="USA" />
           <input name="usaHockeyNumber" placeholder="USA Hockey number (if you have one)" />
+          <label>
+            <input name="needsEquipment" type="checkbox" /> I need help with equipment
+          </label>
           <select name="position" required>
             <option value="">Preferred position</option>
             <option value="F">Forward</option>

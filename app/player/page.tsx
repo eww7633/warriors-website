@@ -139,7 +139,7 @@ export default async function PlayerPage({
           </p>
         ) : (
           <>
-            <p>Roster ID: {latestUser.rosterId}</p>
+            <p>Main roster: {latestUser.rosterId === "main-player-roster" ? "Main Player Roster" : (latestUser.rosterId || "Unassigned")}</p>
             <p>Official jersey number: #{latestUser.jerseyNumber}</p>
             <p>Primary sub-roster: {profileExtra.primarySubRoster?.toUpperCase() || "Not assigned yet"}</p>
             <p>USA Hockey #: {profileExtra.usaHockeyNumber || "Not set yet"}</p>

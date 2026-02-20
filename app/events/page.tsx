@@ -1,6 +1,7 @@
 import { getPublicPublishedEvents } from "@/lib/hq/events";
 import PublicEventsExperience from "@/components/PublicEventsExperience";
 import { getEventSignupConfigMap } from "@/lib/hq/event-signups";
+import { getCurrentUser } from "@/lib/hq/session";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ function classifyEventCategory(event: {
 }
 
 export default async function EventsPage() {
+  const user = await getCurrentUser();
   const events = await getPublicPublishedEvents();
   const signupConfigByEvent = await getEventSignupConfigMap(events.map((event) => event.id));
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
@@ -45,8 +47,19 @@ export default async function EventsPage() {
       category: classifyEventCategory(event),
       eventUrl: `${baseUrl}/events?event=${encodeURIComponent(event.id)}`,
       heroImageUrl: signupConfigByEvent[event.id]?.heroImageUrl,
-      thumbnailImageUrl: signupConfigByEvent[event.id]?.thumbnailImageUrl
+      thumbnailImageUrl: signupConfigByEvent[event.id]?.thumbnailImageUrl,
+      signupMode: signupConfigByEvent[event.id]?.signupMode || "straight_rsvp"
     }));
+
+  const hubCta = user
+    ? {
+        href: user.role === "admin" ? "/admin?section=events" : "/player?section=events",
+        label: user.role === "admin" ? "Manage in Hockey Ops" : "RSVP / Sign Up in HQ"
+      }
+    : {
+        href: "/login",
+        label: "Log In to RSVP"
+      };
 
   return (
     <section className="stack">
@@ -65,7 +78,7 @@ export default async function EventsPage() {
       </article>
 
       {upcoming.length > 0 ? (
-        <PublicEventsExperience events={upcoming} />
+        <PublicEventsExperience events={upcoming} hubCta={hubCta} />
       ) : (
         <article className="card">
           <p className="muted">No upcoming public events are posted yet.</p>

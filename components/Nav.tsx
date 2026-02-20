@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
-import { cookies } from "next/headers";
 import { siteConfig } from "@/lib/siteConfig";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { getCurrentUser } from "@/lib/hq/session";
 
-export function Nav() {
-  const hasSession = Boolean(cookies().get("warriors_session")?.value);
+export async function Nav() {
+  const user = await getCurrentUser();
+  const hasSession = Boolean(user);
   const publicLinks = [
     ["Donate", "/donate"],
     ["Partners", "/partners"],
@@ -31,7 +32,7 @@ export function Nav() {
   ] as const;
 
   const authPrimaryLabel = hasSession ? "HQ" : "Join";
-  const authPrimaryHref = hasSession ? "/player" : "/join";
+  const authPrimaryHref = hasSession ? (user?.role === "admin" ? "/admin" : "/player") : "/join";
   const authSecondaryLabel = hasSession ? "Log Out" : "Login";
   const authSecondaryHref = hasSession ? null : "/login";
 

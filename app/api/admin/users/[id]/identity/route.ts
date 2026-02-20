@@ -35,6 +35,7 @@ export async function POST(
   const stateProvince = String(formData.get("stateProvince") ?? "").trim();
   const postalCode = String(formData.get("postalCode") ?? "").trim();
   const country = String(formData.get("country") ?? "").trim();
+  const needsEquipment = String(formData.get("needsEquipment") ?? "").trim() === "on";
   const newPassword = String(formData.get("newPassword") ?? "").trim();
 
   try {
@@ -67,7 +68,8 @@ export async function POST(
         ? (usaHockeyStatus as "unverified" | "verified" | "pending_renewal" | "expired")
         : undefined,
       usaHockeySource: "manual",
-      usaHockeyExpiresAt: usaHockeyExpiresAt || undefined
+      usaHockeyExpiresAt: usaHockeyExpiresAt || undefined,
+      needsEquipment
     });
     return NextResponse.redirect(new URL("/admin/roster?saved=1", request.url), 303);
   } catch (error) {

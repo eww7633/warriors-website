@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { rosters } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
@@ -14,6 +13,7 @@ import {
   listUsaHockeyRenewalCandidates,
   usaHockeySeasonLabel
 } from "@/lib/hq/player-profiles";
+import { listOnboardingChecklistByUserIds } from "@/lib/hq/onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +21,7 @@ type SortField = "name" | "number" | "roster" | "activity" | "updated";
 type SortDir = "asc" | "desc";
 type ActivityFilter = "all" | "active" | "inactive";
 const PRIMARY_SUB_ROSTER_OPTIONS = ["gold", "white", "black"] as const;
-const MAIN_ROSTER_OPTIONS = [
-  { id: "main-player-roster", label: "Main Player Roster" },
-  ...rosters.map((entry) => ({ id: entry.id, label: entry.name }))
-];
+const MAIN_ROSTER_OPTIONS = [{ id: "main-player-roster", label: "Main Player Roster" }];
 
 export default async function CentralRosterPage({
   searchParams
@@ -45,6 +42,8 @@ export default async function CentralRosterPage({
     usaRollover?: string;
     usaSeason?: string;
     usaUpdated?: string;
+    legacyMigrated?: string;
+    onboardingCheck?: string;
   };
 }) {
   const user = await getCurrentUser();
@@ -79,6 +78,7 @@ export default async function CentralRosterPage({
     listUsaHockeyRenewalCandidates()
   ]);
   const playersById = new Map(players.map((entry) => [entry.id, entry]));
+  const onboarding = await listOnboardingChecklistByUserIds(players.map((entry) => entry.id));
   const currentUsaSeason = usaHockeySeasonLabel();
   const profileExtraByUserId = new Map(profileExtras.map((entry) => [entry.userId, entry]));
   const assignmentsByUserId = teamAssignments.reduce((acc, assignment) => {
@@ -186,6 +186,10 @@ export default async function CentralRosterPage({
         {query.deleted === "1" && <p className="badge">Player deleted.</p>}
         {query.assignmentDeleted === "1" && <p className="badge">Team assignment removed.</p>}
         {query.usaStatus === "updated" && <p className="badge">USA Hockey status updated.</p>}
+        {query.onboardingCheck === "saved" && <p className="badge">Onboarding checklist updated.</p>}
+        {query.legacyMigrated && (
+          <p className="badge">Legacy roster IDs migrated to Main Player Roster: {query.legacyMigrated}</p>
+        )}
         {query.usaRollover === "1" && (
           <p className="badge">
             USA Hockey rollover complete for {query.usaSeason || currentUsaSeason}. Updated {query.usaUpdated || "0"} profiles.
@@ -202,6 +206,11 @@ export default async function CentralRosterPage({
               : query.error.replaceAll("_", " ")}
           </p>
         )}
+        <form action="/api/admin/roster/migrate-legacy" method="post">
+          <button className="button alt" type="submit">
+            Migrate Legacy Roster IDs to Main + Sub-Roster
+          </button>
+        </form>
       </article>
 
       <article className="card">
@@ -387,6 +396,14 @@ export default async function CentralRosterPage({
                       <input name="phone" placeholder="Phone" defaultValue={player.phone ?? ""} />
                     </label>
                     <label>
+                      <input
+                        type="checkbox"
+                        name="needsEquipment"
+                        defaultChecked={Boolean(profileExtraByUserId.get(player.id)?.needsEquipment)}
+                      />{" "}
+                      Needs equipment support
+                    </label>
+                    <label>
                       Preferred position
                       <input name="requestedPosition" placeholder="Primary position" defaultValue={player.requestedPosition ?? ""} />
                     </label>
@@ -463,6 +480,53 @@ export default async function CentralRosterPage({
                     </label>
                     <button className="button ghost" type="submit">Save Identity</button>
                   </form>
+
+                  <details className="event-card admin-disclosure">
+                    <summary>Onboarding Checklist</summary>
+                    <div className="stack">
+                      {onboarding.template.map((item) => {
+                        const completion = onboarding.completionMap[player.id]?.[item.id];
+                        return (
+                          <form
+                            key={`${player.id}-${item.id}`}
+                            className="grid-form"
+                            action="/api/admin/onboarding/check-item"
+                            method="post"
+                          >
+                            <input type="hidden" name="userId" value={player.id} />
+                            <input type="hidden" name="checklistItemId" value={item.id} />
+                            <input type="hidden" name="completed" value={completion?.completed ? "0" : "1"} />
+                            <input type="hidden" name="returnTo" value="/admin/roster" />
+                            <p>
+                              <strong>{item.label}</strong>
+                            </p>
+                            <p className="muted">
+                              Status: {completion?.completed ? "Completed" : "Not completed"}
+                              {completion?.updatedAt
+                                ? ` | Updated ${new Date(completion.updatedAt).toLocaleString()}`
+                                : ""}
+                            </p>
+                            <input name="note" placeholder="Optional audit note" defaultValue={completion?.note || ""} />
+                            <button className="button ghost" type="submit">
+                              {completion?.completed ? "Mark Incomplete" : "Mark Complete"}
+                            </button>
+                          </form>
+                        );
+                      })}
+                      {(onboarding.auditMap[player.id] || []).length > 0 ? (
+                        <div className="event-card">
+                          <strong>Recent checklist audit</strong>
+                          <ul>
+                            {(onboarding.auditMap[player.id] || []).slice(0, 6).map((entry) => (
+                              <li key={entry.id}>
+                                {entry.action} {entry.checklistItemId} at {new Date(entry.updatedAt).toLocaleString()}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
 
                   <form className="grid-form" action="/api/admin/roster/update" method="post">
                     <input type="hidden" name="userId" value={player.id} />
