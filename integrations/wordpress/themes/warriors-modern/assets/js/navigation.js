@@ -24,4 +24,14 @@
       closeMenu();
     }
   });
+
+  document.querySelectorAll('.wm-sub-toggle').forEach((button) => {
+    button.addEventListener('click', () => {
+      const item = button.closest('.wm-has-submenu');
+      if (!item) return;
+      const open = item.classList.toggle('sub-open');
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      button.textContent = open ? '-' : '+';
+    });
+  });
 })();

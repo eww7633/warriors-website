@@ -24,13 +24,22 @@
 
     <div id="wm-mobile-panel" class="wm-panel">
       <nav class="wm-nav" aria-label="Primary">
-        <?php
-        wp_nav_menu([
-            'theme_location' => 'primary',
-            'container' => false,
-            'fallback_cb' => false,
-        ]);
-        ?>
+        <ul>
+          <li class="wm-has-submenu">
+            <a href="<?php echo esc_url(home_url('/about')); ?>">About Us</a>
+            <button class="wm-sub-toggle" type="button" aria-expanded="false" aria-label="Toggle About subpages">+</button>
+            <ul class="wm-submenu">
+              <li><a href="<?php echo esc_url(home_url('/about/leadership')); ?>">Leadership</a></li>
+              <li><a href="<?php echo esc_url(home_url('/about/roster')); ?>">Roster</a></li>
+              <li><a href="<?php echo esc_url(home_url('/about/wall-of-champions')); ?>">Wall of Champions</a></li>
+              <li><a href="<?php echo esc_url(home_url('/about/galleries')); ?>">Galleries</a></li>
+            </ul>
+          </li>
+          <li><a href="<?php echo esc_url(home_url('/donate')); ?>">Donate</a></li>
+          <li><a href="<?php echo esc_url(home_url('/partners')); ?>">Partners</a></li>
+          <li><a href="<?php echo esc_url(home_url('/join')); ?>">Join</a></li>
+          <li><a href="<?php echo esc_url(home_url('/events')); ?>">Events</a></li>
+        </ul>
       </nav>
 
       <div class="wm-actions">

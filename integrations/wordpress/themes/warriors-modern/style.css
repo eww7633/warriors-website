@@ -3,7 +3,7 @@ Theme Name: Warriors Modern
 Theme URI: https://pghwarriorhockey.us
 Author: Warriors HQ
 Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
-Version: 1.0.1
+Version: 1.0.2
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -99,6 +99,42 @@ a:hover { text-decoration: underline; }
   margin: 0;
   padding: 0;
   font-weight: 700;
+}
+.wm-nav li { position: relative; }
+.wm-nav .wm-has-submenu > a { padding-right: 1.1rem; }
+.wm-sub-toggle {
+  display: none;
+  border: 0;
+  background: transparent;
+  color: var(--wm-link);
+  font-weight: 900;
+  cursor: pointer;
+}
+.wm-submenu {
+  list-style: none;
+  margin: 0;
+  padding: .5rem;
+  position: absolute;
+  top: calc(100% + .4rem);
+  left: 0;
+  min-width: 220px;
+  border: 1px solid var(--wm-border);
+  border-radius: 12px;
+  background: #f8f4ea;
+  box-shadow: 0 10px 28px rgba(18, 24, 33, .1);
+  display: none;
+  z-index: 12;
+}
+.wm-submenu li + li { margin-top: .2rem; }
+.wm-submenu a {
+  display: block;
+  padding: .42rem .5rem;
+  border-radius: 8px;
+}
+.wm-submenu a:hover { background: #efe6d2; text-decoration: none; }
+.wm-has-submenu:hover .wm-submenu,
+.wm-has-submenu:focus-within .wm-submenu {
+  display: block;
 }
 
 .wm-nav a { color: var(--wm-ink); }
@@ -280,7 +316,7 @@ a:hover { text-decoration: underline; }
   .wm-brand-sub { font-size: .63rem; }
   .wm-brand img { width: 34px; height: 34px; }
   .wm-panel {
-    display: none;
+    display: flex;
     width: 100%;
     order: 3;
     margin: .4rem 0 0;
@@ -291,8 +327,23 @@ a:hover { text-decoration: underline; }
     flex-direction: column;
     align-items: stretch;
     gap: .75rem;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateY(-4px);
+    transition: max-height .24s ease, opacity .2s ease, transform .2s ease, padding .2s ease, border-width .2s ease;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
   }
-  .wm-header.menu-open .wm-panel { display: flex; }
+  .wm-header.menu-open .wm-panel {
+    max-height: 540px;
+    opacity: 1;
+    transform: translateY(0);
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+    border-width: 1px;
+  }
   .wm-nav { width: 100%; }
   .wm-nav ul { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem .7rem; }
   .wm-nav li { min-width: 0; }
@@ -301,6 +352,31 @@ a:hover { text-decoration: underline; }
     padding: .34rem .45rem;
     border-radius: 8px;
     background: #f1ebdc;
+  }
+  .wm-submenu {
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+    border-radius: 10px;
+    margin-top: .35rem;
+    display: none;
+  }
+  .wm-has-submenu { display: grid; grid-template-columns: 1fr auto; align-items: start; }
+  .wm-has-submenu > a { grid-column: 1; }
+  .wm-sub-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--wm-border);
+    background: #f5eedf;
+    border-radius: 7px;
+    margin-top: 2px;
+  }
+  .wm-has-submenu.sub-open .wm-submenu {
+    display: block;
+    grid-column: 1 / -1;
   }
   .wm-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
   .wm-actions .wm-btn { width: 100%; padding: .55rem .5rem; font-size: .86rem; }
@@ -311,4 +387,47 @@ a:hover { text-decoration: underline; }
   .wm-shell { width: min(1220px, calc(100% - 1rem)); }
   .wm-nav ul { grid-template-columns: 1fr; }
   .wm-actions { grid-template-columns: 1fr; }
+}
+
+.wm-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin-bottom: .85rem;
+}
+.wm-chip {
+  display: inline-flex;
+  border: 1px solid var(--wm-border);
+  border-radius: 999px;
+  padding: .28rem .7rem;
+  background: #f4efe3;
+  font-weight: 700;
+  color: #223042;
+}
+.wm-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .8rem;
+}
+.wm-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .8rem;
+}
+.wm-info-card {
+  border: 1px solid var(--wm-border);
+  border-radius: 14px;
+  padding: .8rem;
+  background: #f7f3ea;
+}
+.wm-info-card h3,
+.wm-info-card h4 {
+  margin: 0 0 .4rem;
+}
+.wm-muted { color: #4a5464; }
+.wm-bullets { margin: .4rem 0 0 1rem; }
+.wm-bullets li { margin-bottom: .25rem; }
+
+@media (max-width: 900px) {
+  .wm-grid-2, .wm-grid-3 { grid-template-columns: 1fr; }
 }
