@@ -3,8 +3,16 @@ import { redirect } from "next/navigation";
 import { rosters } from "@/lib/mockData";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { readStore } from "@/lib/hq/store";
 import { getAllEvents, listEventTypes } from "@/lib/hq/events";
+import {
+  canEventCollectGuests,
+  getEventGuestIntentMap,
+  getEventRosterSelectionMap,
+  getEventSignupConfigMap,
+  isInterestSignupClosed
+} from "@/lib/hq/event-signups";
 import {
   competitionTypeLabel,
   listCompetitions,
@@ -12,6 +20,8 @@ import {
 } from "@/lib/hq/competitions";
 import { listSportsData } from "@/lib/hq/ops-data";
 import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
+import { listRosterReservations } from "@/lib/hq/roster-reservations";
+import { listReservationBoards } from "@/lib/hq/reservations";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +57,11 @@ export default async function AdminPage({
     userrole?: string;
     eventtype?: string;
     errorDetail?: string;
+    imported?: string;
+    updated?: string;
+    skipped?: string;
+    reservationlinked?: string;
+    rosterselected?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -56,7 +71,7 @@ export default async function AdminPage({
     redirect("/login?error=sign_in_required");
   }
 
-  if (user.role !== "admin") {
+  if (!canAccessAdminPanel(user)) {
     redirect("/player?error=admin_required");
   }
 
@@ -64,14 +79,21 @@ export default async function AdminPage({
     ? (query.section as Section)
     : "overview";
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights, rosterReservations] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
     listCompetitions(),
     listEligiblePlayers(),
     listSportsData(),
-    summarizeAttendanceInsights()
+    summarizeAttendanceInsights(),
+    listRosterReservations()
+  ]);
+  const [reservationBoards, signupConfigsByEvent, rosterSelectionsByEvent, guestIntentsByEvent] = await Promise.all([
+    listReservationBoards(allEvents.map((event) => event.id)),
+    getEventSignupConfigMap(allEvents.map((event) => event.id)),
+    getEventRosterSelectionMap(allEvents.map((event) => event.id)),
+    getEventGuestIntentMap(allEvents.map((event) => event.id))
   ]);
 
   const pendingUsers = store.users.filter((entry) => entry.status === "pending");
@@ -117,7 +139,12 @@ export default async function AdminPage({
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
     query.userrole === "updated" ? "User role updated." : null,
-    query.eventtype === "created" ? "Event type created." : null
+    query.eventtype === "created" ? "Event type created." : null,
+    query.imported ? `Imported roster locks: ${query.imported}` : null,
+    query.updated ? `Updated roster locks: ${query.updated}` : null,
+    query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
+    query.reservationlinked === "1" ? "Reservation linked to player account." : null,
+    query.rosterselected === "1" ? "Final roster selection saved." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -163,23 +190,28 @@ export default async function AdminPage({
               ? query.errorDetail
                 ? decodeURIComponent(query.errorDetail)
                 : "Unable to update user role."
+              : query.errorDetail
+              ? decodeURIComponent(query.errorDetail)
               : query.error.replaceAll("_", " ")}
           </p>
         )}
-
-        <nav className="ops-tabs" aria-label="Admin sections">
-          {sections.map(([key, label]) => (
-            <Link
-              key={key}
-              href={`/admin?section=${key}`}
-              className={`ops-tab ${section === key ? "active" : ""}`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
       </article>
-
+      <div className="admin-panel-layout">
+        <aside className="card admin-side-nav-card">
+          <h3>Hockey Ops</h3>
+          <nav className="admin-side-nav" aria-label="Admin sections">
+            {sections.map(([key, label]) => (
+              <Link
+                key={key}
+                href={`/admin?section=${key}`}
+                className={`admin-side-link ${section === key ? "active" : ""}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        <div className="stack admin-panel-content">
       {section === "overview" && (
         <article className="card">
           <h3>Overview</h3>
@@ -679,7 +711,7 @@ export default async function AdminPage({
 
           <details className="card admin-disclosure" open>
             <summary>Create Event</summary>
-            <h3>Publish Event (WordPress feed source)</h3>
+            <h3>Publish Event (Public Site Feed Source)</h3>
             <form className="grid-form" action="/api/admin/events" method="post">
               <input name="title" placeholder="Event title" required />
               <label>
@@ -690,6 +722,8 @@ export default async function AdminPage({
               <input name="locationPrivate" placeholder="Private location (players/admin)" />
               <input name="locationPublicMapUrl" placeholder="Public Google Maps URL (optional)" />
               <input name="locationPrivateMapUrl" placeholder="Private Google Maps URL (optional)" />
+              <input name="heroImageUrl" placeholder="Hero image URL (event card)" />
+              <input name="thumbnailImageUrl" placeholder="Thumbnail image URL (calendar/list)" />
               <label>
                 Event type
                 <select name="eventTypeId" defaultValue="">
@@ -708,6 +742,29 @@ export default async function AdminPage({
                   ))}
                 </select>
               </label>
+              <label>
+                Signup flow
+                <select name="signupMode" defaultValue="straight_rsvp">
+                  <option value="straight_rsvp">Straight RSVP (unlimited)</option>
+                  <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
+                </select>
+              </label>
+              <label>
+                Interest closes at
+                <input name="interestClosesAt" type="datetime-local" />
+              </label>
+              <label>
+                Target roster size
+                <input name="targetRosterSize" type="number" min={1} step={1} placeholder="Optional" />
+              </label>
+              <label>
+                <input name="allowGuestRequests" type="checkbox" /> Allow players to request guests (disabled for DVHL)
+              </label>
+              <label>
+                <input name="guestCostEnabled" type="checkbox" /> Guest cost applies
+              </label>
+              <input name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
+              <input name="guestCostAmountUsd" type="number" min={0} step="0.01" placeholder="Guest cost amount (USD)" />
               <label>
                 Public details
                 <input name="publicDetails" placeholder="Public summary" required />
@@ -738,7 +795,24 @@ export default async function AdminPage({
               {allEvents.map((event) => (
                 <details key={event.id} className="event-card admin-disclosure">
                   <summary>{event.title} | {new Date(event.date).toLocaleString()}</summary>
-                  <p>Type: {event.eventTypeName || "Uncategorized"} | Manager: {event.managerName || "Unassigned"}</p>
+                  {(() => {
+                    const signupConfig = signupConfigsByEvent[event.id];
+                    const rosterSelection = rosterSelectionsByEvent[event.id];
+                    const selectedCount = rosterSelection?.selectedUserIds.length || 0;
+                    return (
+                      <p>
+                        Type: {event.eventTypeName || "Uncategorized"} | Manager: {event.managerName || "Unassigned"} | Flow:{" "}
+                        {signupConfig?.signupMode === "interest_gathering" ? "Interest Gathering" : "Straight RSVP"}
+                        {signupConfig?.signupMode === "interest_gathering" && signupConfig.interestClosesAt
+                          ? ` | Closes: ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
+                          : ""}
+                        {signupConfig?.signupMode === "interest_gathering" && signupConfig.targetRosterSize
+                          ? ` | Target: ${signupConfig.targetRosterSize}`
+                          : ""}
+                        {signupConfig?.signupMode === "interest_gathering" ? ` | Selected: ${selectedCount}` : ""}
+                      </p>
+                    );
+                  })()}
                   <form className="grid-form" action="/api/admin/events/update" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <input name="title" defaultValue={event.title} required />
@@ -755,6 +829,16 @@ export default async function AdminPage({
                     <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
                     <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public Google Maps URL (optional)" />
                     <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private Google Maps URL (optional)" />
+                    <input
+                      name="heroImageUrl"
+                      defaultValue={signupConfigsByEvent[event.id]?.heroImageUrl || ""}
+                      placeholder="Hero image URL (event card)"
+                    />
+                    <input
+                      name="thumbnailImageUrl"
+                      defaultValue={signupConfigsByEvent[event.id]?.thumbnailImageUrl || ""}
+                      placeholder="Thumbnail image URL (calendar/list)"
+                    />
                     <label>
                       Event type
                       <select name="eventTypeId" defaultValue={event.eventTypeId || ""}>
@@ -764,6 +848,68 @@ export default async function AdminPage({
                         ))}
                       </select>
                     </label>
+                    <label>
+                      Signup flow
+                      <select
+                        name="signupMode"
+                        defaultValue={signupConfigsByEvent[event.id]?.signupMode || "straight_rsvp"}
+                      >
+                        <option value="straight_rsvp">Straight RSVP (unlimited)</option>
+                        <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
+                      </select>
+                    </label>
+                    <label>
+                      Interest closes at
+                      <input
+                        name="interestClosesAt"
+                        type="datetime-local"
+                        defaultValue={
+                          signupConfigsByEvent[event.id]?.interestClosesAt
+                            ? new Date(signupConfigsByEvent[event.id]!.interestClosesAt!).toISOString().slice(0, 16)
+                            : ""
+                        }
+                      />
+                    </label>
+                    <label>
+                      Target roster size
+                      <input
+                        name="targetRosterSize"
+                        type="number"
+                        min={1}
+                        step={1}
+                        defaultValue={signupConfigsByEvent[event.id]?.targetRosterSize || ""}
+                        placeholder="Optional"
+                      />
+                    </label>
+                    <label>
+                      <input
+                        name="allowGuestRequests"
+                        type="checkbox"
+                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.allowGuestRequests)}
+                      />{" "}
+                      Allow players to request guests (disabled for DVHL)
+                    </label>
+                    <label>
+                      <input
+                        name="guestCostEnabled"
+                        type="checkbox"
+                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.guestCostEnabled)}
+                      />{" "}
+                      Guest cost applies
+                    </label>
+                    <input
+                      name="guestCostLabel"
+                      placeholder="Guest cost label (e.g., hotel fee)"
+                      defaultValue={signupConfigsByEvent[event.id]?.guestCostLabel || ""}
+                    />
+                    <input
+                      name="guestCostAmountUsd"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="Guest cost amount (USD)"
+                      defaultValue={signupConfigsByEvent[event.id]?.guestCostAmountUsd ?? ""}
+                    />
                     <label>
                       Game manager
                       <select name="managerUserId" defaultValue={event.managerUserId || ""}>
@@ -794,6 +940,71 @@ export default async function AdminPage({
                     </label>
                     <button className="button" type="submit">Update Event</button>
                   </form>
+                  {signupConfigsByEvent[event.id]?.signupMode === "interest_gathering" ? (
+                    <div className="stack">
+                      <strong>Final Roster Selection</strong>
+                      {isInterestSignupClosed(signupConfigsByEvent[event.id]) ? (
+                        <p className="muted">Interest window has closed. Select the final roster below.</p>
+                      ) : (
+                        <p className="muted">Interest is still open. You can still pre-select and adjust roster.</p>
+                      )}
+                      <form className="grid-form" action="/api/admin/events/interest-roster/select" method="post">
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <input type="hidden" name="returnTo" value="/admin?section=events" />
+                        <div className="stack">
+                          {(reservationBoards.byEvent[event.id] || [])
+                            .filter((entry) => entry.status !== "not_going")
+                            .map((entry) => (
+                              <label key={`${event.id}-${entry.userId}`}>
+                                <input
+                                  type="checkbox"
+                                  name="selectedUserIds"
+                                  value={entry.userId}
+                                  defaultChecked={
+                                    (rosterSelectionsByEvent[event.id]?.selectedUserIds || []).includes(entry.userId)
+                                  }
+                                />{" "}
+                                {entry.fullName} ({entry.status.replaceAll("_", " ")})
+                              </label>
+                            ))}
+                          {(reservationBoards.byEvent[event.id] || []).filter((entry) => entry.status !== "not_going")
+                            .length === 0 ? <p className="muted">No interested signups yet.</p> : null}
+                        </div>
+                        <button className="button alt" type="submit">Save Final Roster</button>
+                      </form>
+                    </div>
+                  ) : null}
+                  {canEventCollectGuests(signupConfigsByEvent[event.id], event.eventTypeName) ? (
+                    <div className="stack">
+                      <strong>Guest Requests</strong>
+                      {signupConfigsByEvent[event.id]?.guestCostEnabled ? (
+                        <p className="muted">
+                          Cost: {signupConfigsByEvent[event.id]?.guestCostLabel || "Guest fee"}{" "}
+                          {typeof signupConfigsByEvent[event.id]?.guestCostAmountUsd === "number"
+                            ? `($${signupConfigsByEvent[event.id]!.guestCostAmountUsd!.toFixed(2)} per guest)`
+                            : ""}
+                        </p>
+                      ) : (
+                        <p className="muted">No guest fee configured.</p>
+                      )}
+                      {(guestIntentsByEvent[event.id] || []).length > 0 ? (
+                        (guestIntentsByEvent[event.id] || []).map((intent) => {
+                          const member = store.users.find((entry) => entry.id === intent.userId);
+                          return (
+                            <div key={`${event.id}-${intent.userId}`} className="event-card">
+                              <strong>{member?.fullName || "Player"}</strong>
+                              <p>
+                                Guest request: {intent.wantsGuest ? `Yes (${intent.guestCount})` : "No"}
+                              </p>
+                              {intent.note ? <p>Note: {intent.note}</p> : null}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="muted">No guest requests yet.</p>
+                      )}
+                    </div>
+                  ) : null}
                   <form action="/api/admin/events/delete" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <button className="button alt" type="submit">Delete Event</button>
@@ -805,11 +1016,11 @@ export default async function AdminPage({
           </details>
 
           <details className="card admin-disclosure">
-            <summary>WordPress Sync</summary>
-            <p className="muted">Public feed URL for your WordPress shortcode plugin:</p>
+            <summary>Public Event API</summary>
+            <p className="muted">Public feed URL for website/mobile integrations:</p>
             <code>{`${process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us"}/api/public/events`}</code>
             <p className="muted">
-              Only events marked <strong>Public</strong> and <strong>Published</strong> appear on WordPress.
+              Only events marked <strong>Public</strong> and <strong>Published</strong> appear in this feed.
             </p>
           </details>
         </div>
@@ -827,6 +1038,63 @@ export default async function AdminPage({
                 Open Central Roster Manager
               </Link>
             </p>
+          </article>
+
+          <article className="card">
+            <h3>Import Roster Number Locks</h3>
+            <p className="muted">
+              Use this to reserve existing players and jersey numbers before they register.
+              CSV format per line: <code>fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes</code>
+            </p>
+            <form className="grid-form" action="/api/admin/roster/import" method="post">
+              <textarea
+                name="rows"
+                rows={8}
+                placeholder={`fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes\nEvan Wawrykow,eww7633@yahoo.com,19,main-player-roster,gold,123456789,555-555-1111,legacy roster`}
+                required
+              />
+              <button className="button" type="submit">Import / Update Roster Locks</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Roster Number Locks</h3>
+            {rosterReservations.length === 0 ? (
+              <p className="muted">No imported roster locks yet.</p>
+            ) : (
+              <div className="stack">
+                {rosterReservations.map((reservation) => {
+                  const matchedUser = store.users.find(
+                    (member) =>
+                      member.id === reservation.linkedUserId ||
+                      (reservation.email && member.email.toLowerCase() === reservation.email.toLowerCase())
+                  );
+                  return (
+                    <div key={reservation.id} className="event-card stack">
+                      <strong>{reservation.fullName}</strong>
+                      <p>
+                        Roster: {reservation.rosterId} | Number: #{reservation.jerseyNumber}
+                        {reservation.primarySubRoster ? ` | ${reservation.primarySubRoster}` : ""}
+                      </p>
+                      <p>
+                        Contact: {reservation.email || "No email"} {reservation.phone ? `| ${reservation.phone}` : ""}
+                      </p>
+                      <p>
+                        Linked account: {matchedUser ? `${matchedUser.fullName} (${matchedUser.email})` : "Not linked yet"}
+                      </p>
+                      {reservation.notes ? <p className="muted">Notes: {reservation.notes}</p> : null}
+                      {!reservation.linkedUserId && matchedUser ? (
+                        <form className="cta-row" action="/api/admin/roster/reservations/link" method="post">
+                          <input type="hidden" name="reservationId" value={reservation.id} />
+                          <input type="hidden" name="userId" value={matchedUser.id} />
+                          <button className="button ghost" type="submit">Link to Matched Account</button>
+                        </form>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </article>
 
           <details className="card admin-disclosure" open>
@@ -1046,6 +1314,8 @@ export default async function AdminPage({
           </div>
         </article>
       )}
+        </div>
+      </div>
     </section>
   );
 }

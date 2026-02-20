@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { events, roster } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
@@ -15,8 +16,25 @@ import {
   listTeamAssignmentsByUser,
   usaHockeySeasonLabel
 } from "@/lib/hq/player-profiles";
+import {
+  canEventCollectGuests,
+  getEventGuestIntentMap,
+  getEventRosterSelectionMap,
+  getEventSignupConfigMap,
+  isInterestSignupClosed
+} from "@/lib/hq/event-signups";
 
 export const dynamic = "force-dynamic";
+
+const sections = [
+  ["overview", "Overview"],
+  ["profile", "Profile"],
+  ["events", "Events"],
+  ["teams", "Teams"],
+  ["gear", "Gear"]
+] as const;
+
+type Section = (typeof sections)[number][0];
 
 export default async function PlayerPage({
   searchParams
@@ -25,12 +43,16 @@ export default async function PlayerPage({
     saved?: string | string[];
     reservation?: string | string[];
     error?: string | string[];
+    section?: string | string[];
+    guest?: string | string[];
   };
 }) {
   const query = searchParams ?? {};
   const querySaved = Array.isArray(query.saved) ? query.saved[0] : query.saved;
   const queryReservation = Array.isArray(query.reservation) ? query.reservation[0] : query.reservation;
   const queryError = Array.isArray(query.error) ? query.error[0] : query.error;
+  const querySection = Array.isArray(query.section) ? query.section[0] : query.section;
+  const queryGuest = Array.isArray(query.guest) ? query.guest[0] : query.guest;
   const user = await getCurrentUser();
 
   if (!user) {
@@ -51,6 +73,9 @@ export default async function PlayerPage({
   ]);
 
   const latestUser = store.users.find((entry) => entry.id === user.id) ?? user;
+  const section: Section = sections.some(([value]) => value === querySection)
+    ? (querySection as Section)
+    : "overview";
   const checkIns = store.checkIns.filter((entry) => entry.userId === latestUser.id).slice(-10).reverse();
 
   const canManageEvents = latestUser.status === "approved";
@@ -64,6 +89,11 @@ export default async function PlayerPage({
     myEvents.map((event) => event.id),
     latestUser.id
   );
+  const [signupConfigsByEvent, rosterSelectionsByEvent, guestIntentsByEvent] = await Promise.all([
+    getEventSignupConfigMap(myEvents.map((event) => event.id)),
+    getEventRosterSelectionMap(myEvents.map((event) => event.id)),
+    getEventGuestIntentMap(myEvents.map((event) => event.id))
+  ]);
 
   const myUpcomingEvents = myEvents.filter((event) => new Date(event.date).getTime() >= now).slice(0, 10);
   const myPastEvents = myEvents.filter((event) => new Date(event.date).getTime() < now).slice(-4).reverse();
@@ -79,7 +109,7 @@ export default async function PlayerPage({
   const equipment = latestUser.equipmentSizes ?? {};
 
   return (
-    <section className="stack">
+    <section className="stack admin-shell">
       <article className="card">
         <h2>Warrior HQ Player Hub</h2>
         <p>
@@ -94,6 +124,7 @@ export default async function PlayerPage({
         {querySaved === "jersey_request" && <p className="badge">Jersey number request sent to Hockey Ops.</p>}
         {querySaved === "jersey_auto_granted" && <p className="badge">Jersey number updated automatically.</p>}
         {querySaved === "reservation" || queryReservation === "saved" ? <p className="badge">RSVP updated.</p> : null}
+        {queryGuest === "saved" ? <p className="badge">Guest request updated.</p> : null}
         {queryError && <p className="muted">{queryError.replaceAll("_", " ")}</p>}
         {latestUser.status === "rejected" && (
           <p className="muted">
@@ -121,6 +152,72 @@ export default async function PlayerPage({
         )}
       </article>
 
+      <div className="admin-panel-layout">
+        <aside className="card admin-side-nav-card">
+          <h3>Player Hub</h3>
+          <nav className="admin-side-nav" aria-label="Player sections">
+            {sections.map(([key, label]) => (
+              <Link
+                key={key}
+                href={`/player?section=${key}`}
+                className={`admin-side-link ${section === key ? "active" : ""}`}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+
+        <div className="stack admin-panel-content">
+      {section === "overview" && (
+      <>
+      <article className="card">
+        <h3>Player Snapshot</h3>
+        <div className="admin-kpi-grid">
+          <div className="admin-kpi">
+            <span className="muted">Status</span>
+            <strong>{latestUser.status}</strong>
+          </div>
+          <div className="admin-kpi">
+            <span className="muted">Roster</span>
+            <strong>{latestUser.rosterId || "Pending"}</strong>
+          </div>
+          <div className="admin-kpi">
+            <span className="muted">Jersey</span>
+            <strong>{latestUser.jerseyNumber ? `#${latestUser.jerseyNumber}` : "Unassigned"}</strong>
+          </div>
+          <div className="admin-kpi">
+            <span className="muted">Upcoming Events</span>
+            <strong>{myUpcomingEvents.length}</strong>
+          </div>
+        </div>
+      </article>
+
+      <article className="card">
+        <h3>Recent Check-Ins</h3>
+        {checkIns.length === 0 ? (
+          <p className="muted">No check-ins recorded yet.</p>
+        ) : (
+          <div className="stack">
+            {checkIns.map((entry) => {
+              const event = events.find((item) => item.id === entry.eventId);
+              return (
+                <div key={entry.id} className="event-card">
+                  <strong>{event?.title ?? entry.eventId}</strong>
+                  <p>Status: {entry.attendanceStatus.replaceAll("_", " ")}</p>
+                  <p>Checked in: {entry.checkedInAt ? new Date(entry.checkedInAt).toLocaleString() : "-"}</p>
+                  <p>Arrived: {entry.arrivedAt ? new Date(entry.arrivedAt).toLocaleString() : "-"}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </article>
+      </>
+      )}
+
+      {section === "profile" && (
+      <>
       <article className="card">
         <h3>My Contact + USA Hockey</h3>
         <form className="grid-form" action="/api/player/profile/contact" method="post">
@@ -140,85 +237,6 @@ export default async function PlayerPage({
         <p className="muted">
           Entering a USA Hockey number marks it as unverified until Hockey Ops or SportsEngine sync verifies it.
         </p>
-      </article>
-
-      <article className="card">
-        <h3>My Team Assignments</h3>
-        {teamAssignments.length === 0 ? (
-          <p className="muted">No team assignments have been published to your profile yet.</p>
-        ) : (
-          <div className="stack">
-            {teamAssignments.map((assignment) => (
-              <div key={assignment.id} className="event-card">
-                <strong>{assignment.teamName}</strong>
-                <p>
-                  {assignment.assignmentType}
-                  {assignment.seasonLabel ? ` | ${assignment.seasonLabel}` : ""}
-                  {assignment.sessionLabel ? ` | ${assignment.sessionLabel}` : ""}
-                </p>
-                {assignment.subRosterLabel ? <p>Sub-roster: {assignment.subRosterLabel}</p> : null}
-                <p>Status: {assignment.status}</p>
-                <p>
-                  {assignment.startsAt ? `Starts ${new Date(assignment.startsAt).toLocaleDateString()}` : "No start date"}
-                  {assignment.endsAt ? ` | Ends ${new Date(assignment.endsAt).toLocaleDateString()}` : ""}
-                </p>
-                {assignment.notes ? <p className="muted">{assignment.notes}</p> : null}
-              </div>
-            ))}
-          </div>
-        )}
-      </article>
-
-      <article className="card">
-        <h3>My Events & RSVP Management</h3>
-        {!canManageEvents ? (
-          <p className="muted">Event RSVP tools unlock after player approval.</p>
-        ) : (
-          <div className="stack">
-            {myUpcomingEvents.map((event) => {
-              const myStatus = reservationBoards.viewerStatusByEvent[event.id] || "not_set";
-              return (
-                <article key={event.id} className="event-card">
-                  <strong>{event.title}</strong>
-                  <p>{new Date(event.date).toLocaleString()}</p>
-                  {event.locationPublic ? <p>{event.locationPublic}</p> : null}
-                  <p className="muted">Your RSVP: {myStatus.replaceAll("_", " ")}</p>
-                  <form className="grid-form" action="/api/events/reservation" method="post">
-                    <input type="hidden" name="eventId" value={event.id} />
-                    <input type="hidden" name="returnTo" value="/player" />
-                    <select name="status" defaultValue={myStatus === "not_set" ? "going" : myStatus}>
-                      <option value="going">Going</option>
-                      <option value="maybe">Maybe</option>
-                      <option value="not_going">Not going</option>
-                    </select>
-                    <input name="note" placeholder="Optional note" />
-                    <button className="button" type="submit">Save RSVP</button>
-                  </form>
-                </article>
-              );
-            })}
-            {myUpcomingEvents.length === 0 ? (
-              <p className="muted">No upcoming events currently available.</p>
-            ) : null}
-
-            {myPastEvents.length > 0 ? (
-              <details className="event-card admin-disclosure">
-                <summary>Recent past events</summary>
-                <div className="stack">
-                  {myPastEvents.map((event) => (
-                    <div key={event.id} className="event-card">
-                      <strong>{event.title}</strong>
-                      <p>{new Date(event.date).toLocaleString()}</p>
-                      <p className="muted">
-                        Your RSVP: {(reservationBoards.viewerStatusByEvent[event.id] || "not_set").replaceAll("_", " ")}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </details>
-            ) : null}
-          </div>
-        )}
       </article>
 
       <article className="card">
@@ -269,7 +287,179 @@ export default async function PlayerPage({
           </details>
         ) : null}
       </article>
+      </>
+      )}
 
+      {section === "teams" && (
+      <>
+      <article className="card">
+        <h3>My Team Assignments</h3>
+        {teamAssignments.length === 0 ? (
+          <p className="muted">No team assignments have been published to your profile yet.</p>
+        ) : (
+          <div className="stack">
+            {teamAssignments.map((assignment) => (
+              <div key={assignment.id} className="event-card">
+                <strong>{assignment.teamName}</strong>
+                <p>
+                  {assignment.assignmentType}
+                  {assignment.seasonLabel ? ` | ${assignment.seasonLabel}` : ""}
+                  {assignment.sessionLabel ? ` | ${assignment.sessionLabel}` : ""}
+                </p>
+                {assignment.subRosterLabel ? <p>Sub-roster: {assignment.subRosterLabel}</p> : null}
+                <p>Status: {assignment.status}</p>
+                <p>
+                  {assignment.startsAt ? `Starts ${new Date(assignment.startsAt).toLocaleDateString()}` : "No start date"}
+                  {assignment.endsAt ? ` | Ends ${new Date(assignment.endsAt).toLocaleDateString()}` : ""}
+                </p>
+                {assignment.notes ? <p className="muted">{assignment.notes}</p> : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </article>
+
+      <article className="card">
+        <h3>Performance Snapshot</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Pos</th>
+              <th>Status</th>
+              <th>GP</th>
+              <th>G</th>
+              <th>A</th>
+            </tr>
+          </thead>
+          <tbody>
+            {roster.map((player) => (
+              <tr key={player.id}>
+                <td>{player.name}</td>
+                <td>{player.position}</td>
+                <td>{player.status}</td>
+                <td>{player.gamesPlayed}</td>
+                <td>{player.goals}</td>
+                <td>{player.assists}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </article>
+      </>
+      )}
+
+      {section === "events" && (
+      <article className="card">
+        <h3>My Events & RSVP Management</h3>
+        {!canManageEvents ? (
+          <p className="muted">Event RSVP tools unlock after player approval.</p>
+        ) : (
+          <div className="stack">
+            {myUpcomingEvents.map((event) => {
+              const myStatus = reservationBoards.viewerStatusByEvent[event.id] || "not_set";
+              const signupConfig = signupConfigsByEvent[event.id];
+              const isInterest = signupConfig?.signupMode === "interest_gathering";
+              const isClosed = isInterest && isInterestSignupClosed(signupConfig);
+              const isSelected = (rosterSelectionsByEvent[event.id]?.selectedUserIds || []).includes(latestUser.id);
+              const guestIntent = (guestIntentsByEvent[event.id] || []).find((entry) => entry.userId === latestUser.id);
+              const guestsAllowed = canEventCollectGuests(signupConfig, event.eventTypeName);
+              return (
+                <article key={event.id} className="event-card">
+                  <strong>{event.title}</strong>
+                  <p>{new Date(event.date).toLocaleString()}</p>
+                  {event.locationPublic ? <p>{event.locationPublic}</p> : null}
+                  <p className="muted">
+                    Flow: {isInterest ? "Interest gathering" : "Straight RSVP"}
+                    {isInterest && signupConfig?.interestClosesAt
+                      ? ` | Closes ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
+                      : ""}
+                  </p>
+                  {isInterest ? (
+                    <p className="muted">
+                      Final roster: {isSelected ? "You are selected" : "Selection pending / not selected yet"}
+                    </p>
+                  ) : null}
+                  <p className="muted">Your RSVP: {myStatus.replaceAll("_", " ")}</p>
+                  <form className="grid-form" action="/api/events/reservation" method="post">
+                    <input type="hidden" name="eventId" value={event.id} />
+                    <input type="hidden" name="returnTo" value="/player?section=events" />
+                    <select name="status" defaultValue={myStatus === "not_set" ? "going" : myStatus} disabled={isClosed}>
+                      <option value="going">Going</option>
+                      <option value="maybe">Maybe</option>
+                      <option value="not_going">Not going</option>
+                    </select>
+                    <input name="note" placeholder="Optional note" disabled={isClosed} />
+                    <button className="button" type="submit" disabled={isClosed}>
+                      {isInterest ? "Save Interest" : "Save RSVP"}
+                    </button>
+                  </form>
+                  {isClosed ? (
+                    <p className="muted">Interest submissions are closed for this event.</p>
+                  ) : null}
+                  {guestsAllowed ? (
+                    <form className="grid-form" action="/api/events/guest-intent" method="post">
+                      <input type="hidden" name="eventId" value={event.id} />
+                      <input type="hidden" name="returnTo" value="/player?section=events" />
+                      <label>
+                        Bringing a guest?
+                        <select name="wantsGuest" defaultValue={guestIntent?.wantsGuest ? "yes" : "no"}>
+                          <option value="no">No</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </label>
+                      <label>
+                        Guest count
+                        <input
+                          name="guestCount"
+                          type="number"
+                          min={1}
+                          step={1}
+                          defaultValue={guestIntent?.guestCount || 1}
+                        />
+                      </label>
+                      <input name="guestNote" placeholder="Optional guest note" defaultValue={guestIntent?.note || ""} />
+                      {signupConfig?.guestCostEnabled ? (
+                        <p className="muted">
+                          {signupConfig?.guestCostLabel || "Guest fee"}{" "}
+                          {typeof signupConfig?.guestCostAmountUsd === "number"
+                            ? `($${signupConfig.guestCostAmountUsd.toFixed(2)} per guest)`
+                            : ""}
+                        </p>
+                      ) : null}
+                      <button className="button ghost" type="submit">Save Guest Request</button>
+                    </form>
+                  ) : null}
+                </article>
+              );
+            })}
+            {myUpcomingEvents.length === 0 ? (
+              <p className="muted">No upcoming events currently available.</p>
+            ) : null}
+
+            {myPastEvents.length > 0 ? (
+              <details className="event-card admin-disclosure">
+                <summary>Recent past events</summary>
+                <div className="stack">
+                  {myPastEvents.map((event) => (
+                    <div key={event.id} className="event-card">
+                      <strong>{event.title}</strong>
+                      <p>{new Date(event.date).toLocaleString()}</p>
+                      <p className="muted">
+                        Your RSVP: {(reservationBoards.viewerStatusByEvent[event.id] || "not_set").replaceAll("_", " ")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
+          </div>
+        )}
+      </article>
+      )}
+
+      {section === "gear" && (
+      <>
       <article className="card">
         <h3>Jersey Number Change Request</h3>
         {!latestUser.rosterId ? (
@@ -344,55 +534,10 @@ export default async function PlayerPage({
           <button className="button" type="submit">Save Size Profile</button>
         </form>
       </article>
-
-      <article className="card">
-        <h3>Recent Check-Ins</h3>
-        {checkIns.length === 0 ? (
-          <p className="muted">No check-ins recorded yet.</p>
-        ) : (
-          <div className="stack">
-            {checkIns.map((entry) => {
-              const event = events.find((item) => item.id === entry.eventId);
-              return (
-                <div key={entry.id} className="event-card">
-                  <strong>{event?.title ?? entry.eventId}</strong>
-                  <p>Status: {entry.attendanceStatus.replaceAll("_", " ")}</p>
-                  <p>Checked in: {entry.checkedInAt ? new Date(entry.checkedInAt).toLocaleString() : "-"}</p>
-                  <p>Arrived: {entry.arrivedAt ? new Date(entry.arrivedAt).toLocaleString() : "-"}</p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </article>
-
-      <article className="card">
-        <h3>Performance Snapshot</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Pos</th>
-              <th>Status</th>
-              <th>GP</th>
-              <th>G</th>
-              <th>A</th>
-            </tr>
-          </thead>
-          <tbody>
-            {roster.map((player) => (
-              <tr key={player.id}>
-                <td>{player.name}</td>
-                <td>{player.position}</td>
-                <td>{player.status}</td>
-                <td>{player.gamesPlayed}</td>
-                <td>{player.goals}</td>
-                <td>{player.assists}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </article>
+      </>
+      )}
+        </div>
+      </div>
     </section>
   );
 }

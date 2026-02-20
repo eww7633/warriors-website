@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { approvePlayer } from "@/lib/hq/store";
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
+import { findBlockingRosterReservation, linkMatchingReservationForUser } from "@/lib/hq/roster-reservations";
+import { readStore } from "@/lib/hq/store";
 
 export async function POST(
   request: Request,
@@ -9,7 +12,7 @@ export async function POST(
 ) {
   const actor = await getCurrentUser();
 
-  if (!actor || actor.role !== "admin") {
+  if (!actor || !canAccessAdminPanel(actor)) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
@@ -32,6 +35,27 @@ export async function POST(
   }
 
   try {
+    const store = await readStore();
+    const candidate = store.users.find((entry) => entry.id === params.id);
+    if (!candidate) {
+      return NextResponse.redirect(new URL("/admin?section=players&error=approval_failed", request.url), 303);
+    }
+
+    if (typeof jerseyNumber === "number") {
+      const reservationConflict = await findBlockingRosterReservation({
+        rosterId,
+        jerseyNumber,
+        candidateUserId: candidate.id,
+        candidateEmail: candidate.email,
+        candidateFullName: candidate.fullName
+      });
+      if (reservationConflict) {
+        const conflictUrl = new URL("/admin?section=players&error=reserved_number_conflict", request.url);
+        conflictUrl.searchParams.set("errorDetail", encodeURIComponent(`${reservationConflict.fullName} owns #${reservationConflict.jerseyNumber} (${reservationConflict.rosterId}) in imported reservations.`));
+        return NextResponse.redirect(conflictUrl, 303);
+      }
+    }
+
     await approvePlayer(params.id, rosterId, jerseyNumber);
     await upsertPlayerContactProfile({
       userId: params.id,
@@ -40,6 +64,15 @@ export async function POST(
         : undefined,
       allowCrossColorJerseyOverlap
     });
+    const refreshedStore = await readStore();
+    const approvedUser = refreshedStore.users.find((entry) => entry.id === params.id);
+    if (approvedUser) {
+      await linkMatchingReservationForUser({
+        user: approvedUser,
+        rosterId,
+        jerseyNumber
+      });
+    }
     return NextResponse.redirect(new URL("/admin?section=players&approved=1", request.url), 303);
   } catch {
     return NextResponse.redirect(new URL("/admin?section=players&error=approval_failed", request.url), 303);

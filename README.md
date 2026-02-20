@@ -87,22 +87,9 @@ Override with:
 ## Deploying to Bluehost / DNS setup
 - `/docs/BLUEHOST_DEPLOY.md`
 
-## WordPress public event sync
-This app exposes a public-safe feed at:
+## Public event feed
+This app exposes a public-safe event feed at:
 - `/api/public/events`
-
-Install the WordPress shortcode plugin:
-- `/integrations/wordpress/warriors-public-events.php`
-
-Use shortcode on any WordPress page:
-```text
-[warriors_public_events]
-```
-
-Optional shortcode attributes:
-```text
-[warriors_public_events feed_url="https://hq.pghwarriorhockey.us/api/public/events" limit="8" title="Upcoming Events"]
-```
 
 ## Deployment automation
 
@@ -110,18 +97,7 @@ Optional shortcode attributes:
 - Keep your GitHub repo connected to Vercel.
 - Any push to `main` deploys HQ automatically.
 
-### 2) WordPress plugin sync on push
-- Workflow file: `/.github/workflows/wordpress-bluehost-sync.yml`
-- This uploads:
-  - `integrations/wordpress/warriors-public-events/*` -> `/plugins/warriors-public-events/`
-  - `integrations/wordpress/warriors-theme-tools/*` -> `/plugins/warriors-theme-tools/`
-
-Required GitHub repo secrets:
-- `BLUEHOST_HOST` = `50.87.184.167`
-- `BLUEHOST_USER` = FTP username (example: `codexftp@nqj.lxn.mybluehost.me`)
-- `BLUEHOST_PASS` = FTP password
-
-### 3) One-command release flow
+### 2) One-command release flow
 Use:
 ```bash
 npm run release:main -- "your commit message"

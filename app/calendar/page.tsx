@@ -2,6 +2,13 @@ import Link from "next/link";
 import { getCalendarEventsForRole, listActiveCheckInTokens } from "@/lib/hq/events";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listReservationBoards } from "@/lib/hq/reservations";
+import {
+  canEventCollectGuests,
+  getEventGuestIntentMap,
+  getEventRosterSelectionMap,
+  getEventSignupConfigMap,
+  isInterestSignupClosed
+} from "@/lib/hq/event-signups";
 
 function mapSearchUrl(query?: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query || "")}`;
@@ -34,6 +41,11 @@ export default async function CalendarPage({
     listReservationBoards(eventIds, user?.id),
     listActiveCheckInTokens(eventIds)
   ]);
+  const [signupConfigsByEvent, rosterSelectionsByEvent, guestIntentsByEvent] = await Promise.all([
+    getEventSignupConfigMap(eventIds),
+    getEventRosterSelectionMap(eventIds),
+    getEventGuestIntentMap(eventIds)
+  ]);
 
   return (
     <section className="card stack">
@@ -58,6 +70,25 @@ export default async function CalendarPage({
               {event.title} | {new Date(event.date).toLocaleString()}
             </summary>
             <div className="stack calendar-event-expanded">
+              {(() => {
+                const signupConfig = signupConfigsByEvent[event.id];
+                const isInterest = signupConfig?.signupMode === "interest_gathering";
+                const isClosed = isInterest && isInterestSignupClosed(signupConfig);
+                const selectedCount = rosterSelectionsByEvent[event.id]?.selectedUserIds.length || 0;
+                return (
+                  <div className="event-card attendance-summary">
+                    <strong>Signup Flow</strong>
+                    <p>
+                      {isInterest ? "Interest gathering" : "Straight RSVP"}
+                      {isInterest && signupConfig?.interestClosesAt
+                        ? ` | Closes ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
+                        : ""}
+                      {isInterest ? ` | Final roster selected: ${selectedCount}` : ""}
+                    </p>
+                    {isClosed ? <p className="muted">Interest submissions are closed.</p> : null}
+                  </div>
+                );
+              })()}
               <div className="event-card attendance-summary">
                 <strong>Attendance Summary</strong>
                 <p>
@@ -126,21 +157,72 @@ export default async function CalendarPage({
               {canViewPrivate && user && (
                 <form className="grid-form" action="/api/events/reservation" method="post">
                   <input type="hidden" name="eventId" value={event.id} />
+                  {(() => {
+                    const signupConfig = signupConfigsByEvent[event.id];
+                    const isClosed =
+                      signupConfig?.signupMode === "interest_gathering" && isInterestSignupClosed(signupConfig);
+                    return (
+                      <>
                   <label>
                     Your reservation
                     <select
                       name="status"
                       defaultValue={reservationBoards.viewerStatusByEvent[event.id] || "going"}
+                      disabled={isClosed}
                     >
                       <option value="going">Going</option>
                       <option value="maybe">Maybe</option>
                       <option value="not_going">Not going</option>
                     </select>
                   </label>
-                  <input name="note" placeholder="Optional note for coaches/admin" />
-                  <button className="button" type="submit">Save Reservation</button>
+                  <input name="note" placeholder="Optional note for coaches/admin" disabled={isClosed} />
+                  <button className="button" type="submit" disabled={isClosed}>Save Reservation</button>
+                  {isClosed ? <p className="muted">Interest submissions are closed for this event.</p> : null}
+                      </>
+                    );
+                  })()}
                 </form>
               )}
+              {canViewPrivate && user && canEventCollectGuests(signupConfigsByEvent[event.id], event.eventTypeName) ? (
+                <form className="grid-form" action="/api/events/guest-intent" method="post">
+                  <input type="hidden" name="eventId" value={event.id} />
+                  <input type="hidden" name="returnTo" value="/calendar" />
+                  {(() => {
+                    const viewerIntent = (guestIntentsByEvent[event.id] || []).find((entry) => entry.userId === user.id);
+                    return (
+                      <>
+                        <label>
+                          Bringing a guest?
+                          <select name="wantsGuest" defaultValue={viewerIntent?.wantsGuest ? "yes" : "no"}>
+                            <option value="no">No</option>
+                            <option value="yes">Yes</option>
+                          </select>
+                        </label>
+                        <label>
+                          Guest count
+                          <input
+                            name="guestCount"
+                            type="number"
+                            min={1}
+                            step={1}
+                            defaultValue={viewerIntent?.guestCount || 1}
+                          />
+                        </label>
+                        <input name="guestNote" placeholder="Optional guest note" defaultValue={viewerIntent?.note || ""} />
+                      </>
+                    );
+                  })()}
+                  {signupConfigsByEvent[event.id]?.guestCostEnabled ? (
+                    <p className="muted">
+                      {signupConfigsByEvent[event.id]?.guestCostLabel || "Guest fee"}{" "}
+                      {typeof signupConfigsByEvent[event.id]?.guestCostAmountUsd === "number"
+                        ? `($${signupConfigsByEvent[event.id]!.guestCostAmountUsd!.toFixed(2)} per guest)`
+                        : ""}
+                    </p>
+                  ) : null}
+                  <button className="button ghost" type="submit">Save Guest Request</button>
+                </form>
+              ) : null}
 
               {canViewPrivate && (
                 <div className="stack">

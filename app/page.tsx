@@ -75,15 +75,45 @@ export default async function HomePage({
   const photoGrid = showcase.slice(1, 9);
   const nextPublicEvent = upcomingEvents[0];
   const nextEventLabel = nextPublicEvent ? new Date(nextPublicEvent.date).toLocaleString() : "No upcoming events";
-
-  const signedInSummary = user
-    ? `${user.fullName} | ${user.role === "admin" ? "Hockey Ops" : "Player"}`
-    : null;
-
-  const heroHighlights = [
-    "Built for veterans and service-disabled athletes.",
-    "Community-first program with year-round events.",
-    "Every donation directly supports ice time, travel, and gear."
+  const signedInSummary = user ? `${user.fullName} | ${user.role === "admin" ? "Hockey Ops" : "Player"}` : null;
+  const heroPhoto = leadPhoto ?? showcase[1] ?? null;
+  const storyPhotos = showcase.slice(2, 5);
+  const galleryPhotos = showcase.slice(5, 14);
+  const impactStats = [
+    { label: "Upcoming Public Events", value: String(upcomingEvents.length || 0) },
+    { label: "Live / Scheduled Games", value: String(games.length || 0) },
+    { label: "Program News Updates", value: String(news.length || 0) },
+    { label: "Next Event", value: nextPublicEvent ? new Date(nextPublicEvent.date).toLocaleDateString() : "TBD" }
+  ];
+  const impactPillars = [
+    {
+      title: "Healing Through Teamwork",
+      detail:
+        "Hockey rebuilds confidence, routine, and connection for veterans navigating life after service."
+    },
+    {
+      title: "Community Beyond The Rink",
+      detail:
+        "Families, volunteers, and partners all play a role in keeping veterans supported year-round."
+    },
+    {
+      title: "Visible Impact You Can Fund",
+      detail: "Every contribution directly supports ice time, travel, equipment, and operations."
+    }
+  ];
+  const storyCards = [
+    {
+      title: "From Isolation to Brotherhood",
+      body: "Warrior events give veterans a consistent place to show up, contribute, and be part of a team again."
+    },
+    {
+      title: "More Than Games",
+      body: "Volunteer drives, family events, and outreach activities keep the mission active off the ice too."
+    },
+    {
+      title: "Built For Long-Term Recovery",
+      body: "The program is designed for sustained participation, leadership growth, and peer accountability."
+    }
   ];
 
   const mediaFallbackActions = [
@@ -120,64 +150,59 @@ export default async function HomePage({
     );
 
   return (
-    <section className="home-shell">
-      <article className="card hero-panel">
-        <p className="eyebrow">Pittsburgh Warriors Hockey Club</p>
-        <h1>Healing Through Hockey. Backed By Community.</h1>
-        <p className="hero-lead">
-          The Pittsburgh Warriors give veterans a place to compete, recover, and reconnect. Your support keeps this
-          program on the ice.
-        </p>
-        <div className="hero-highlights">
-          {heroHighlights.map((item) => (
-            <p key={item}>{item}</p>
-          ))}
-        </div>
-        <div className="hero-stat-row">
-          <div className="hero-stat">
-            <span>Upcoming events</span>
-            <strong>{upcomingEvents.length}</strong>
-          </div>
-          <div className="hero-stat">
-            <span>Next public event</span>
-            <strong>{nextEventLabel}</strong>
-          </div>
-        </div>
-        <div className="cta-row">
-          <a className="button alt" href={donateUrl}>
-            Donate to the Program
-          </a>
-          <a className="button ghost" href="/events">
-            View Public Events
-          </a>
-          {user ? (
-            <Link className="button" href={user.role === "admin" ? "/admin" : "/player"}>
-              Open Warrior HQ
+    <section className="home-shell home-shell-public">
+      <article className="card public-hero">
+        <div className="public-hero-content">
+          <p className="eyebrow">Pittsburgh Warriors Hockey Club</p>
+          <h1>Veterans Healing Through Hockey, Community, and Purpose.</h1>
+          <p className="hero-lead">
+            We help service-disabled veterans reconnect through hockey, leadership, and year-round community events.
+            Your support keeps this mission on the ice.
+          </p>
+          <div className="cta-row">
+            <a className="button alt" href={donateUrl}>
+              Donate Now
+            </a>
+            <Link className="button ghost" href="/join">
+              Join The Program
             </Link>
-          ) : (
-            <Link className="button" href="/login">
-              Player Log in
+            <Link className="button" href="/events">
+              Explore Events
             </Link>
-          )}
+          </div>
+          <div className="public-hero-meta">
+            <span>Next public event: {nextEventLabel}</span>
+            {signedInSummary ? <span>Signed in: {signedInSummary}</span> : null}
+          </div>
         </div>
-        {signedInSummary ? <p className="session-label">Signed in as {signedInSummary}</p> : null}
-        {query.error ? <p className="muted">{query.error.replaceAll("_", " ")}</p> : null}
+        {heroPhoto ? (
+          <a className="public-hero-media" href={heroPhoto.viewUrl} target="_blank" rel="noreferrer">
+            <img src={heroPhoto.imageUrl} alt="Pittsburgh Warriors in action" loading="lazy" />
+          </a>
+        ) : null}
       </article>
 
-      <article className="card mission-panel">
-        <h3>Why Support The Warriors</h3>
-        <p className="muted">
-          Your support funds ice time, travel, equipment support, and the year-round operations that keep veterans in
-          the game and connected to each other.
-        </p>
-        <div className="mission-list">
-          <p>Programs designed for veterans and service-disabled athletes.</p>
-          <p>Consistent practices, competitions, and community events.</p>
-          <p>Direct impact you can see at every event.</p>
+      <article className="card public-impact">
+        <div className="section-heading">
+          <h3>Why This Work Matters</h3>
+          <a href={donateUrl}>Support the mission</a>
         </div>
-        <a className="button alt" href={donateUrl}>
-          Give Today
-        </a>
+        <div className="impact-grid">
+          {impactPillars.map((pillar) => (
+            <article key={pillar.title} className="event-card">
+              <h4>{pillar.title}</h4>
+              <p>{pillar.detail}</p>
+            </article>
+          ))}
+        </div>
+        <div className="impact-stat-grid">
+          {impactStats.map((stat) => (
+            <div key={stat.label} className="hero-stat">
+              <span>{stat.label}</span>
+              <strong>{stat.value}</strong>
+            </div>
+          ))}
+        </div>
       </article>
 
       <article className="card media-panel">
@@ -190,22 +215,41 @@ export default async function HomePage({
         {videoCards}
       </article>
 
+      <article className="card public-stories">
+        <div className="section-heading">
+          <h3>What Veterans Tell Us</h3>
+          <a href="/about">About the program</a>
+        </div>
+        <div className="impact-grid">
+          {storyCards.map((story, index) => (
+            <article key={story.title} className="event-card story-card">
+              {storyPhotos[index] ? (
+                <a href={storyPhotos[index].viewUrl} target="_blank" rel="noreferrer" className="story-photo">
+                  <img src={storyPhotos[index].imageUrl} alt={story.title} loading="lazy" />
+                </a>
+              ) : null}
+              <h4>{story.title}</h4>
+              <p>{story.body}</p>
+            </article>
+          ))}
+        </div>
+      </article>
+
       <article className="card home-gallery">
         <div className="section-heading">
-          <h3>Warriors In Action</h3>
+          <h3>Photo Journal</h3>
           <a href={siteConfig.social.instagram} target="_blank" rel="noreferrer">
             Follow on Instagram
           </a>
         </div>
-        <p className="muted">Real moments from games, practices, and veteran community events.</p>
         {leadPhoto ? (
           <a href={leadPhoto.viewUrl} target="_blank" rel="noreferrer" className="photo-spotlight">
             <img src={leadPhoto.imageUrl} alt="Warriors spotlight photo" loading="lazy" />
-            <span>See the full gallery</span>
+            <span>See full gallery</span>
           </a>
         ) : null}
         <div className="photo-grid">
-          {photoGrid.map((photo) => (
+          {(galleryPhotos.length > 0 ? galleryPhotos : photoGrid).map((photo) => (
             <a key={photo.id} href={photo.viewUrl} target="_blank" rel="noreferrer" className="photo-card">
               <img src={photo.imageUrl} alt="Warriors action photo" loading="lazy" />
             </a>
@@ -285,6 +329,32 @@ export default async function HomePage({
             <p className="muted">No games scheduled yet. Hockey Ops can create games in the competitions panel.</p>
           ) : null}
         </div>
+      </article>
+
+      <article className="card public-final-cta">
+        <h3>Help Keep Veterans On The Ice</h3>
+        <p>
+          Donations fund direct program costs: ice time, travel, adaptive equipment, and operations that keep this
+          community active all season.
+        </p>
+        <div className="cta-row">
+          <a className="button alt" href={donateUrl}>
+            Donate to the Program
+          </a>
+          <a className="button ghost" href={siteConfig.social.facebook} target="_blank" rel="noreferrer">
+            Follow Program Updates
+          </a>
+          {user ? (
+            <Link className="button" href={user.role === "admin" ? "/admin" : "/player"}>
+              Open Warrior HQ
+            </Link>
+          ) : (
+            <Link className="button" href="/login">
+              Player Log In
+            </Link>
+          )}
+        </div>
+        {query.error ? <p className="muted">{query.error.replaceAll("_", " ")}</p> : null}
       </article>
     </section>
   );
