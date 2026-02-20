@@ -123,7 +123,7 @@ function canScorekeep(actor: Actor, scorekeeperUserId?: string) {
     return true;
   }
 
-  return actor.role === "player" && actor.status === "approved" && Boolean(scorekeeperUserId && actor.id === scorekeeperUserId);
+  return actor.status === "approved" && Boolean(scorekeeperUserId && actor.id === scorekeeperUserId);
 }
 
 export async function updateLiveGameScore(input: {

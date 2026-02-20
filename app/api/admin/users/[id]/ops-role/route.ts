@@ -14,6 +14,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const titleLabel = String(formData.get("titleLabel") ?? "").trim();
   const officialEmail = String(formData.get("officialEmail") ?? "").trim();
   const badgeLabel = String(formData.get("badgeLabel") ?? "").trim();
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=usermanagement";
 
   try {
     if (clearRoles || !roleKey) {
@@ -38,8 +40,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       });
     }
 
-    return NextResponse.redirect(new URL("/admin?section=players&opsrole=updated", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}opsrole=updated`, request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=players&error=ops_role_update_failed", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=ops_role_update_failed`, request.url), 303);
   }
 }

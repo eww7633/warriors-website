@@ -35,10 +35,12 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const rawRows = String(formData.get("rows") ?? "");
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=usermanagement";
   const rows = parseRows(rawRows);
 
   if (rows.length === 0) {
-    return NextResponse.redirect(new URL("/admin?section=players&error=ops_role_rows_required", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=ops_role_rows_required`, request.url), 303);
   }
 
   const store = await readStore();
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const url = new URL("/admin?section=players", request.url);
+  const url = new URL(returnTo, request.url);
   url.searchParams.set("opsrole", "updated");
   url.searchParams.set("opsUpdated", String(updated));
   url.searchParams.set("opsSkipped", String(skipped));

@@ -203,6 +203,10 @@ export default async function CentralRosterPage({
               ? `Number conflict: already assigned to ${query.conflictPlayer ?? "another player"}. Only force overlap if players will not be rostered together in tournaments.`
               : query.error === "shared_tournament_overlap"
               ? `Cannot force number overlap. ${query.conflictPlayer ?? "This player"} shares tournament history with this player: ${query.sharedTournaments ?? "Unknown tournament"}.`
+              : query.error === "primary_sub_roster_required"
+              ? "Primary sub-roster is required (Gold, White, or Black)."
+              : query.error === "headshot_upload_required"
+              ? "External photo URLs are disabled. Use Upload Headshot so photos are stored on this website."
               : query.error.replaceAll("_", " ")}
           </p>
         )}
@@ -211,6 +215,15 @@ export default async function CentralRosterPage({
             Migrate Legacy Roster IDs to Main + Sub-Roster
           </button>
         </form>
+      </article>
+
+      <article className="card">
+        <h3>Simple Player Placement Flow</h3>
+        <ol>
+          <li>In each player row, use <strong>Main + Sub-Roster Assignment</strong> to set jersey number and color roster (Gold/White/Black) in one save.</li>
+          <li>Use <strong>Add Team Assignment</strong> to place them onto season/session/team structures (DVHL, tournaments, etc.).</li>
+          <li>Upload headshots with <strong>Upload Headshot</strong>. External image URLs are disabled.</li>
+        </ol>
       </article>
 
       <article className="card">
@@ -381,6 +394,70 @@ export default async function CentralRosterPage({
             {sorted.map((player) => (
               <tr key={player.id}>
                 <td>
+                  <form className="grid-form" action="/api/admin/roster/assign" method="post">
+                    <input type="hidden" name="userId" value={player.id} />
+                    <input type="hidden" name="fullName" value={player.fullName} />
+                    <strong>Main + Sub-Roster Assignment</strong>
+                    <p className="muted">
+                      One-step placement: Main roster is fixed to Main Player Roster.
+                    </p>
+                    <label>
+                      Main roster
+                      <select name="rosterId" defaultValue={player.rosterId ?? "main-player-roster"}>
+                        {MAIN_ROSTER_OPTIONS.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Primary sub-roster
+                      <select
+                        name="primarySubRoster"
+                        defaultValue={profileExtraByUserId.get(player.id)?.primarySubRoster ?? ""}
+                        required
+                      >
+                        <option value="" disabled>Select color roster</option>
+                        {PRIMARY_SUB_ROSTER_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option.toUpperCase()}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Official jersey number
+                      <input
+                        name="jerseyNumber"
+                        type="number"
+                        min="1"
+                        max="99"
+                        defaultValue={player.jerseyNumber ?? ""}
+                        placeholder="Jersey #"
+                      />
+                    </label>
+                    <label>
+                      Activity
+                      <select name="activityStatus" defaultValue={player.activityStatus}>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="allowCrossColorJerseyOverlap"
+                        defaultChecked={Boolean(profileExtraByUserId.get(player.id)?.allowCrossColorJerseyOverlap)}
+                      />{" "}
+                      Allow cross-color jersey overlap (gold/black policy)
+                    </label>
+                    <label>
+                      <input type="checkbox" name="forceNumberOverlap" /> Allow manual number overlap override
+                    </label>
+                    <button className="button" type="submit">Save Placement</button>
+                  </form>
+
                   <form className="grid-form" action={`/api/admin/users/${player.id}/identity`} method="post">
                     <strong>Identity + Account</strong>
                     <label>
@@ -530,11 +607,8 @@ export default async function CentralRosterPage({
 
                   <form className="grid-form" action="/api/admin/roster/update" method="post">
                     <input type="hidden" name="userId" value={player.id} />
-                    <strong>Main Roster Profile</strong>
-                    <label>
-                      Full name
-                      <input name="fullName" defaultValue={player.fullName} required />
-                    </label>
+                    <input type="hidden" name="fullName" value={player.fullName} />
+                    <strong>Legacy Roster Profile Editor</strong>
                     <label>
                       Main roster
                       <select name="rosterId" defaultValue={player.rosterId ?? "main-player-roster"}>
@@ -656,16 +730,6 @@ export default async function CentralRosterPage({
                       <input type="checkbox" name="makePrimary" defaultChecked /> Set as primary photo
                     </label>
                     <button className="button ghost" type="submit">Upload Headshot</button>
-                  </form>
-
-                  <form className="grid-form" action="/api/admin/roster/photos/add" method="post">
-                    <input type="hidden" name="userId" value={player.id} />
-                    <input name="imageUrl" placeholder="Photo URL (https://...)" required />
-                    <input name="caption" placeholder="Caption (optional)" />
-                    <label>
-                      <input type="checkbox" name="makePrimary" defaultChecked /> Set as primary photo
-                    </label>
-                    <button className="button ghost" type="submit">Add Photo URL</button>
                   </form>
                   {player.photos.length > 0 && (
                     <div className="stack">

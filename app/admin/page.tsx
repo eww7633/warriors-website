@@ -16,7 +16,8 @@ import {
 import {
   competitionTypeLabel,
   listCompetitions,
-  listEligiblePlayers
+  listEligiblePlayers,
+  listEligibleScorekeepers
 } from "@/lib/hq/competitions";
 import { listSportsData } from "@/lib/hq/ops-data";
 import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
@@ -38,16 +39,20 @@ import {
   listDonationIntents,
   listDonationPayments
 } from "@/lib/hq/donations";
+import { listLocalShowcasePhotos } from "@/lib/showcase-photos";
 
 export const dynamic = "force-dynamic";
 
 const sectionDefs = [
   { key: "overview", label: "Command Center", permission: null },
   { key: "dvhl", label: "DVHL", permission: "manage_dvhl" },
-  { key: "events", label: "Event Operations", permission: "manage_events" },
+  { key: "onice", label: "On-Ice Events", permission: "manage_events" },
+  { key: "office", label: "Off-Ice Events", permission: "manage_events" },
   { key: "contacts", label: "People & Onboarding", permission: "manage_site_users" },
+  { key: "usermanagement", label: "User Management", permission: "manage_site_users" },
   { key: "players", label: "Roster & Roles", permission: "manage_players" },
   { key: "news", label: "News", permission: "manage_news" },
+  { key: "media", label: "Media", permission: "manage_media" },
   { key: "sportsdata", label: "Directory", permission: "manage_site_users" },
   { key: "competitions", label: "Other Competitions", permission: "manage_events" },
   { key: "attendance", label: "Attendance", permission: "manage_events" },
@@ -55,6 +60,26 @@ const sectionDefs = [
 ] as const;
 
 type Section = (typeof sectionDefs)[number]["key"];
+
+function isOnIceEventType(name?: string | null) {
+  const value = String(name || "").toLowerCase();
+  if (!value) return false;
+  if (value.includes("dvhl")) return false;
+  return (
+    value.includes("hockey") ||
+    value.includes("tournament") ||
+    value.includes("game") ||
+    value.includes("scrimmage") ||
+    value.includes("practice")
+  );
+}
+
+function isOffIceEventType(name?: string | null) {
+  const value = String(name || "").toLowerCase();
+  if (!value) return true;
+  if (value.includes("dvhl")) return false;
+  return !isOnIceEventType(name);
+}
 
 export default async function AdminPage({
   searchParams
@@ -88,6 +113,7 @@ export default async function AdminPage({
     opsrole?: string;
     opsUpdated?: string;
     opsSkipped?: string;
+    media?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -107,7 +133,8 @@ export default async function AdminPage({
     manage_dvhl: await userHasPermission(user, "manage_dvhl"),
     manage_site_users: await userHasPermission(user, "manage_site_users"),
     manage_fundraising: await userHasPermission(user, "manage_fundraising"),
-    manage_news: await userHasPermission(user, "manage_news")
+    manage_news: await userHasPermission(user, "manage_news"),
+    manage_media: await userHasPermission(user, "manage_media")
   } as const;
 
   const visibleSectionDefs = sectionDefs.filter((entry) => {
@@ -115,21 +142,24 @@ export default async function AdminPage({
     return permissionFlags[entry.permission];
   });
   const defaultSection = (visibleSectionDefs[0]?.key || "overview") as Section;
-  const requestedSection = String(query.section || "");
+  const requestedRawSection = String(query.section || "");
+  const requestedSection = requestedRawSection === "events" ? "onice" : requestedRawSection;
   const section: Section = visibleSectionDefs.some((entry) => entry.key === requestedSection)
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights, rosterReservations, newsPosts] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
     listCompetitions(),
     listEligiblePlayers(),
+    listEligibleScorekeepers(),
     listSportsData(),
     summarizeAttendanceInsights(),
     listRosterReservations(),
-    listAllNewsPosts()
+    listAllNewsPosts(),
+    listLocalShowcasePhotos()
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
   const roleDefinitions = listOpsRoleDefinitions();
@@ -159,6 +189,7 @@ export default async function AdminPage({
   const approvedPlayers = store.users.filter(
     (entry) => entry.status === "approved" && entry.role === "player"
   );
+  const nonPlayerUsers = store.users.filter((entry) => entry.role !== "player");
   const rejectedUsers = store.users.filter((entry) => entry.status === "rejected");
   const usersByEmail = new Map(
     store.users
@@ -218,7 +249,9 @@ export default async function AdminPage({
     query.donation === "saved" ? "Donation record updated." : null,
     query.opsrole === "updated" ? "Ops role assignment updated." : null,
     query.opsUpdated ? `Ops roles imported: ${query.opsUpdated}` : null,
-    query.opsSkipped ? `Ops role rows skipped: ${query.opsSkipped}` : null
+    query.opsSkipped ? `Ops role rows skipped: ${query.opsSkipped}` : null,
+    query.media === "saved" ? "Showcase media uploaded." : null,
+    query.media === "deleted" ? "Showcase media deleted." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -228,6 +261,9 @@ export default async function AdminPage({
     ["Competitions", competitions.length],
     ["Check-ins", store.checkIns.length]
   ] as const;
+  const onIceEvents = allEvents.filter((event) => isOnIceEventType(event.eventTypeName));
+  const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
+  const scopedEvents = section === "onice" ? onIceEvents : section === "office" ? offIceEvents : allEvents;
   const inviteFromEmail = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
 
   return (
@@ -304,9 +340,11 @@ export default async function AdminPage({
             <p className="muted">Recommended daily workflow for any Hockey Ops admin.</p>
             <ol>
               <li><Link href="/admin?section=contacts">People & Onboarding: review imports, send invites, and lock roster spots.</Link></li>
-              <li><Link href="/admin?section=events">Event Operations: create non-DVHL events using Quick Builder.</Link></li>
+              <li><Link href="/admin?section=onice">On-Ice Events: manage tournaments, games, scrimmages, and practices.</Link></li>
+              <li><Link href="/admin?section=office">Off-Ice Events: manage family events, parties, and volunteer opportunities.</Link></li>
               <li><Link href="/admin/dvhl">DVHL: manage seasons, teams, schedule, and sub pools.</Link></li>
-              <li><Link href="/admin?section=players">Roster & Roles: finalize team assignments, roles, and approvals.</Link></li>
+              <li><Link href="/admin?section=players">Roster & Roles: finalize team assignments and player approvals.</Link></li>
+              <li><Link href="/admin?section=usermanagement">User Management: non-player accounts and Ops roles.</Link></li>
               <li><Link href="/admin?section=news">News: publish updates for homepage and supporter visibility.</Link></li>
             </ol>
           </article>
@@ -667,12 +705,12 @@ export default async function AdminPage({
                               </select>
                             </label>
                             <label>
-                              Scorekeeper player/admin
+                              Scorekeeper user account
                               <select name="scorekeeperUserId" defaultValue="">
                                 <option value="">No user assignment</option>
-                                {eligiblePlayers.map((player) => (
-                                  <option key={player.id} value={player.id}>
-                                    {player.fullName}
+                                {eligibleScorekeepers.map((entry) => (
+                                  <option key={entry.id} value={entry.id}>
+                                    {entry.fullName} ({entry.role})
                                   </option>
                                 ))}
                               </select>
@@ -715,11 +753,11 @@ export default async function AdminPage({
                                       </select>
                                     </label>
                                     <label>
-                                      Player/Admin
+                                      User account
                                       <select name="scorekeeperUserId" defaultValue={game.scorekeeperUser?.id || ""}>
                                         <option value="">No user assignment</option>
-                                        {eligiblePlayers.map((player) => (
-                                          <option key={player.id} value={player.id}>{player.fullName}</option>
+                                        {eligibleScorekeepers.map((entry) => (
+                                          <option key={entry.id} value={entry.id}>{entry.fullName} ({entry.role})</option>
                                         ))}
                                       </select>
                                     </label>
@@ -970,12 +1008,61 @@ export default async function AdminPage({
         </div>
       )}
 
-      {section === "events" && (
+      {section === "media" && (
         <div className="stack">
           <article className="card">
-            <h3>Quick Event Builder (Non-DVHL)</h3>
+            <h3>Homepage Showcase Media</h3>
             <p className="muted">
-              Use this for all non-DVHL events. DVHL events and schedule are managed in the dedicated DVHL hub.
+              Upload photos stored directly on this website for homepage sections and cards.
+            </p>
+            <form
+              className="grid-form"
+              action="/api/admin/media/showcase/upload"
+              method="post"
+              encType="multipart/form-data"
+            >
+              <input name="photoFile" type="file" accept="image/*" required />
+              <button className="button" type="submit">Upload Showcase Photo</button>
+            </form>
+          </article>
+          <article className="card">
+            <h3>Current Showcase Library</h3>
+            {showcasePhotos.length === 0 ? (
+              <p className="muted">No local showcase photos yet. Upload at least one image.</p>
+            ) : (
+              <div className="about-card-grid">
+                {showcasePhotos.map((photo) => (
+                  <article key={photo.id} className="event-card stack">
+                    <img src={photo.imageUrl} alt={photo.fileName} style={{ width: "100%", borderRadius: "10px" }} />
+                    <p className="muted">{photo.fileName}</p>
+                    <div className="cta-row">
+                      <a className="button ghost" href={photo.viewUrl} target="_blank" rel="noreferrer">
+                        Open
+                      </a>
+                      <form action="/api/admin/media/showcase/delete" method="post">
+                        <input type="hidden" name="fileName" value={photo.fileName} />
+                        <button className="button alt" type="submit">Delete</button>
+                      </form>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </article>
+        </div>
+      )}
+
+      {(section === "onice" || section === "office") && (
+        <div className="stack">
+          {(() => {
+            const eventScope = section === "onice" ? "onice" : "office";
+            const returnSection = section;
+            return (
+          <>
+          <article className="card">
+            <h3>{eventScope === "onice" ? "Quick On-Ice Event Builder" : "Quick Off-Ice Event Builder"}</h3>
+            <p className="muted">
+              Use this for all non-DVHL events in this category. DVHL events and schedule are managed in the dedicated DVHL hub.
             </p>
             <p>
               <Link className="button ghost" href="/admin/dvhl">
@@ -983,7 +1070,7 @@ export default async function AdminPage({
               </Link>
             </p>
             <form className="grid-form" action="/api/admin/events/quick" method="post">
-              <input type="hidden" name="returnTo" value="/admin?section=events" />
+              <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
               <input name="title" placeholder="Event title" required />
               <label>
                 Date/time
@@ -992,11 +1079,18 @@ export default async function AdminPage({
               <input name="locationPublic" placeholder="Location (optional)" />
               <label>
                 Event template
-                <select name="eventKind" defaultValue="off_ice">
-                  <option value="off_ice">Off-Ice Community Event (Straight RSVP)</option>
-                  <option value="volunteer">Volunteer Event (Straight RSVP)</option>
-                  <option value="hockey_interest">Hockey Event (Interest Gathering)</option>
-                  <option value="hockey_rsvp">Hockey Event (Straight RSVP)</option>
+                <select name="eventKind" defaultValue={eventScope === "onice" ? "hockey_interest" : "off_ice"}>
+                  {eventScope === "onice" ? (
+                    <>
+                      <option value="hockey_interest">Tournament / Game (Interest Gathering)</option>
+                      <option value="hockey_rsvp">Practice / Scrimmage (Straight RSVP)</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="off_ice">Family / Community Event (Straight RSVP)</option>
+                      <option value="volunteer">Volunteer Opportunity (Straight RSVP)</option>
+                    </>
+                  )}
                 </select>
               </label>
               <button className="button" type="submit">Create Quick Event</button>
@@ -1100,7 +1194,7 @@ export default async function AdminPage({
             <summary>Event Manager</summary>
             <h3>Current Event Feed Inventory</h3>
             <div className="stack">
-              {allEvents.map((event) => (
+              {scopedEvents.map((event) => (
                 <details key={event.id} className="event-card admin-disclosure">
                   <summary>{event.title} | {new Date(event.date).toLocaleString()}</summary>
                   {(() => {
@@ -1258,7 +1352,7 @@ export default async function AdminPage({
                       )}
                       <form className="grid-form" action="/api/admin/events/interest-roster/select" method="post">
                         <input type="hidden" name="eventId" value={event.id} />
-                        <input type="hidden" name="returnTo" value="/admin?section=events" />
+                        <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
                         <div className="stack">
                           {(reservationBoards.byEvent[event.id] || [])
                             .filter((entry) => entry.status !== "not_going")
@@ -1319,7 +1413,7 @@ export default async function AdminPage({
                   </form>
                 </details>
               ))}
-              {allEvents.length === 0 && <p className="muted">No events yet.</p>}
+              {scopedEvents.length === 0 && <p className="muted">No events in this category yet.</p>}
             </div>
           </details>
 
@@ -1331,6 +1425,155 @@ export default async function AdminPage({
               Only events marked <strong>Public</strong> and <strong>Published</strong> appear in this feed.
             </p>
           </details>
+          </>
+            ); 
+          })()}
+        </div>
+      )}
+
+      {section === "usermanagement" && (
+        <div className="stack">
+          <article className="card">
+            <h3>Non-Player User Management</h3>
+            <p className="muted">
+              Manage users who are not players, plus role-based access to Hockey Ops tools.
+            </p>
+            <p className="muted">
+              To make someone both player + admin, keep account role as <strong>player</strong> and assign Ops role(s)
+              below. They will keep Player Hub and also gain Hockey Ops access.
+            </p>
+          </article>
+
+          <details className="card admin-disclosure" open>
+            <summary>Access Controls (Non-Players)</summary>
+            <div className="stack">
+              {nonPlayerUsers.map((member) => (
+                <form
+                  key={member.id}
+                  className="event-card grid-form"
+                  action={`/api/admin/users/${member.id}/access`}
+                  method="post"
+                >
+                  <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
+                  <strong>{member.fullName}</strong>
+                  <p>{member.email}</p>
+                  <p>Current role: {member.role} | Status: {member.status}</p>
+                  <p>
+                    Ops roles: {(roleAssignmentsByUserId.get(member.id) || []).length > 0
+                      ? roleAssignmentsByUserId.get(member.id)!.map((entry) => entry.titleLabel).join(", ")
+                      : "None"}
+                  </p>
+                  <label>
+                    Set role
+                    <select name="role" defaultValue={member.role}>
+                      <option value="public">Public</option>
+                      <option value="player">Player</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </label>
+                  <button className="button ghost" type="submit">Update Access</button>
+                </form>
+              ))}
+              {nonPlayerUsers.length === 0 ? <p className="muted">No non-player users yet.</p> : null}
+            </div>
+          </details>
+
+          {actorIsSuperAdmin ? (
+            <details className="card admin-disclosure" open>
+              <summary>Player + Admin Access</summary>
+              <p className="muted">
+                Keep player role as <strong>player</strong>. Assign one or more Ops roles below to grant Hockey Ops HQ access
+                while preserving Player HQ access.
+              </p>
+              <div className="stack">
+                {approvedPlayers.map((member) => (
+                  <form
+                    key={`${member.id}-player-ops-role`}
+                    className="event-card grid-form"
+                    action={`/api/admin/users/${member.id}/ops-role`}
+                    method="post"
+                  >
+                    <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
+                    <strong>{member.fullName}</strong>
+                    <p>{member.email}</p>
+                    <p>
+                      Base role: {member.role} | Current Ops roles: {(roleAssignmentsByUserId.get(member.id) || []).length > 0
+                        ? roleAssignmentsByUserId.get(member.id)!.map((entry) => entry.titleLabel).join(", ")
+                        : "None"}
+                    </p>
+                    <label>
+                      Assign Ops role
+                      <select name="roleKey" defaultValue="">
+                        <option value="">Select role</option>
+                        {roleDefinitions.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <input name="titleLabel" placeholder="Title label override (optional)" />
+                    <input name="officialEmail" placeholder="Official team email (optional)" />
+                    <input name="badgeLabel" placeholder="Badge label (optional)" />
+                    <label>
+                      <input name="clearRoles" type="checkbox" /> Clear all ops roles for this player
+                    </label>
+                    <button className="button ghost" type="submit">Save Player Ops Role</button>
+                  </form>
+                ))}
+                {approvedPlayers.length === 0 ? <p className="muted">No approved players yet.</p> : null}
+              </div>
+            </details>
+          ) : null}
+
+          {actorIsSuperAdmin ? (
+            <details className="card admin-disclosure" open>
+              <summary>Ops Role Assignments</summary>
+              <form className="grid-form event-card" action="/api/admin/ops-roles/import" method="post">
+                <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
+                <strong>Bulk import ops roles</strong>
+                <textarea
+                  name="rows"
+                  rows={6}
+                  placeholder={`email,roleKey,titleLabel,officialEmail,badgeLabel\neww7633@yahoo.com,president,President,president@pghwarriorhockey.org,President`}
+                  required
+                />
+                <button className="button" type="submit">Import Ops Roles</button>
+              </form>
+              <div className="stack">
+                {store.users.map((member) => (
+                  <form
+                    key={`${member.id}-ops-role-usermanagement`}
+                    className="event-card grid-form"
+                    action={`/api/admin/users/${member.id}/ops-role`}
+                    method="post"
+                  >
+                    <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
+                    <strong>{member.fullName}</strong>
+                    <p>{member.email}</p>
+                    <label>
+                      Role
+                      <select name="roleKey" defaultValue="">
+                        <option value="">Select role</option>
+                        {roleDefinitions.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <input name="titleLabel" placeholder="Title label override (optional)" />
+                    <input name="officialEmail" placeholder="Official team email (optional)" />
+                    <input name="badgeLabel" placeholder="Badge label (optional)" />
+                    <label>
+                      <input name="clearRoles" type="checkbox" /> Clear all ops roles for this user
+                    </label>
+                    <button className="button ghost" type="submit">Save Ops Roles</button>
+                  </form>
+                ))}
+              </div>
+            </details>
+          ) : null}
         </div>
       )}
 

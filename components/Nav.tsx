@@ -9,6 +9,8 @@ export async function Nav() {
   const user = await getCurrentUser();
   const hasSession = Boolean(user);
   const hasAdminAccess = user ? await canAccessAdminPanel(user) : false;
+  const canAccessPlayerHub = Boolean(user && user.status === "approved" && (user.role === "player" || user.role === "admin" || hasAdminAccess));
+  const canSwitchHubs = Boolean(hasSession && hasAdminAccess && canAccessPlayerHub);
   const publicLinks = [
     ["Donate", "/donate"],
     ["Partners", "/partners"],
@@ -33,7 +35,7 @@ export async function Nav() {
     ["Facebook", siteConfig.social.facebook]
   ] as const;
 
-  const authPrimaryLabel = hasSession ? "HQ" : "Join";
+  const authPrimaryLabel = hasSession ? (hasAdminAccess ? "Hockey Ops" : "HQ") : "Join";
   const authPrimaryHref = hasSession ? (hasAdminAccess ? "/admin" : "/player") : "/join";
   const authSecondaryLabel = hasSession ? "Log Out" : "Login";
   const authSecondaryHref = hasSession ? null : "/login";
@@ -105,9 +107,20 @@ export async function Nav() {
         <ThemeToggle />
 
         <div className="auth-actions">
-          <Link className="button ghost" href={authPrimaryHref}>
-            {authPrimaryLabel}
-          </Link>
+          {canSwitchHubs ? (
+            <>
+              <Link className="button ghost" href="/player">
+                Player HQ
+              </Link>
+              <Link className="button ghost" href="/admin">
+                Hockey Ops
+              </Link>
+            </>
+          ) : (
+            <Link className="button ghost" href={authPrimaryHref}>
+              {authPrimaryLabel}
+            </Link>
+          )}
           {hasSession ? (
             <form action="/api/auth/logout" method="post">
               <button className="button" type="submit">{authSecondaryLabel}</button>
@@ -142,9 +155,20 @@ export async function Nav() {
                   <Link href={href}>{label}</Link>
                 </li>
               ))}
-              <li>
-                <Link href={authPrimaryHref}>{authPrimaryLabel}</Link>
-              </li>
+              {canSwitchHubs ? (
+                <>
+                  <li>
+                    <Link href="/player">Player HQ</Link>
+                  </li>
+                  <li>
+                    <Link href="/admin">Hockey Ops</Link>
+                  </li>
+                </>
+              ) : (
+                <li>
+                  <Link href={authPrimaryHref}>{authPrimaryLabel}</Link>
+                </li>
+              )}
               {hasSession ? (
                 <li>
                   <form action="/api/auth/logout" method="post">
@@ -184,6 +208,16 @@ export async function Nav() {
                 <Link href={href}>{label}</Link>
               </li>
             ))}
+            {canSwitchHubs ? (
+              <>
+                <li>
+                  <Link href="/player">Player HQ</Link>
+                </li>
+                <li>
+                  <Link href="/admin">Hockey Ops</Link>
+                </li>
+              </>
+            ) : null}
           </ul>
         </nav>
       ) : null}

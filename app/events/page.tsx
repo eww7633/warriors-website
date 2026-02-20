@@ -39,6 +39,8 @@ export default async function EventsPage() {
   const events = await getPublicPublishedEvents();
   const signupConfigByEvent = await getEventSignupConfigMap(events.map((event) => event.id));
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
+  const calendarIcsUrl = `${baseUrl}/api/public/events/ics`;
+  const calendarWebcalUrl = calendarIcsUrl.replace(/^https?:\/\//i, "webcal://");
   const upcoming = events
     .filter((event) => new Date(event.date).getTime() >= Date.now())
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -69,6 +71,14 @@ export default async function EventsPage() {
         <p className="hero-lead">
           Explore a live community calendar with color-coded event types, detailed venue maps, and one-click add-to-calendar tools.
         </p>
+        <div className="cta-row">
+          <a className="button alt" href={calendarWebcalUrl}>
+            Subscribe to Calendar
+          </a>
+          <a className="button ghost" href={calendarIcsUrl}>
+            Download Calendar (.ics)
+          </a>
+        </div>
         <div className="events-hero-bands">
           <span className="band dvhl">DVHL</span>
           <span className="band national">National Tournaments</span>

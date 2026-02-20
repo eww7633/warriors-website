@@ -21,6 +21,10 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/admin/roster?error=invalid_photo_payload", request.url), 303);
   }
 
+  if (!imageUrl.startsWith("/uploads/headshots/")) {
+    return NextResponse.redirect(new URL("/admin/roster?error=headshot_upload_required", request.url), 303);
+  }
+
   try {
     await addPlayerPhoto({
       userId,

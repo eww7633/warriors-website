@@ -24,7 +24,7 @@ export default async function GamesPage({
           const canScorekeep = Boolean(
             user &&
               (user.role === "admin" ||
-                (user.role === "player" && user.status === "approved" && game.scorekeeperUserId === user.id))
+                (user.status === "approved" && game.scorekeeperUserId === user.id))
           );
 
           return (

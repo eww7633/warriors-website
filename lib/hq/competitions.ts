@@ -259,8 +259,8 @@ export async function assignGameScorekeeper(input: {
       select: { role: true, status: true }
     });
 
-    if (!user || (user.role !== "player" && user.role !== "admin") || user.status !== "approved") {
-      throw new Error("Scorekeeper must be an approved player or admin.");
+    if (!user || user.status !== "approved") {
+      throw new Error("Scorekeeper must be an approved HQ user.");
     }
 
     return getPrismaClient().competitionGame.update({
@@ -418,6 +418,25 @@ export async function listEligiblePlayers() {
       email: true,
       rosterId: true,
       jerseyNumber: true
+    }
+  });
+}
+
+export async function listEligibleScorekeepers() {
+  if (!hasDatabaseUrl()) {
+    return [];
+  }
+
+  return getPrismaClient().user.findMany({
+    where: {
+      status: "approved"
+    },
+    orderBy: { fullName: "asc" },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      role: true
     }
   });
 }
