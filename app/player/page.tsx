@@ -31,6 +31,7 @@ const sections = [
   ["overview", "Overview"],
   ["profile", "Profile"],
   ["events", "Events"],
+  ["dvhl", "DVHL"],
   ["teams", "Teams"],
   ["gear", "Gear"]
 ] as const;
@@ -453,6 +454,20 @@ export default async function PlayerPage({
             ) : null}
           </div>
         )}
+      </article>
+      )}
+
+      {section === "dvhl" && (
+      <article className="card">
+        <h3>DVHL Hub</h3>
+        <p className="muted">
+          Use the dedicated DVHL view for team assignments, standings, schedule, and sub volunteer management.
+        </p>
+        <p>
+          <Link className="button" href="/player/dvhl">
+            Open DVHL Hub
+          </Link>
+        </p>
       </article>
       )}
 

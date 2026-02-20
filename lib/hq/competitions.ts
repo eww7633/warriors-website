@@ -121,6 +121,41 @@ export async function createDvhl(input: {
   });
 }
 
+export async function addTeamToCompetition(input: {
+  competitionId: string;
+  name: string;
+  colorTag?: string;
+  rosterMode?: string;
+}) {
+  ensureDbMode();
+
+  const competition = await getPrismaClient().competition.findUnique({
+    where: { id: input.competitionId },
+    select: { id: true, type: true }
+  });
+
+  if (!competition) {
+    throw new Error("Competition not found.");
+  }
+
+  return getPrismaClient().competitionTeam.create({
+    data: {
+      competitionId: competition.id,
+      name: input.name,
+      colorTag: input.colorTag || undefined,
+      rosterMode: input.rosterMode || (competition.type === "DVHL" ? "DVHL_DRAFT" : undefined)
+    }
+  });
+}
+
+export async function removeCompetitionTeam(input: { teamId: string }) {
+  ensureDbMode();
+
+  return getPrismaClient().competitionTeam.delete({
+    where: { id: input.teamId }
+  });
+}
+
 export async function listCompetitions() {
   if (!hasDatabaseUrl()) {
     return [];
@@ -279,6 +314,19 @@ export async function assignPlayerToCompetitionTeam(input: { teamId: string; use
     create: {
       teamId: input.teamId,
       userId: input.userId
+    }
+  });
+}
+
+export async function removePlayerFromCompetitionTeam(input: { teamId: string; userId: string }) {
+  ensureDbMode();
+
+  return getPrismaClient().competitionTeamMember.delete({
+    where: {
+      teamId_userId: {
+        teamId: input.teamId,
+        userId: input.userId
+      }
     }
   });
 }

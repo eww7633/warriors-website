@@ -3,6 +3,11 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { addDvhlSubPoolMember, removeDvhlSubPoolMember } from "@/lib/hq/dvhl";
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
   if (!actor || !(await canAccessAdminPanel(actor))) {
@@ -16,9 +21,11 @@ export async function POST(request: Request) {
   const teamId = String(formData.get("teamId") ?? "").trim();
   const userId = String(formData.get("userId") ?? "").trim();
   const action = String(formData.get("action") ?? "add").trim();
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
 
   if (!teamId || !userId) {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_dvhl_subpool_fields", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "missing_dvhl_subpool_fields"), request.url), 303);
   }
 
   try {
@@ -28,8 +35,8 @@ export async function POST(request: Request) {
       await addDvhlSubPoolMember({ teamId, userId, updatedByUserId: actor.id });
     }
 
-    return NextResponse.redirect(new URL("/admin?section=competitions&dvhl=subpool_saved", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "dvhl", "subpool_saved"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=dvhl_subpool_save_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "dvhl_subpool_save_failed"), request.url), 303);
   }
 }

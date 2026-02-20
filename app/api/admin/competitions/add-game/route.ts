@@ -3,6 +3,11 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { addCompetitionGameForTeam } from "@/lib/hq/competitions";
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
   if (!actor || !(await canAccessAdminPanel(actor))) {
@@ -20,9 +25,11 @@ export async function POST(request: Request) {
   const scorekeeperType = String(formData.get("scorekeeperType") ?? "none").trim();
   const scorekeeperUserId = String(formData.get("scorekeeperUserId") ?? "").trim();
   const scorekeeperStaffId = String(formData.get("scorekeeperStaffId") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
 
   if (!teamId || !opponent) {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_game_fields", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "missing_game_fields"), request.url), 303);
   }
 
   try {
@@ -36,8 +43,8 @@ export async function POST(request: Request) {
       scorekeeperStaffId: scorekeeperType === "staff" ? scorekeeperStaffId : undefined
     });
 
-    return NextResponse.redirect(new URL("/admin?section=competitions&game=created", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "game", "created"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=game_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "game_create_failed"), request.url), 303);
   }
 }

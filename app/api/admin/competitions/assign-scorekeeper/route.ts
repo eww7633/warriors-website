@@ -3,6 +3,11 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { assignGameScorekeeper } from "@/lib/hq/competitions";
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
   if (!actor || !(await canAccessAdminPanel(actor))) {
@@ -16,9 +21,11 @@ export async function POST(request: Request) {
   const scorekeeperType = String(formData.get("scorekeeperType") ?? "none").trim();
   const scorekeeperUserId = String(formData.get("scorekeeperUserId") ?? "").trim();
   const scorekeeperStaffId = String(formData.get("scorekeeperStaffId") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
 
   if (!gameId) {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_game_id", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "missing_game_id"), request.url), 303);
   }
 
   try {
@@ -29,8 +36,8 @@ export async function POST(request: Request) {
       scorekeeperStaffId
     });
 
-    return NextResponse.redirect(new URL("/admin?section=competitions&scorekeeper=saved", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "scorekeeper", "saved"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=scorekeeper_assign_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "scorekeeper_assign_failed"), request.url), 303);
   }
 }

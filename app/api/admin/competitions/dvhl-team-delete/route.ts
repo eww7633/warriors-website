@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { setDvhlTeamCaptain } from "@/lib/hq/dvhl";
+import { removeCompetitionTeam } from "@/lib/hq/competitions";
+
+function basePath(formData: { get: (name: string) => FormDataEntryValue | null }) {
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  if (returnTo.startsWith("/")) {
+    return returnTo;
+  }
+  return "/admin/dvhl?tab=teams";
+}
 
 function withParam(path: string, key: string, value: string) {
   const sep = path.includes("?") ? "&" : "?";
@@ -19,23 +27,16 @@ export async function POST(request: Request) {
   };
 
   const teamId = String(formData.get("teamId") ?? "").trim();
-  const captainUserId = String(formData.get("captainUserId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "").trim();
-  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
+  const target = basePath(formData);
 
   if (!teamId) {
     return NextResponse.redirect(new URL(withParam(target, "error", "missing_team_id"), request.url), 303);
   }
 
   try {
-    await setDvhlTeamCaptain({
-      teamId,
-      captainUserId: captainUserId || undefined,
-      updatedByUserId: actor.id
-    });
-
-    return NextResponse.redirect(new URL(withParam(target, "dvhl", "captain_saved"), request.url), 303);
+    await removeCompetitionTeam({ teamId });
+    return NextResponse.redirect(new URL(withParam(target, "dvhl", "team_removed"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL(withParam(target, "error", "dvhl_captain_save_failed"), request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "team_remove_failed"), request.url), 303);
   }
 }

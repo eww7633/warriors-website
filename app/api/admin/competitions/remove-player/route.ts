@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { assignPlayerToCompetitionTeam } from "@/lib/hq/competitions";
+import { removePlayerFromCompetitionTeam } from "@/lib/hq/competitions";
+
+function basePath(formData: { get: (name: string) => FormDataEntryValue | null }) {
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  if (returnTo.startsWith("/")) {
+    return returnTo;
+  }
+  return "/admin/dvhl?tab=teams";
+}
 
 function withParam(path: string, key: string, value: string) {
   const sep = path.includes("?") ? "&" : "?";
@@ -17,19 +25,19 @@ export async function POST(request: Request) {
   const formData = (await request.formData()) as unknown as {
     get: (name: string) => FormDataEntryValue | null;
   };
+
   const teamId = String(formData.get("teamId") ?? "").trim();
   const userId = String(formData.get("userId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "").trim();
-  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
+  const target = basePath(formData);
 
   if (!teamId || !userId) {
     return NextResponse.redirect(new URL(withParam(target, "error", "missing_assignment_fields"), request.url), 303);
   }
 
   try {
-    await assignPlayerToCompetitionTeam({ teamId, userId });
-    return NextResponse.redirect(new URL(withParam(target, "assignment", "saved"), request.url), 303);
+    await removePlayerFromCompetitionTeam({ teamId, userId });
+    return NextResponse.redirect(new URL(withParam(target, "assignment", "removed"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL(withParam(target, "error", "assignment_failed"), request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "assignment_remove_failed"), request.url), 303);
   }
 }

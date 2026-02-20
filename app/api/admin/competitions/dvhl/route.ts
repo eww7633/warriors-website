@@ -3,6 +3,11 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { createDvhl } from "@/lib/hq/competitions";
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
   if (!actor || !(await canAccessAdminPanel(actor))) {
@@ -15,6 +20,8 @@ export async function POST(request: Request) {
   const title = String(formData.get("title") ?? "").trim();
   const startsAt = String(formData.get("startsAt") ?? "").trim();
   const notes = String(formData.get("notes") ?? "").trim();
+  const returnTo = String(formData.get("returnTo") ?? "").trim();
+  const target = returnTo.startsWith("/") ? returnTo : "/admin?section=competitions";
 
   const teamNames: [string, string, string, string] = [
     String(formData.get("team1") ?? "").trim(),
@@ -24,13 +31,13 @@ export async function POST(request: Request) {
   ];
 
   if (!title) {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=missing_dvhl_title", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "missing_dvhl_title"), request.url), 303);
   }
 
   try {
     await createDvhl({ title, startsAt, notes, teamNames });
-    return NextResponse.redirect(new URL("/admin?section=competitions&competition=created", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "competition", "created"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=competitions&error=dvhl_create_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(target, "error", "dvhl_create_failed"), request.url), 303);
   }
 }

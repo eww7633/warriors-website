@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { readStore } from "@/lib/hq/store";
 import { getAllEvents, listEventTypes } from "@/lib/hq/events";
+import { listAllNewsPosts } from "@/lib/hq/news";
 import {
   canEventCollectGuests,
   getEventGuestIntentMap,
@@ -42,9 +43,11 @@ export const dynamic = "force-dynamic";
 
 const sectionDefs = [
   { key: "overview", label: "Overview", permission: null },
-  { key: "sportsdata", label: "Sports Data", permission: "manage_site_users" },
+  { key: "dvhl", label: "DVHL", permission: "manage_dvhl" },
+  { key: "sportsdata", label: "Directory", permission: "manage_site_users" },
   { key: "contacts", label: "Contacts", permission: "manage_site_users" },
-  { key: "competitions", label: "Competitions", permission: "manage_events" },
+  { key: "news", label: "News", permission: "manage_news" },
+  { key: "competitions", label: "Other Competitions", permission: "manage_events" },
   { key: "events", label: "Events", permission: "manage_events" },
   { key: "players", label: "Players", permission: "manage_players" },
   { key: "attendance", label: "Attendance", permission: "manage_events" },
@@ -101,8 +104,10 @@ export default async function AdminPage({
   const permissionFlags = {
     manage_players: await userHasPermission(user, "manage_players"),
     manage_events: await userHasPermission(user, "manage_events"),
+    manage_dvhl: await userHasPermission(user, "manage_dvhl"),
     manage_site_users: await userHasPermission(user, "manage_site_users"),
-    manage_fundraising: await userHasPermission(user, "manage_fundraising")
+    manage_fundraising: await userHasPermission(user, "manage_fundraising"),
+    manage_news: await userHasPermission(user, "manage_news")
   } as const;
 
   const visibleSectionDefs = sectionDefs.filter((entry) => {
@@ -115,7 +120,7 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights, rosterReservations] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights, rosterReservations, newsPosts] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
@@ -123,7 +128,8 @@ export default async function AdminPage({
     listEligiblePlayers(),
     listSportsData(),
     summarizeAttendanceInsights(),
-    listRosterReservations()
+    listRosterReservations(),
+    listAllNewsPosts()
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
   const roleDefinitions = listOpsRoleDefinitions();
@@ -197,6 +203,7 @@ export default async function AdminPage({
     query.contact === "invited" ? "Contact marked as invited." : null,
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
+    query.contact === "roster_locked" ? "Contact added to main roster queue with jersey lock." : null,
     query.userrole === "updated" ? "User role updated." : null,
     query.eventtype === "created" ? "Event type created." : null,
     query.imported ? `Imported roster locks: ${query.imported}` : null,
@@ -290,6 +297,26 @@ export default async function AdminPage({
             <li>Events in HQ: {allEvents.length}</li>
             <li>Competitions: {competitions.length}</li>
           </ul>
+        </article>
+      )}
+
+      {section === "dvhl" && (
+        <article className="card">
+          <h3>DVHL Hub</h3>
+          <p className="muted">
+            DVHL operations now live in a dedicated module with its own sidebar and workflow.
+          </p>
+          <ul>
+            <li>Dashboard with season status and standings</li>
+            <li>Create seasons, add teams, assign captains and players</li>
+            <li>Team roster pages, schedule builder, scorekeeper assignment</li>
+            <li>Sub pool management for captain and volunteer workflows</li>
+          </ul>
+          <p>
+            <Link className="button" href="/admin/dvhl">
+              Open DVHL Hub
+            </Link>
+          </p>
         </article>
       )}
 
@@ -790,6 +817,23 @@ export default async function AdminPage({
                         : "No matching account yet. Ask them to register first with this exact email."}
                     </p>
                     <p className="muted">Invite sender account: {inviteFromEmail}</p>
+                    <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
+                      <input type="hidden" name="contactLeadId" value={lead.id} />
+                      <label>
+                        Assign jersey number
+                        <input name="jerseyNumber" type="number" min={1} max={99} required />
+                      </label>
+                      <label>
+                        Primary sub-roster
+                        <select name="primarySubRoster" defaultValue="" required>
+                          <option value="" disabled>Select sub-roster</option>
+                          <option value="gold">Gold</option>
+                          <option value="white">White</option>
+                          <option value="black">Black</option>
+                        </select>
+                      </label>
+                      <button className="button ghost" type="submit">Add To Main Roster Queue</button>
+                    </form>
                     {lead.linkedUserId ? (
                       <details className="event-card admin-disclosure">
                         <summary>Linked user onboarding checklist</summary>
@@ -858,6 +902,57 @@ export default async function AdminPage({
                 ))}
               </div>
             )}
+          </article>
+        </div>
+      )}
+
+      {section === "news" && (
+        <div className="stack">
+          <article className="card">
+            <h3>Create News Post</h3>
+            <form className="grid-form" action="/api/admin/news/create" method="post">
+              <input name="title" placeholder="Headline" required />
+              <input name="slug" placeholder="Custom slug (optional)" />
+              <input name="summary" placeholder="Short summary" required />
+              <textarea name="body" rows={8} placeholder="Full story body" required />
+              <input name="coverImageUrl" placeholder="Cover image URL (optional)" />
+              <input name="videoUrl" placeholder="Video URL (optional)" />
+              <input name="galleryImageUrls" placeholder="Gallery image URLs (comma-separated)" />
+              <input name="tags" placeholder="Tags (comma-separated)" />
+              <label>
+                <input name="published" type="checkbox" defaultChecked /> Publish immediately
+              </label>
+              <button className="button" type="submit">Create Post</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Manage News Posts</h3>
+            <div className="stack">
+              {newsPosts.map((post) => (
+                <form key={post.id} className="event-card grid-form" action="/api/admin/news/update" method="post">
+                  <input type="hidden" name="postId" value={post.id} />
+                  <input name="title" defaultValue={post.title} required />
+                  <input name="slug" defaultValue={post.slug} />
+                  <input name="summary" defaultValue={post.summary} required />
+                  <textarea name="body" rows={6} defaultValue={post.body} required />
+                  <input name="coverImageUrl" defaultValue={post.coverImageUrl || ""} />
+                  <input name="videoUrl" defaultValue={post.videoUrl || ""} />
+                  <input name="galleryImageUrls" defaultValue={post.galleryImageUrls.join(",")} />
+                  <input name="tags" defaultValue={post.tags.join(",")} />
+                  <label>
+                    <input name="published" type="checkbox" defaultChecked={post.published} /> Published
+                  </label>
+                  <div className="cta-row">
+                    <button className="button ghost" type="submit">Save Post</button>
+                    <button className="button alt" type="submit" formAction="/api/admin/news/delete" name="postId" value={post.id}>
+                      Delete
+                    </button>
+                  </div>
+                </form>
+              ))}
+              {newsPosts.length === 0 ? <p className="muted">No news posts yet.</p> : null}
+            </div>
           </article>
         </div>
       )}
