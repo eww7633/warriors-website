@@ -5,7 +5,7 @@ import { addCompetitionGameForTeam } from "@/lib/hq/competitions";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || !canAccessAdminPanel(actor)) {
+  if (!actor || !(await canAccessAdminPanel(actor))) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 

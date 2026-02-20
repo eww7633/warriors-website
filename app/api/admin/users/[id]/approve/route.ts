@@ -12,7 +12,7 @@ export async function POST(
 ) {
   const actor = await getCurrentUser();
 
-  if (!actor || !canAccessAdminPanel(actor)) {
+  if (!actor || !(await canAccessAdminPanel(actor))) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 

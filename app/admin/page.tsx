@@ -71,7 +71,7 @@ export default async function AdminPage({
     redirect("/login?error=sign_in_required");
   }
 
-  if (!canAccessAdminPanel(user)) {
+  if (!(await canAccessAdminPanel(user))) {
     redirect("/player?error=admin_required");
   }
 

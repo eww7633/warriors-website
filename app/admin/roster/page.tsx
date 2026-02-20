@@ -53,7 +53,7 @@ export default async function CentralRosterPage({
     redirect("/login?error=sign_in_required");
   }
 
-  if (!canAccessAdminPanel(user)) {
+  if (!(await canAccessAdminPanel(user))) {
     redirect("/player?error=admin_required");
   }
 

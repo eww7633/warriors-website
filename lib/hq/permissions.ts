@@ -107,6 +107,12 @@ const ROLE_DEFS: Record<OpsRoleKey, { label: string; permissions: OpsPermission[
 };
 
 function storePath() {
+  if (process.env.OPS_ROLE_STORE_PATH) {
+    return process.env.OPS_ROLE_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/ops-roles.json";
+  }
   return path.join(process.cwd(), "data", "ops-roles.json");
 }
 

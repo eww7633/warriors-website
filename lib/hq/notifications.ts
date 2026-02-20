@@ -45,6 +45,12 @@ function nowIso() {
 }
 
 function storePath() {
+  if (process.env.NOTIFICATION_STORE_PATH) {
+    return process.env.NOTIFICATION_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/notification-preferences.json";
+  }
   return path.join(process.cwd(), "data", "notification-preferences.json");
 }
 

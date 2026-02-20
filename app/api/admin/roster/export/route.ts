@@ -4,7 +4,7 @@ import { listCentralRosterPlayers } from "@/lib/hq/roster";
 
 export async function GET(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || !canAccessAdminPanel(actor)) {
+  if (!actor || !(await canAccessAdminPanel(actor))) {
     return new Response("Unauthorized", { status: 401 });
   }
 

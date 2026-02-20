@@ -69,6 +69,12 @@ function nowIso() {
 }
 
 function profileStorePath() {
+  if (process.env.PLAYER_PROFILE_STORE_PATH) {
+    return process.env.PLAYER_PROFILE_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/player-profiles.json";
+  }
   return path.join(process.cwd(), "data", "player-profiles.json");
 }
 

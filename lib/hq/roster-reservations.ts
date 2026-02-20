@@ -33,6 +33,12 @@ function nowIso() {
 }
 
 function storePath() {
+  if (process.env.ROSTER_RESERVATION_STORE_PATH) {
+    return process.env.ROSTER_RESERVATION_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/roster-reservations.json";
+  }
   return path.join(process.cwd(), "data", "roster-reservations.json");
 }
 

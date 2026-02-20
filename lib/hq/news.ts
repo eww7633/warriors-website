@@ -28,6 +28,12 @@ const defaultStore: NewsStore = {
 };
 
 function storePath() {
+  if (process.env.NEWS_STORE_PATH) {
+    return process.env.NEWS_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/news-posts.json";
+  }
   return path.join(process.cwd(), "data", "news-posts.json");
 }
 
