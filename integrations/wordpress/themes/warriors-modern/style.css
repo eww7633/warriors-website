@@ -3,7 +3,7 @@ Theme Name: Warriors Modern
 Theme URI: https://pghwarriorhockey.us
 Author: Warriors HQ
 Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
-Version: 1.0.3
+Version: 1.0.4
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -33,6 +33,20 @@ body {
 }
 body, p, li, h1, h2, h3, h4, h5, h6, .wm-page-content, .wm-page-content p, .wm-page-content li {
   color: var(--wm-ink);
+}
+.wm-header,
+.wm-main,
+.wm-footer,
+.wm-header p,
+.wm-main p,
+.wm-footer p,
+.wm-header li,
+.wm-main li,
+.wm-footer li,
+.wm-header h1, .wm-header h2, .wm-header h3, .wm-header h4,
+.wm-main h1, .wm-main h2, .wm-main h3, .wm-main h4,
+.wm-footer h1, .wm-footer h2, .wm-footer h3, .wm-footer h4 {
+  color: var(--wm-ink) !important;
 }
 
 a { color: var(--wm-link); text-decoration: none; }
@@ -83,6 +97,7 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
   font-size: clamp(1.2rem, 2.3vw, 2.4rem);
   line-height: 1.1;
+  color: #111825 !important;
 }
 
 .wm-brand-sub {
@@ -143,6 +158,15 @@ a:hover { text-decoration: underline; }
 .wm-nav a { color: var(--wm-ink); }
 .wm-nav .current-menu-item > a,
 .wm-nav .current_page_item > a { color: var(--wm-link); }
+.wm-nav a,
+.wm-submenu a,
+.wm-hero h1,
+.wm-support h2,
+.wm-section h3,
+.wm-event h4,
+.wm-page h1 {
+  color: #111825 !important;
+}
 
 .wm-panel {
   display: flex;
@@ -209,7 +233,7 @@ a:hover { text-decoration: underline; }
 
 .wm-btn:hover { transform: translateY(-1px); text-decoration: none; }
 .wm-btn-gold { background: var(--wm-gold); color: #11141a; }
-.wm-btn-dark { background: var(--wm-black); color: #fff; }
+.wm-btn-dark { background: var(--wm-black); color: #fff !important; }
 .wm-btn-ghost { border-color: var(--wm-link); color: var(--wm-link); background: transparent; }
 
 .wm-main {
@@ -438,6 +462,16 @@ body.wm-dark .wm-menu-toggle { background: #182334; color: #d7e4f6; border-color
 body.wm-dark .wm-submenu,
 body.wm-dark .wm-panel,
 body.wm-dark .wm-nav a { background: #172233; border-color: #2d3c53; color: #e9eff8; }
+body.wm-dark .wm-brand-title,
+body.wm-dark .wm-nav a,
+body.wm-dark .wm-submenu a,
+body.wm-dark .wm-hero h1,
+body.wm-dark .wm-support h2,
+body.wm-dark .wm-section h3,
+body.wm-dark .wm-event h4,
+body.wm-dark .wm-page h1 {
+  color: #edf1f8 !important;
+}
 body.wm-dark .wm-nav a:hover,
 body.wm-dark .wm-submenu a:hover { background: #223148; }
 body.wm-dark .wm-icon-btn { background: #1a2537; border-color: #2f415c; color: #d7e6f8; }
