@@ -48,6 +48,12 @@ function nowIso() {
 }
 
 function requestStorePath() {
+  if (process.env.PLAYER_REQUEST_STORE_PATH) {
+    return process.env.PLAYER_REQUEST_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/player-requests.json";
+  }
   return path.join(process.cwd(), "data", "player-requests.json");
 }
 

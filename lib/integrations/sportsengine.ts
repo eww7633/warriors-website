@@ -23,6 +23,12 @@ const defaultStore: SportsEngineWebhookStore = {
 };
 
 function webhookStorePath() {
+  if (process.env.SPORTSENGINE_WEBHOOK_STORE_PATH) {
+    return process.env.SPORTSENGINE_WEBHOOK_STORE_PATH;
+  }
+  if (process.env.NODE_ENV === "production") {
+    return "/tmp/sportsengine-webhooks.json";
+  }
   return path.join(process.cwd(), "data", "sportsengine-webhooks.json");
 }
 
