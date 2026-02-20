@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
+import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
 
 export async function POST(request: Request) {
   const user = await getCurrentUserFromRequest(request);
@@ -27,6 +28,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_reservation_fields" }, { status: 400 });
   }
 
+  const signupConfig = await getEventSignupConfig(eventId);
+  if (
+    user.role !== "admin" &&
+    signupConfig?.signupMode === "interest_gathering" &&
+    isInterestSignupClosed(signupConfig)
+  ) {
+    return NextResponse.json({ error: "interest_signup_closed" }, { status: 403 });
+  }
+
   try {
     await setEventReservation({
       userId: user.id,
@@ -39,4 +49,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "reservation_save_failed" }, { status: 500 });
   }
 }
-

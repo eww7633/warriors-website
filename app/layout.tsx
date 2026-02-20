@@ -12,14 +12,35 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const year = new Date().getFullYear();
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var saved=localStorage.getItem('warriors-theme');var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var theme=(saved==='dark'||saved==='light')?saved:(prefersDark?'dark':'light');document.documentElement.setAttribute('data-theme',theme);}catch(e){}})();"
+          }}
+        />
+      </head>
       <body>
         <div className="top-stripe" />
         <header className="site-header">
           <Nav />
         </header>
         <main className="site-main">{children}</main>
+        <footer className="site-footer">
+          <div className="site-footer-shell">
+            <p>
+              <strong>Pittsburgh Warriors Hockey Club</strong> &copy; {year}
+            </p>
+            <p>Veterans Healing Through Hockey | 501(c)(3) nonprofit program.</p>
+            <p>
+              Contact: <a href="mailto:ops@pghwarriorhockey.org">ops@pghwarriorhockey.org</a> |{" "}
+              <a href="/contact">Contact page</a>
+            </p>
+          </div>
+        </footer>
       </body>
     </html>
   );

@@ -67,3 +67,59 @@ export async function sendInviteEmail(input: {
     text
   });
 }
+
+export async function sendInterestRosterFinalizedEmail(input: {
+  to: string;
+  fullName?: string | null;
+  eventTitle: string;
+  eventStartsAt: string;
+  eventLocation?: string;
+  hqEventUrl?: string;
+  guestCostReminder?: string;
+}) {
+  let smtp: ReturnType<typeof getSmtpConfig>;
+  try {
+    smtp = getSmtpConfig();
+  } catch {
+    return { sent: false as const, reason: "smtp_not_configured" as const };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass
+    }
+  });
+
+  const subject = `Hockey Ops Final Roster: ${input.eventTitle}`;
+  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
+
+  const text = [
+    greeting,
+    "",
+    "Hockey Ops has finalized the roster and you were selected for this event:",
+    input.eventTitle,
+    `When: ${new Date(input.eventStartsAt).toLocaleString()}`,
+    input.eventLocation ? `Where: ${input.eventLocation}` : "",
+    input.guestCostReminder ? `Guest reminder: ${input.guestCostReminder}` : "",
+    input.hqEventUrl ? `Event details: ${input.hqEventUrl}` : "",
+    "",
+    "Please confirm your RSVP status and logistics in Warrior HQ.",
+    "",
+    "Pittsburgh Warriors Hockey Ops"
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await transporter.sendMail({
+    from: smtp.from,
+    to: input.to,
+    subject,
+    text
+  });
+
+  return { sent: true as const };
+}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
+import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
 
 function getReturnPath(raw: string) {
   const value = raw.trim();
@@ -32,6 +33,18 @@ export async function POST(request: Request) {
   if (!eventId || !isValidReservationStatus(status)) {
     return NextResponse.redirect(
       new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_reservation_fields`, request.url),
+      303
+    );
+  }
+
+  const signupConfig = await getEventSignupConfig(eventId);
+  if (
+    user.role !== "admin" &&
+    signupConfig?.signupMode === "interest_gathering" &&
+    isInterestSignupClosed(signupConfig)
+  ) {
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=interest_signup_closed`, request.url),
       303
     );
   }

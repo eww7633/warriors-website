@@ -1,9 +1,10 @@
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
 
 export async function GET(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || actor.role !== "admin") {
+  if (!actor || !canAccessAdminPanel(actor)) {
     return new Response("Unauthorized", { status: 401 });
   }
 

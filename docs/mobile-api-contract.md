@@ -1,6 +1,6 @@
 # Mobile API Contract (Thread C)
 
-Base URL: same host as HQ backend (for example `https://hq.pghwarriorhockey.us`).
+Base URL: same host as the production website backend (for example `https://pghwarriorhockey.us`).
 
 ## Auth
 
@@ -44,6 +44,16 @@ Base URL: same host as HQ backend (for example `https://hq.pghwarriorhockey.us`)
     - `viewerReservationStatus` (`"going" | "maybe" | "not_going" | null`)
     - `reservationCount` (number)
     - `canManage` (boolean)
+    - `signupMode` (`"straight_rsvp" | "interest_gathering"`)
+    - `interestClosesAt` (ISO string or `null`)
+    - `signupClosed` (boolean)
+    - `finalRosterSelectedCount` (number)
+    - `viewerSelectedFinalRoster` (boolean)
+    - `allowGuestRequests` (boolean)
+    - `guestCostEnabled` (boolean)
+    - `guestCostLabel` (string or `null`)
+    - `guestCostAmountUsd` (number or `null`)
+    - `viewerGuestIntent` (`{ wantsGuest, guestCount, note }` or `null`)
 - Errors:
   - `401 { error: "unauthorized" }`
 
@@ -58,8 +68,24 @@ Base URL: same host as HQ backend (for example `https://hq.pghwarriorhockey.us`)
 - Errors:
   - `400 { error: "invalid_json" | "invalid_reservation_fields" }`
   - `401 { error: "unauthorized" }`
-  - `403 { error: "approval_required" }`
+  - `403 { error: "approval_required" | "interest_signup_closed" }`
   - `500 { error: "reservation_save_failed" }`
+
+### `POST /api/mobile/events/guest-intent`
+- Auth: bearer required
+- Body (JSON):
+  - `eventId` (string, required)
+  - `wantsGuest` (boolean, required)
+  - `guestCount` (number, optional; used when `wantsGuest=true`)
+  - `guestNote` (string, optional)
+- Success `200`:
+  - `{ ok: true }`
+- Errors:
+  - `400 { error: "invalid_json" | "missing_event_id" }`
+  - `401 { error: "unauthorized" }`
+  - `403 { error: "approval_required" | "guest_requests_not_enabled" | "guest_requests_not_allowed_for_dvhl" }`
+  - `404 { error: "event_not_found" }`
+  - `500 { error: "guest_intent_save_failed" }`
 
 ### `POST /api/mobile/checkin`
 - Auth: bearer required
@@ -70,4 +96,3 @@ Base URL: same host as HQ backend (for example `https://hq.pghwarriorhockey.us`)
 - Errors:
   - `400 { error: "invalid_json" | "missing_token" | "<qr/checkin message>" }`
   - `401 { error: "unauthorized" }`
-

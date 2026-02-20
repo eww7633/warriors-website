@@ -1,19 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
 import { siteConfig } from "@/lib/siteConfig";
-import { getCurrentUser } from "@/lib/hq/session";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
-export async function Nav() {
-  const user = await Promise.race([
-    getCurrentUser(),
-    new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200))
-  ]);
+export function Nav() {
+  const hasSession = Boolean(cookies().get("warriors_session")?.value);
   const publicLinks = [
-    ["About Us", "/about"],
     ["Donate", "/donate"],
     ["Partners", "/partners"],
     ["Join", "/join"],
     ["Events", "/events"]
+  ] as const;
+  const aboutLinks = [
+    ["Leadership", "/about/leadership"],
+    ["Roster", "/about/roster"],
+    ["Wall of Champions", "/about/wall-of-champions"],
+    ["Galleries", "/about/galleries"]
   ] as const;
   const hqLinks = [
     ["Calendar", "/calendar"],
@@ -27,11 +30,10 @@ export async function Nav() {
     ["Facebook", siteConfig.social.facebook]
   ] as const;
 
-  const isPlayer = user?.role === "player";
-  const authPrimaryLabel = user ? (isPlayer ? "HQ" : "Support") : "Join";
-  const authPrimaryHref = user ? (isPlayer ? "/player" : "/donate") : "/join";
-  const authSecondaryLabel = user ? "LogOut" : "Login";
-  const authSecondaryHref = user ? null : "/login";
+  const authPrimaryLabel = hasSession ? "HQ" : "Join";
+  const authPrimaryHref = hasSession ? "/player" : "/join";
+  const authSecondaryLabel = hasSession ? "Log Out" : "Login";
+  const authSecondaryHref = hasSession ? null : "/login";
 
   return (
     <div className="header-shell">
@@ -40,9 +42,18 @@ export async function Nav() {
           <Image
             src="/brand/warriors-logo-font.svg"
             alt="Pittsburgh Warriors logo"
-            width={62}
-            height={62}
+            width={78}
+            height={78}
             priority
+            className="brand-logo brand-logo-light"
+          />
+          <Image
+            src="/brand/site-icon-dark.png"
+            alt="Pittsburgh Warriors dark logo"
+            width={78}
+            height={78}
+            priority
+            className="brand-logo brand-logo-dark"
           />
           <span className="brand-block">
             <span className="brand-name">Pittsburgh Warriors Hockey Club</span>
@@ -52,6 +63,16 @@ export async function Nav() {
 
         <nav className="main-nav" aria-label="Primary">
           <ul className="nav-list">
+            <li className="nav-public-link nav-with-submenu">
+              <Link href="/about">About Us</Link>
+              <ul className="submenu" aria-label="About pages">
+                {aboutLinks.map(([label, href]) => (
+                  <li key={href}>
+                    <Link href={href}>{label}</Link>
+                  </li>
+                ))}
+              </ul>
+            </li>
             {publicLinks.map(([label, href]) => (
               <li key={href} className="nav-public-link">
                 <Link href={href}>{label}</Link>
@@ -78,11 +99,13 @@ export async function Nav() {
           ))}
         </ul>
 
+        <ThemeToggle />
+
         <div className="auth-actions">
           <Link className="button ghost" href={authPrimaryHref}>
             {authPrimaryLabel}
           </Link>
-          {user ? (
+          {hasSession ? (
             <form action="/api/auth/logout" method="post">
               <button className="button" type="submit">{authSecondaryLabel}</button>
             </form>
@@ -94,9 +117,23 @@ export async function Nav() {
         </div>
 
         <details className="mobile-nav">
-          <summary>Menu</summary>
+          <summary aria-label="Open menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 7h16a1 1 0 1 0 0-2H4a1 1 0 1 0 0 2Zm16 4H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2Zm0 6H4a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2Z" />
+            </svg>
+          </summary>
           <div className="mobile-nav-panel">
             <ul className="mobile-nav-list">
+              <li>
+                <Link href="/about">About Us</Link>
+              </li>
+              {aboutLinks.map(([label, href]) => (
+                <li key={href}>
+                  <Link className="mobile-sub-link" href={href}>
+                    {label}
+                  </Link>
+                </li>
+              ))}
               {publicLinks.map(([label, href]) => (
                 <li key={href}>
                   <Link href={href}>{label}</Link>
@@ -105,7 +142,7 @@ export async function Nav() {
               <li>
                 <Link href={authPrimaryHref}>{authPrimaryLabel}</Link>
               </li>
-              {user ? (
+              {hasSession ? (
                 <li>
                   <form action="/api/auth/logout" method="post">
                     <button className="button" type="submit">{authSecondaryLabel}</button>
@@ -136,7 +173,7 @@ export async function Nav() {
         </details>
       </div>
 
-      {user ? (
+      {hasSession ? (
         <nav className="hq-subnav" aria-label="HQ sections">
           <ul className="hq-subnav-list">
             {hqLinks.map(([label, href]) => (

@@ -3,7 +3,7 @@
 This project is a Next.js app and needs a Node.js runtime.
 
 ## 1) Confirm hosting type first
-- If your Bluehost plan is **shared WordPress hosting only**, you typically cannot run a persistent Next.js server process directly.
+- If your Bluehost plan is **shared hosting only**, you typically cannot run a persistent Next.js server process directly.
 - If you have **Bluehost VPS or Dedicated** with SSH/root, follow this guide and deploy directly.
 
 ## 2) Server prerequisites (VPS/Dedicated)
@@ -61,10 +61,10 @@ sudo apt install -y certbot python3-certbot-nginx
 sudo certbot --nginx -d pghwarriorhockey.us -d www.pghwarriorhockey.us
 ```
 
-## 6) If WordPress is already on root domain
-Use one of these:
-- Keep WordPress on `pghwarriorhockey.us`, run this app on `hq.pghwarriorhockey.us`
-- Or keep this app on root and move WordPress to `news.pghwarriorhockey.us`
+## 6) Domain setup for this app
+Use:
+- `pghwarriorhockey.us` and `www.pghwarriorhockey.us` for the public website and HQ app.
+- `hq.pghwarriorhockey.us` as a redirect host (301/308) to `pghwarriorhockey.us`.
 
 ## 7) Google Workspace email integration
 Set in `.env`:
@@ -84,4 +84,4 @@ cd /var/www/pgh-warriors
 If you are on shared hosting and cannot run Node:
 - Host this app on Vercel/Railway/Render
 - Point Bluehost DNS (`A`/`CNAME`) to that app
-- Keep WordPress as needed on a subdomain
+- Keep all traffic on this Next.js app domain stack

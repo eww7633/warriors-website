@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { rosters } from "@/lib/mockData";
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
 import {
   listPendingJerseyNumberRequests,
@@ -52,7 +53,7 @@ export default async function CentralRosterPage({
     redirect("/login?error=sign_in_required");
   }
 
-  if (user.role !== "admin") {
+  if (!canAccessAdminPanel(user)) {
     redirect("/player?error=admin_required");
   }
 
