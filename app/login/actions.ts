@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE, createSessionRecord } from "@/lib/hq/session";
 import { authenticateUser } from "@/lib/hq/store";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -27,5 +28,6 @@ export async function loginAction(formData: FormData) {
     path: "/"
   });
 
-  redirect(user.role === "admin" ? "/admin" : "/player");
+  const adminAccess = await canAccessAdminPanel(user);
+  redirect(adminAccess ? "/admin" : "/player");
 }

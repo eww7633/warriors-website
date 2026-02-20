@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { rosters } from "@/lib/mockData";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
@@ -27,20 +26,32 @@ import {
   listOnboardingChecklistByUserIds,
   listOnboardingChecklistTemplate
 } from "@/lib/hq/onboarding";
+import {
+  isSuperAdmin,
+  listOpsRoleAssignments,
+  listOpsRoleDefinitions,
+  userHasPermission
+} from "@/lib/hq/permissions";
+import {
+  getDonationLedgerSummary,
+  listDonationIntents,
+  listDonationPayments
+} from "@/lib/hq/donations";
 
 export const dynamic = "force-dynamic";
 
-const sections = [
-  ["overview", "Overview"],
-  ["sportsdata", "Sports Data"],
-  ["contacts", "Contacts"],
-  ["competitions", "Competitions"],
-  ["events", "Events"],
-  ["players", "Players"],
-  ["attendance", "Attendance"]
+const sectionDefs = [
+  { key: "overview", label: "Overview", permission: null },
+  { key: "sportsdata", label: "Sports Data", permission: "manage_site_users" },
+  { key: "contacts", label: "Contacts", permission: "manage_site_users" },
+  { key: "competitions", label: "Competitions", permission: "manage_events" },
+  { key: "events", label: "Events", permission: "manage_events" },
+  { key: "players", label: "Players", permission: "manage_players" },
+  { key: "attendance", label: "Attendance", permission: "manage_events" },
+  { key: "fundraising", label: "Fundraising", permission: "manage_fundraising" }
 ] as const;
 
-type Section = (typeof sections)[number][0];
+type Section = (typeof sectionDefs)[number]["key"];
 
 export default async function AdminPage({
   searchParams
@@ -70,6 +81,10 @@ export default async function AdminPage({
     onboardingTemplate?: string;
     onboardingCheck?: string;
     dvhl?: string;
+    donation?: string;
+    opsrole?: string;
+    opsUpdated?: string;
+    opsSkipped?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -83,9 +98,22 @@ export default async function AdminPage({
     redirect("/player?error=admin_required");
   }
 
-  const section: Section = sections.some(([value]) => value === query.section)
-    ? (query.section as Section)
-    : "overview";
+  const permissionFlags = {
+    manage_players: await userHasPermission(user, "manage_players"),
+    manage_events: await userHasPermission(user, "manage_events"),
+    manage_site_users: await userHasPermission(user, "manage_site_users"),
+    manage_fundraising: await userHasPermission(user, "manage_fundraising")
+  } as const;
+
+  const visibleSectionDefs = sectionDefs.filter((entry) => {
+    if (!entry.permission) return true;
+    return permissionFlags[entry.permission];
+  });
+  const defaultSection = (visibleSectionDefs[0]?.key || "overview") as Section;
+  const requestedSection = String(query.section || "");
+  const section: Section = visibleSectionDefs.some((entry) => entry.key === requestedSection)
+    ? (requestedSection as Section)
+    : defaultSection;
 
   const [store, allEvents, eventTypes, competitions, eligiblePlayers, sportsData, attendanceInsights, rosterReservations] = await Promise.all([
     readStore(),
@@ -98,6 +126,12 @@ export default async function AdminPage({
     listRosterReservations()
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
+  const roleDefinitions = listOpsRoleDefinitions();
+  const roleAssignments = await listOpsRoleAssignments();
+  const donationIntents = await listDonationIntents();
+  const donationPayments = await listDonationPayments();
+  const donationLedgerSummary = await getDonationLedgerSummary();
+  const actorIsSuperAdmin = await isSuperAdmin(user);
   const onboardingByLinkedUsers = await listOnboardingChecklistByUserIds(
     sportsData.contactLeads
       .map((lead) => lead.linkedUserId || "")
@@ -125,6 +159,12 @@ export default async function AdminPage({
       .filter((entry) => entry.email)
       .map((entry) => [entry.email.trim().toLowerCase(), entry])
   );
+  const roleAssignmentsByUserId = roleAssignments.reduce((acc, assignment) => {
+    const list = acc.get(assignment.userId) ?? [];
+    list.push(assignment);
+    acc.set(assignment.userId, list);
+    return acc;
+  }, new Map<string, typeof roleAssignments>());
 
   const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
@@ -167,7 +207,11 @@ export default async function AdminPage({
     query.onboardingTemplate === "updated" ? "Onboarding checklist template updated." : null,
     query.onboardingCheck === "saved" ? "Onboarding checklist item updated." : null,
     query.dvhl === "captain_saved" ? "DVHL captain assignment saved." : null,
-    query.dvhl === "subpool_saved" ? "DVHL sub pool updated." : null
+    query.dvhl === "subpool_saved" ? "DVHL sub pool updated." : null,
+    query.donation === "saved" ? "Donation record updated." : null,
+    query.opsrole === "updated" ? "Ops role assignment updated." : null,
+    query.opsUpdated ? `Ops roles imported: ${query.opsUpdated}` : null,
+    query.opsSkipped ? `Ops role rows skipped: ${query.opsSkipped}` : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -223,13 +267,13 @@ export default async function AdminPage({
         <aside className="card admin-side-nav-card">
           <h3>Hockey Ops</h3>
           <nav className="admin-side-nav" aria-label="Admin sections">
-            {sections.map(([key, label]) => (
+            {visibleSectionDefs.map((entry) => (
               <Link
-                key={key}
-                href={`/admin?section=${key}`}
-                className={`admin-side-link ${section === key ? "active" : ""}`}
+                key={entry.key}
+                href={`/admin?section=${entry.key}`}
+                className={`admin-side-link ${section === entry.key ? "active" : ""}`}
               >
-                {label}
+                {entry.label}
               </Link>
             ))}
           </nav>
@@ -1178,6 +1222,16 @@ export default async function AdminPage({
                 placeholder={`fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes\nEvan Wawrykow,eww7633@yahoo.com,19,main-player-roster,gold,123456789,555-555-1111,legacy roster`}
                 required
               />
+              <label>
+                Import source
+                <select name="source" defaultValue="wix">
+                  <option value="wix">Wix</option>
+                  <option value="manual">Manual</option>
+                </select>
+              </label>
+              <label>
+                <input name="autoLinkByEmail" type="checkbox" defaultChecked /> Auto-link to existing accounts by email
+              </label>
               <button className="button" type="submit">Import / Update Roster Locks</button>
             </form>
           </article>
@@ -1204,6 +1258,7 @@ export default async function AdminPage({
                       <p>
                         Contact: {reservation.email || "No email"} {reservation.phone ? `| ${reservation.phone}` : ""}
                       </p>
+                      <p className="muted">Source: {reservation.source || "manual"}</p>
                       <p>
                         Linked account: {matchedUser ? `${matchedUser.fullName} (${matchedUser.email})` : "Not linked yet"}
                       </p>
@@ -1238,6 +1293,11 @@ export default async function AdminPage({
                   <strong>{member.fullName}</strong>
                   <p>{member.email}</p>
                   <p>Current role: {member.role} | Status: {member.status}</p>
+                  <p>
+                    Ops roles: {(roleAssignmentsByUserId.get(member.id) || []).length > 0
+                      ? roleAssignmentsByUserId.get(member.id)!.map((entry) => entry.titleLabel).join(", ")
+                      : "None"}
+                  </p>
                   <label>
                     Set role
                     <select name="role" defaultValue={member.role}>
@@ -1250,6 +1310,50 @@ export default async function AdminPage({
                 </form>
               ))}
             </div>
+            {actorIsSuperAdmin ? (
+              <div className="stack">
+                <h4>Assign Ops Leadership Roles</h4>
+                <form className="grid-form event-card" action="/api/admin/ops-roles/import" method="post">
+                  <strong>Bulk import ops roles (for Wix imports)</strong>
+                  <textarea
+                    name="rows"
+                    rows={6}
+                    placeholder={`email,roleKey,titleLabel,officialEmail,badgeLabel\neww7633@yahoo.com,president,President,president@pghwarriorhockey.org,President`}
+                    required
+                  />
+                  <button className="button" type="submit">Import Ops Roles</button>
+                </form>
+                {store.users.map((member) => (
+                  <form
+                    key={`${member.id}-ops-role`}
+                    className="event-card grid-form"
+                    action={`/api/admin/users/${member.id}/ops-role`}
+                    method="post"
+                  >
+                    <strong>{member.fullName}</strong>
+                    <p>{member.email}</p>
+                    <label>
+                      Role
+                      <select name="roleKey" defaultValue="">
+                        <option value="">Select role</option>
+                        {roleDefinitions.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {entry.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <input name="titleLabel" placeholder="Title label override (optional)" />
+                    <input name="officialEmail" placeholder="Official team email (optional)" />
+                    <input name="badgeLabel" placeholder="Badge label (optional)" />
+                    <label>
+                      <input name="clearRoles" type="checkbox" /> Clear all ops roles for this user
+                    </label>
+                    <button className="button ghost" type="submit">Save Ops Roles</button>
+                  </form>
+                ))}
+              </div>
+            ) : null}
           </details>
 
           <article className="card">
@@ -1270,12 +1374,8 @@ export default async function AdminPage({
                     <p>Requested position: {candidate.requestedPosition || "Not provided"}</p>
                     <label>
                       Assign main roster
-                      <select name="rosterId" required defaultValue="">
-                        <option value="" disabled>Select roster</option>
+                      <select name="rosterId" required defaultValue="main-player-roster">
                         <option value="main-player-roster">Main Player Roster</option>
-                        {rosters.map((roster) => (
-                          <option key={roster.id} value={roster.id}>{roster.name}</option>
-                        ))}
                       </select>
                     </label>
                     <label>
@@ -1339,6 +1439,11 @@ export default async function AdminPage({
                     <p>Roster: {player.rosterId}</p>
                     <p>Jersey: #{player.jerseyNumber}</p>
                     <p>
+                      Ops roles: {(roleAssignmentsByUserId.get(player.id) || []).length > 0
+                        ? roleAssignmentsByUserId.get(player.id)!.map((entry) => entry.titleLabel).join(", ")
+                        : "None"}
+                    </p>
+                    <p>
                       Sizes: helmet {player.equipmentSizes.helmet || "-"}, gloves {player.equipmentSizes.gloves || "-"},
                       skates {player.equipmentSizes.skates || "-"}, jersey {player.equipmentSizes.jersey || "-"}
                     </p>
@@ -1364,6 +1469,76 @@ export default async function AdminPage({
             </div>
           </article>
         </>
+      )}
+
+      {section === "fundraising" && (
+        <article className="card">
+          <h3>Donation Intake Queue</h3>
+          <p className="muted">
+            This is the local donation lead queue while payment rails are being finalized. Next step is Stripe checkout + webhook reconciliation.
+          </p>
+          <div className="admin-kpi-grid">
+            <div className="admin-kpi">
+              <span className="muted">Donation intents</span>
+              <strong>{donationLedgerSummary.intentCount}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">Stripe payments</span>
+              <strong>{donationLedgerSummary.paymentCount}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">Paid total</span>
+              <strong>${donationLedgerSummary.totalPaidUsd.toFixed(2)}</strong>
+            </div>
+            <div className="admin-kpi">
+              <span className="muted">Unmatched payments</span>
+              <strong>{donationLedgerSummary.unmatchedPayments.length}</strong>
+            </div>
+          </div>
+          <div className="stack">
+            {donationIntents.map((entry) => (
+              <form key={entry.id} className="event-card grid-form" action="/api/admin/donations/status" method="post">
+                <input type="hidden" name="id" value={entry.id} />
+                <strong>{entry.fullName}</strong>
+                <p>{entry.email}</p>
+                <p>
+                  {entry.amountUsd ? `$${entry.amountUsd.toFixed(2)}` : "Amount not set"} | {entry.frequency} | source: {entry.source}
+                </p>
+                {entry.message ? <p className="muted">{entry.message}</p> : null}
+                <p className="muted">Created: {new Date(entry.createdAt).toLocaleString()}</p>
+                <label>
+                  Status
+                  <select name="status" defaultValue={entry.status}>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="processed">Processed</option>
+                  </select>
+                </label>
+                <button className="button ghost" type="submit">Update Donation Status</button>
+              </form>
+            ))}
+            {donationIntents.length === 0 ? <p className="muted">No donation requests yet.</p> : null}
+          </div>
+          <h4>Stripe Payment Ledger</h4>
+          <div className="stack">
+            {donationPayments.map((payment) => (
+              <div key={payment.id} className="event-card">
+                <strong>{payment.donorName || payment.donorEmail || "Unknown donor"}</strong>
+                <p>
+                  ${payment.amountUsd.toFixed(2)} {payment.currency.toUpperCase()} | {payment.status}
+                </p>
+                <p className="muted">
+                  Checkout session: {payment.stripeCheckoutSessionId}
+                  {payment.stripePaymentIntentId ? ` | Payment intent: ${payment.stripePaymentIntentId}` : ""}
+                </p>
+                <p className="muted">
+                  Linked intent: {payment.intentId || "none"} | Updated: {new Date(payment.updatedAt).toLocaleString()}
+                </p>
+              </div>
+            ))}
+            {donationPayments.length === 0 ? <p className="muted">No Stripe payment records yet.</p> : null}
+          </div>
+        </article>
       )}
 
       {section === "attendance" && (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function LoginPage({
 }) {
   const query = searchParams ?? {};
   const user = await getCurrentUser();
+  const adminAccess = user ? await canAccessAdminPanel(user) : false;
 
   if (user) {
     return (
@@ -17,7 +19,7 @@ export default async function LoginPage({
         <h2>Already Signed In</h2>
         <p>You are signed in as {user.fullName}.</p>
         <div className="cta-row">
-          <Link className="button" href={user.role === "admin" ? "/admin" : "/player"}>
+          <Link className="button" href={adminAccess ? "/admin" : "/player"}>
             Go to Dashboard
           </Link>
           <form action="/api/auth/logout" method="post">

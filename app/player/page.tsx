@@ -21,6 +21,7 @@ import {
   getEventGuestIntentMap,
   getEventRosterSelectionMap,
   getEventSignupConfigMap,
+  isDvhlEvent,
   isInterestSignupClosed
 } from "@/lib/hq/event-signups";
 
@@ -57,10 +58,6 @@ export default async function PlayerPage({
 
   if (!user) {
     redirect("/login?error=sign_in_required");
-  }
-
-  if (user.role === "admin") {
-    redirect("/admin");
   }
 
   const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments] = await Promise.all([
@@ -364,13 +361,14 @@ export default async function PlayerPage({
               const isSelected = (rosterSelectionsByEvent[event.id]?.selectedUserIds || []).includes(latestUser.id);
               const guestIntent = (guestIntentsByEvent[event.id] || []).find((entry) => entry.userId === latestUser.id);
               const guestsAllowed = canEventCollectGuests(signupConfig, event.eventTypeName);
+              const dvhl = isDvhlEvent(event.eventTypeName);
               return (
                 <article key={event.id} className="event-card">
                   <strong>{event.title}</strong>
                   <p>{new Date(event.date).toLocaleString()}</p>
                   {event.locationPublic ? <p>{event.locationPublic}</p> : null}
                   <p className="muted">
-                    Flow: {isInterest ? "Interest gathering" : "Straight RSVP"}
+                    Flow: {dvhl ? "DVHL straight sign-up" : isInterest ? "Interest gathering" : "Straight RSVP"}
                     {isInterest && signupConfig?.interestClosesAt
                       ? ` | Closes ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
                       : ""}
@@ -391,7 +389,7 @@ export default async function PlayerPage({
                     </select>
                     <input name="note" placeholder="Optional note" disabled={isClosed} />
                     <button className="button" type="submit" disabled={isClosed}>
-                      {isInterest ? "Save Interest" : "Save RSVP"}
+                      {dvhl ? "Save DVHL Sign-Up" : isInterest ? "Save Interest" : "Save RSVP"}
                     </button>
                   </form>
                   {isClosed ? (

@@ -14,6 +14,7 @@ export type RosterReservation = {
   jerseyNumber: number;
   usaHockeyNumber?: string;
   notes?: string;
+  source?: string;
   linkedUserId?: string;
   linkedAt?: string;
   createdAt: string;
@@ -146,7 +147,11 @@ export async function upsertRosterReservations(
     jerseyNumber: number;
     usaHockeyNumber?: string;
     notes?: string;
-  }>
+  }>,
+  options?: {
+    source?: string;
+    autoLinkUsers?: MemberUser[];
+  }
 ) {
   const store = await readStore();
   const created: RosterReservation[] = [];
@@ -163,6 +168,11 @@ export async function upsertRosterReservations(
     const existing = store.reservations.find(
       (entry) => entry.rosterId === rosterId && entry.jerseyNumber === row.jerseyNumber
     );
+    const matchingUser = options?.autoLinkUsers?.find(
+      (user) =>
+        (row.email && user.email.toLowerCase() === row.email.toLowerCase()) ||
+        normalizeName(user.fullName) === normalizeName(fullName)
+    );
     if (existing) {
       existing.fullName = fullName;
       existing.normalizedFullName = normalizeName(fullName);
@@ -171,6 +181,9 @@ export async function upsertRosterReservations(
       existing.primarySubRoster = row.primarySubRoster;
       existing.usaHockeyNumber = normalizeOptionalText(row.usaHockeyNumber);
       existing.notes = normalizeOptionalText(row.notes);
+      existing.source = normalizeOptionalText(options?.source);
+      existing.linkedUserId = existing.linkedUserId || matchingUser?.id;
+      existing.linkedAt = existing.linkedUserId ? nowIso() : existing.linkedAt;
       existing.updatedAt = nowIso();
       updated.push(existing);
       continue;
@@ -187,6 +200,9 @@ export async function upsertRosterReservations(
       jerseyNumber: row.jerseyNumber,
       usaHockeyNumber: normalizeOptionalText(row.usaHockeyNumber),
       notes: normalizeOptionalText(row.notes),
+      source: normalizeOptionalText(options?.source),
+      linkedUserId: matchingUser?.id,
+      linkedAt: matchingUser ? nowIso() : undefined,
       createdAt: nowIso(),
       updatedAt: nowIso()
     };

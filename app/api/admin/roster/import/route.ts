@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { upsertRosterReservations } from "@/lib/hq/roster-reservations";
+import { readStore } from "@/lib/hq/store";
 
 function parseRows(raw: string) {
   const lines = raw
@@ -50,6 +51,8 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const rawRows = String(formData.get("rows") ?? "");
+  const source = String(formData.get("source") ?? "manual").trim();
+  const autoLinkByEmail = String(formData.get("autoLinkByEmail") ?? "").trim() === "on";
   const parsedRows = parseRows(rawRows);
 
   if (parsedRows.length === 0) {
@@ -57,7 +60,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await upsertRosterReservations(parsedRows);
+    const store = autoLinkByEmail ? await readStore() : null;
+    const result = await upsertRosterReservations(parsedRows, {
+      source,
+      autoLinkUsers: store?.users
+    });
     const url = new URL("/admin?section=players", request.url);
     url.searchParams.set("imported", String(result.created.length));
     url.searchParams.set("updated", String(result.updated.length));

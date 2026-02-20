@@ -648,6 +648,16 @@ export default async function CentralRosterPage({
                     <p className="muted">No team assignments saved yet.</p>
                   )}
 
+                  <form className="grid-form" action="/api/admin/roster/photos/upload" method="post" encType="multipart/form-data">
+                    <input type="hidden" name="userId" value={player.id} />
+                    <input name="photoFile" type="file" accept="image/*" required />
+                    <input name="caption" placeholder="Caption (optional)" />
+                    <label>
+                      <input type="checkbox" name="makePrimary" defaultChecked /> Set as primary photo
+                    </label>
+                    <button className="button ghost" type="submit">Upload Headshot</button>
+                  </form>
+
                   <form className="grid-form" action="/api/admin/roster/photos/add" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <input name="imageUrl" placeholder="Photo URL (https://...)" required />
@@ -655,7 +665,7 @@ export default async function CentralRosterPage({
                     <label>
                       <input type="checkbox" name="makePrimary" defaultChecked /> Set as primary photo
                     </label>
-                    <button className="button ghost" type="submit">Add Photo</button>
+                    <button className="button ghost" type="submit">Add Photo URL</button>
                   </form>
                   {player.photos.length > 0 && (
                     <div className="stack">

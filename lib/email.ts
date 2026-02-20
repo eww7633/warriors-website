@@ -123,3 +123,49 @@ export async function sendInterestRosterFinalizedEmail(input: {
 
   return { sent: true as const };
 }
+
+export async function sendDonationReceiptEmail(input: {
+  to: string;
+  fullName?: string | null;
+  amountUsd: number;
+  receiptId: string;
+}) {
+  let smtp: ReturnType<typeof getSmtpConfig>;
+  try {
+    smtp = getSmtpConfig();
+  } catch {
+    return { sent: false as const, reason: "smtp_not_configured" as const };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass
+    }
+  });
+
+  const subject = "Pittsburgh Warriors Donation Receipt";
+  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
+
+  const text = [
+    greeting,
+    "",
+    "Thank you for supporting Pittsburgh Warriors Hockey Club.",
+    `Amount received: $${input.amountUsd.toFixed(2)} USD`,
+    `Receipt ID: ${input.receiptId}`,
+    "",
+    "Pittsburgh Warriors Hockey Ops"
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: smtp.from,
+    to: input.to,
+    subject,
+    text
+  });
+
+  return { sent: true as const };
+}

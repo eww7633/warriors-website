@@ -3,10 +3,12 @@ import Image from "next/image";
 import { siteConfig } from "@/lib/siteConfig";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getCurrentUser } from "@/lib/hq/session";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 
 export async function Nav() {
   const user = await getCurrentUser();
   const hasSession = Boolean(user);
+  const hasAdminAccess = user ? await canAccessAdminPanel(user) : false;
   const publicLinks = [
     ["Donate", "/donate"],
     ["Partners", "/partners"],
@@ -32,7 +34,7 @@ export async function Nav() {
   ] as const;
 
   const authPrimaryLabel = hasSession ? "HQ" : "Join";
-  const authPrimaryHref = hasSession ? (user?.role === "admin" ? "/admin" : "/player") : "/join";
+  const authPrimaryHref = hasSession ? (hasAdminAccess ? "/admin" : "/player") : "/join";
   const authSecondaryLabel = hasSession ? "Log Out" : "Login";
   const authSecondaryHref = hasSession ? null : "/login";
 

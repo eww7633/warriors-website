@@ -14,7 +14,14 @@ const impactAreas = [
   "Community events and veteran outreach"
 ];
 
-export default function DonatePage() {
+export default function DonatePage({
+  searchParams
+}: {
+  searchParams?: { sent?: string; error?: string; checkout?: string };
+}) {
+  const sent = searchParams?.sent === "1";
+  const error = Boolean(searchParams?.error);
+  const checkout = searchParams?.checkout;
   const externalDonate = siteConfig.publicSite.links.donate;
 
   return (
@@ -54,14 +61,54 @@ export default function DonatePage() {
       </article>
 
       <article className="card">
-        <h2>Make A Lasting Impact</h2>
+        <h2>Donate Online</h2>
         <p>
-          The Pittsburgh Warriors are a 501(c)(3) organization. Your support helps us keep this veteran-centered
-          program available year-round.
+          Secure checkout is available here. If Stripe is not configured yet, use the external donate link.
         </p>
-        <a className="button" href={externalDonate} target="_blank" rel="noreferrer">
-          Give Now
+        {checkout === "success" ? <p className="badge">Donation completed. Thank you for your support.</p> : null}
+        {checkout === "cancelled" ? <p className="muted">Checkout was cancelled.</p> : null}
+        <form className="grid-form" action="/api/public/donations/checkout" method="post">
+          <input name="fullName" placeholder="Full name" required />
+          <input name="email" type="email" placeholder="Email" required />
+          <input name="amountUsd" type="number" min={1} step="0.01" placeholder="Amount (USD)" required />
+          <label>
+            Frequency
+            <select name="frequency" defaultValue="one_time">
+              <option value="one_time">One-time</option>
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+            </select>
+          </label>
+          <input name="message" placeholder="Dedication / note (optional)" />
+          <button className="button alt" type="submit">Checkout with Stripe</button>
+        </form>
+        <a className="button ghost" href={externalDonate} target="_blank" rel="noreferrer">
+          Use External Donate Link
         </a>
+      </article>
+
+      <article className="card">
+        <h2>Donation Contact Request</h2>
+        <p className="muted">
+          Use this if you want us to contact you directly for sponsorship, recurring giving, or large gifts.
+        </p>
+        {sent ? <p className="badge">Thanks. Hockey Ops received your donation request.</p> : null}
+        {error ? <p className="muted">Unable to submit donation request. Please try again.</p> : null}
+        <form className="grid-form" action="/api/public/donations" method="post">
+          <input name="fullName" placeholder="Full name" required />
+          <input name="email" type="email" placeholder="Email" required />
+          <input name="amountUsd" type="number" min={1} step="0.01" placeholder="Amount (optional)" />
+          <label>
+            Frequency
+            <select name="frequency" defaultValue="one_time">
+              <option value="one_time">One-time</option>
+              <option value="monthly">Monthly</option>
+              <option value="annual">Annual</option>
+            </select>
+          </label>
+          <input name="message" placeholder="Message (optional)" />
+          <button className="button alt" type="submit">Send Donation Request</button>
+        </form>
       </article>
     </section>
   );

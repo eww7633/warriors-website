@@ -21,6 +21,9 @@ export default async function RosterPage() {
                 {player.fullName} {player.jerseyNumber ? `| #${player.jerseyNumber}` : ""} {player.status === "inactive" ? "(Inactive)" : ""}
               </summary>
               <div className="stack">
+                {player.opsBadges.length > 0 ? (
+                  <p className="muted">Leadership: {player.opsBadges.join(", ")}</p>
+                ) : null}
                 {player.photos.length > 0 && (
                   <div className="stack">
                     <img

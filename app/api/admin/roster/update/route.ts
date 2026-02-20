@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   };
   const userId = String(formData.get("userId") ?? "").trim();
   const fullName = String(formData.get("fullName") ?? "").trim();
-  const rosterId = String(formData.get("rosterId") ?? "").trim();
+  const rosterId = "main-player-roster";
   const jerseyNumberRaw = String(formData.get("jerseyNumber") ?? "").trim();
   const activityStatus = String(formData.get("activityStatus") ?? "active").trim();
   const forceNumberOverlap = String(formData.get("forceNumberOverlap") ?? "").trim() === "on";
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const result = await updateCentralRosterPlayer({
       userId,
       fullName,
-      rosterId: rosterId || undefined,
+      rosterId,
       jerseyNumber,
       activityStatus: activityStatus as "active" | "inactive",
       forceNumberOverlap

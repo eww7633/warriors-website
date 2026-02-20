@@ -2,6 +2,7 @@ import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
 import { roster as mockRoster } from "@/lib/mockData";
 import { readStore } from "@/lib/hq/store";
+import { getUserOpsBadges } from "@/lib/hq/permissions";
 
 export type PublicRosterProfile = {
   id: string;
@@ -22,14 +23,16 @@ export type PublicRosterProfile = {
     teamsPlayedOn: number;
     eventsAttended: number;
   };
+  opsBadges: string[];
 };
 
 export async function listPublicRosterProfiles() {
   if (!hasDatabaseUrl()) {
     const store = await readStore();
-    return store.users
-      .filter((user) => user.role === "player" && user.status === "approved")
-      .map((user) => ({
+    const players = store.users.filter((user) => user.role === "player" && user.status === "approved");
+    const badges = await Promise.all(players.map((player) => getUserOpsBadges(player.id)));
+    return players
+      .map((user, index) => ({
         id: user.id,
         fullName: user.fullName,
         jerseyNumber: user.jerseyNumber ?? undefined,
@@ -46,7 +49,8 @@ export async function listPublicRosterProfiles() {
               (entry.attendanceStatus === "checked_in_attended" ||
                 entry.attendanceStatus === "walk_in_attended")
           ).length
-        }
+        },
+        opsBadges: badges[index]
       })) satisfies PublicRosterProfile[];
   }
 
@@ -74,7 +78,8 @@ export async function listPublicRosterProfiles() {
     orderBy: [{ activityStatus: "asc" }, { fullName: "asc" }]
   });
 
-  return users.map((user) => {
+  const badges = await Promise.all(users.map((user) => getUserOpsBadges(user.id)));
+  return users.map((user, index) => {
     const tournamentIds = new Set(
       user.competitionMemberships
         .map((entry) => entry.team.competition)
@@ -106,7 +111,8 @@ export async function listPublicRosterProfiles() {
         tournamentsPlayed: tournamentIds.size,
         teamsPlayedOn: teamIds.size,
         eventsAttended
-      }
+      },
+      opsBadges: badges[index]
     } satisfies PublicRosterProfile;
   });
 }
@@ -124,6 +130,7 @@ export function listMockRosterProfiles() {
       tournamentsPlayed: 0,
       teamsPlayedOn: 0,
       eventsAttended: entry.gamesPlayed
-    }
+    },
+    opsBadges: []
   })) satisfies PublicRosterProfile[];
 }

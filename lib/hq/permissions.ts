@@ -21,7 +21,8 @@ export type OpsPermission =
   | "manage_dvhl"
   | "manage_media"
   | "manage_site_users"
-  | "assign_ops_roles";
+  | "assign_ops_roles"
+  | "manage_fundraising";
 
 export type OpsRoleAssignment = {
   userId: string;
@@ -52,7 +53,8 @@ const ROLE_DEFS: Record<OpsRoleKey, { label: string; permissions: OpsPermission[
       "manage_dvhl",
       "manage_media",
       "manage_site_users",
-      "assign_ops_roles"
+      "assign_ops_roles",
+      "manage_fundraising"
     ],
     badge: "Super Admin"
   },
@@ -65,23 +67,24 @@ const ROLE_DEFS: Record<OpsRoleKey, { label: string; permissions: OpsPermission[
       "manage_news",
       "manage_dvhl",
       "manage_media",
-      "manage_site_users"
+      "manage_site_users",
+      "manage_fundraising"
     ],
     badge: "President"
   },
   vp_hockey_ops: {
     label: "VP Hockey Ops",
-    permissions: ["admin_portal", "manage_players", "manage_events", "manage_site_users"],
+    permissions: ["admin_portal", "manage_players", "manage_events", "manage_site_users", "manage_fundraising"],
     badge: "VP Hockey Ops"
   },
   general_manager: {
     label: "General Manager",
-    permissions: ["admin_portal", "manage_players", "manage_events"],
+    permissions: ["admin_portal", "manage_players", "manage_events", "manage_fundraising"],
     badge: "GM"
   },
   assistant_general_manager: {
     label: "Assistant General Manager",
-    permissions: ["admin_portal", "manage_players", "manage_events"],
+    permissions: ["admin_portal", "manage_players", "manage_events", "manage_fundraising"],
     badge: "Assistant GM"
   },
   equipment_manager: {
