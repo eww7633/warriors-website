@@ -31,72 +31,79 @@ type JerseyConflict = {
   sharedTournamentTitles: string[];
 };
 
+async function listCentralRosterPlayersFromStore() {
+  const store = await readStore();
+  return store.users
+    .filter((user) => user.role === "player")
+    .map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      requestedPosition: user.requestedPosition,
+      status: user.status,
+      activityStatus: user.activityStatus ?? "active",
+      rosterId: user.rosterId,
+      jerseyNumber: user.jerseyNumber,
+      competitionHistory: [],
+      photos: [],
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    })) satisfies CentralRosterPlayer[];
+}
+
 export async function listCentralRosterPlayers() {
   if (!hasDatabaseUrl()) {
-    const store = await readStore();
-    return store.users
-      .filter((user) => user.role === "player")
-      .map((user) => ({
-        id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        phone: user.phone,
-        requestedPosition: user.requestedPosition,
-        status: user.status,
-        activityStatus: user.activityStatus ?? "active",
-        rosterId: user.rosterId,
-        jerseyNumber: user.jerseyNumber,
-        competitionHistory: [],
-        photos: [],
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt
-      })) satisfies CentralRosterPlayer[];
+    return listCentralRosterPlayersFromStore();
   }
 
-  const users = await getPrismaClient().user.findMany({
-    where: { role: "player" },
-    orderBy: { fullName: "asc" },
-    include: {
-      competitionMemberships: {
-        include: {
-          team: {
-            include: {
-              competition: true
+  try {
+    const users = await getPrismaClient().user.findMany({
+      where: { role: "player" },
+      orderBy: { fullName: "asc" },
+      include: {
+        competitionMemberships: {
+          include: {
+            team: {
+              include: {
+                competition: true
+              }
             }
-          }
+          },
+          orderBy: { createdAt: "desc" }
         },
-        orderBy: { createdAt: "desc" }
+        photos: {
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }]
+        }
       }
-      ,
-      photos: {
-        orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }]
-      }
-    }
-  });
+    });
 
-  return users.map((user) => ({
-    id: user.id,
-    fullName: user.fullName,
-    email: user.email,
-    phone: user.phone ?? undefined,
-    requestedPosition: user.requestedPosition ?? undefined,
-    status: user.status,
-    activityStatus: (user.activityStatus as "active" | "inactive") ?? "active",
-    rosterId: user.rosterId ?? undefined,
-    jerseyNumber: user.jerseyNumber ?? undefined,
-    competitionHistory: user.competitionMemberships.map(
-      (membership) => `${membership.team.competition.title} - ${membership.team.name}`
-    ),
-    photos: user.photos.map((photo) => ({
-      id: photo.id,
-      imageUrl: photo.imageUrl,
-      caption: photo.caption ?? undefined,
-      isPrimary: photo.isPrimary,
-      createdAt: photo.createdAt.toISOString()
-    })),
-    createdAt: user.createdAt.toISOString(),
-    updatedAt: user.updatedAt.toISOString()
-  })) satisfies CentralRosterPlayer[];
+    return users.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone ?? undefined,
+      requestedPosition: user.requestedPosition ?? undefined,
+      status: user.status,
+      activityStatus: (user.activityStatus as "active" | "inactive") ?? "active",
+      rosterId: user.rosterId ?? undefined,
+      jerseyNumber: user.jerseyNumber ?? undefined,
+      competitionHistory: user.competitionMemberships.map(
+        (membership) => `${membership.team.competition.title} - ${membership.team.name}`
+      ),
+      photos: user.photos.map((photo) => ({
+        id: photo.id,
+        imageUrl: photo.imageUrl,
+        caption: photo.caption ?? undefined,
+        isPrimary: photo.isPrimary,
+        createdAt: photo.createdAt.toISOString()
+      })),
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString()
+    })) satisfies CentralRosterPlayer[];
+  } catch {
+    return listCentralRosterPlayersFromStore();
+  }
 }
 
 export async function findJerseyConflict(input: {
