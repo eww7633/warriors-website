@@ -8,6 +8,16 @@ type Actor = {
   status: "pending" | "approved" | "rejected";
 };
 
+type SavedLineup = {
+  selectedUserIds: string[];
+  opponentRoster: string;
+  locked: boolean;
+  updatedAt: string;
+  updatedByUserId: string;
+};
+
+const LINEUP_MARKER = "[HQ-LINEUP]";
+
 function ensureDbMode() {
   if (!hasDatabaseUrl()) {
     throw new Error("Database mode is required for live scorekeeping.");
@@ -35,6 +45,8 @@ export async function listLiveGames() {
         scorekeeperStaffName: undefined,
         competitionTitle: season?.label ?? "Season",
         teamName: roster?.name ?? "Warriors",
+        teamMembers: [] as Array<{ id: string; fullName: string; jerseyNumber?: number }>,
+        lineup: null as SavedLineup | null,
         events: game.events.map((event, index) => ({
           id: `${game.id}-${index}`,
           period: undefined,
@@ -59,7 +71,23 @@ export async function listLiveGames() {
       },
       team: {
         select: {
-          name: true
+          name: true,
+          members: {
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  jerseyNumber: true
+                }
+              }
+            },
+            orderBy: {
+              user: {
+                fullName: "asc"
+              }
+            }
+          }
         }
       },
       scorekeeperUser: {
@@ -90,6 +118,10 @@ export async function listLiveGames() {
   });
 
   return rows.map((row) => ({
+    ...(function () {
+      const lineup = extractSavedLineup(row.notes);
+      return { lineup };
+    })(),
     id: row.id,
     title: `${row.team.name} vs ${row.opponent}`,
     opponent: row.opponent,
@@ -105,6 +137,11 @@ export async function listLiveGames() {
     scorekeeperStaffName: row.scorekeeperStaff?.fullName ?? undefined,
     competitionTitle: row.competition.title,
     teamName: row.team.name,
+    teamMembers: row.team.members.map((entry) => ({
+      id: entry.user.id,
+      fullName: entry.user.fullName,
+      jerseyNumber: entry.user.jerseyNumber ?? undefined
+    })),
     events: row.events.map((event) => ({
       id: event.id,
       period: event.period ?? undefined,
@@ -116,6 +153,38 @@ export async function listLiveGames() {
       createdByName: event.createdByUser.fullName
     }))
   }));
+}
+
+function extractSavedLineup(notes?: string | null): SavedLineup | null {
+  if (!notes) return null;
+  const markerIndex = notes.indexOf(LINEUP_MARKER);
+  if (markerIndex < 0) return null;
+  const raw = notes.slice(markerIndex + LINEUP_MARKER.length).trim();
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<SavedLineup>;
+    const selectedUserIds = Array.isArray(parsed.selectedUserIds)
+      ? parsed.selectedUserIds.map((entry) => String(entry)).filter(Boolean)
+      : [];
+    return {
+      selectedUserIds,
+      opponentRoster: typeof parsed.opponentRoster === "string" ? parsed.opponentRoster : "",
+      locked: Boolean(parsed.locked),
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
+      updatedByUserId: typeof parsed.updatedByUserId === "string" ? parsed.updatedByUserId : "unknown"
+    };
+  } catch {
+    return null;
+  }
+}
+
+function withSavedLineup(notes: string | null | undefined, lineup: SavedLineup) {
+  const base = (notes || "").trim();
+  const markerIndex = base.indexOf(LINEUP_MARKER);
+  const plain = markerIndex >= 0 ? base.slice(0, markerIndex).trim() : base;
+  const payload = `${LINEUP_MARKER}${JSON.stringify(lineup)}`;
+  return plain ? `${plain}\n${payload}` : payload;
 }
 
 function canScorekeep(actor: Actor, scorekeeperUserId?: string) {
@@ -196,6 +265,60 @@ export async function addLiveGameEvent(input: {
       eventType: input.eventType,
       note: input.note || null,
       createdByUserId: input.actor.id
+    }
+  });
+}
+
+export async function saveLiveGameLineup(input: {
+  actor: Actor;
+  gameId: string;
+  selectedUserIds: string[];
+  opponentRoster?: string;
+  locked?: boolean;
+}) {
+  ensureDbMode();
+
+  const game = await getPrismaClient().competitionGame.findUnique({
+    where: { id: input.gameId },
+    select: {
+      id: true,
+      scorekeeperUserId: true,
+      notes: true,
+      team: {
+        select: {
+          members: {
+            select: {
+              userId: true
+            }
+          }
+        }
+      }
+    }
+  });
+
+  if (!game) {
+    throw new Error("Game not found.");
+  }
+
+  if (!canScorekeep(input.actor, game.scorekeeperUserId ?? undefined)) {
+    throw new Error("You do not have scorekeeping permission for this game.");
+  }
+
+  const allowed = new Set(game.team.members.map((entry) => entry.userId));
+  const selectedUserIds = Array.from(new Set(input.selectedUserIds)).filter((entry) => allowed.has(entry));
+
+  const lineup: SavedLineup = {
+    selectedUserIds,
+    opponentRoster: (input.opponentRoster || "").trim(),
+    locked: Boolean(input.locked),
+    updatedAt: new Date().toISOString(),
+    updatedByUserId: input.actor.id
+  };
+
+  return getPrismaClient().competitionGame.update({
+    where: { id: input.gameId },
+    data: {
+      notes: withSavedLineup(game.notes, lineup)
     }
   });
 }

@@ -26,6 +26,10 @@ export async function POST(request: Request) {
   const videoUrl = String(formData.get("videoUrl") ?? "").trim();
   const galleryImageUrls = parseCsvList(String(formData.get("galleryImageUrls") ?? ""));
   const tags = parseCsvList(String(formData.get("tags") ?? ""));
+  const homeFeature = String(formData.get("homeFeature") ?? "").trim() === "on";
+  const finalTags = homeFeature
+    ? Array.from(new Set([...tags, "home_feature"]))
+    : tags.filter((entry) => entry.toLowerCase() !== "home_feature");
   const published = String(formData.get("published") ?? "").trim() === "on";
 
   if (!postId || !title || !summary || !body) {
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
     coverImageUrl,
     videoUrl,
     galleryImageUrls,
-    tags,
+    tags: finalTags,
     published,
     authorUserId: actor.id
   });

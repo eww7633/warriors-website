@@ -114,6 +114,7 @@ export default async function AdminPage({
     opsUpdated?: string;
     opsSkipped?: string;
     media?: string;
+    news?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -251,7 +252,10 @@ export default async function AdminPage({
     query.opsUpdated ? `Ops roles imported: ${query.opsUpdated}` : null,
     query.opsSkipped ? `Ops role rows skipped: ${query.opsSkipped}` : null,
     query.media === "saved" ? "Showcase media uploaded." : null,
-    query.media === "deleted" ? "Showcase media deleted." : null
+    query.media === "deleted" ? "Showcase media deleted." : null,
+    query.news === "saved" ? "News post created." : null,
+    query.news === "updated" ? "News post updated." : null,
+    query.news === "deleted" ? "News post deleted." : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -971,10 +975,16 @@ export default async function AdminPage({
               <input name="galleryImageUrls" placeholder="Gallery image URLs (comma-separated)" />
               <input name="tags" placeholder="Tags (comma-separated)" />
               <label>
+                <input name="homeFeature" type="checkbox" /> Prioritize on homepage
+              </label>
+              <label>
                 <input name="published" type="checkbox" defaultChecked /> Publish immediately
               </label>
               <button className="button" type="submit">Create Post</button>
             </form>
+            <p className="muted">
+              Tip: use the <Link href="/admin?section=media">Media tab</Link> to host photos locally, then paste those local URLs here.
+            </p>
           </article>
 
           <article className="card">
@@ -991,6 +1001,14 @@ export default async function AdminPage({
                   <input name="videoUrl" defaultValue={post.videoUrl || ""} />
                   <input name="galleryImageUrls" defaultValue={post.galleryImageUrls.join(",")} />
                   <input name="tags" defaultValue={post.tags.join(",")} />
+                  <label>
+                    <input
+                      name="homeFeature"
+                      type="checkbox"
+                      defaultChecked={post.tags.includes("home_feature")}
+                    />{" "}
+                    Prioritize on homepage
+                  </label>
                   <label>
                     <input name="published" type="checkbox" defaultChecked={post.published} /> Published
                   </label>

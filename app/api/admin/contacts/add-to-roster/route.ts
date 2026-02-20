@@ -19,32 +19,39 @@ function nextAvailableNumber(used: Set<number>) {
   return null;
 }
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
   if (!actor || !(await canAccessAdminPanel(actor)) || !(await userHasPermission(actor, "manage_players"))) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
-  if (!hasDatabaseUrl()) {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=db_required_for_contact_roster", request.url), 303);
-  }
-
   const formData = await request.formData();
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=contacts";
   const contactLeadId = String(formData.get("contactLeadId") ?? "").trim();
   const jerseyNumberRaw = String(formData.get("jerseyNumber") ?? "").trim();
   const primarySubRoster = String(formData.get("primarySubRoster") ?? "").trim();
   const requestedNumber = Number(jerseyNumberRaw);
   const hasManualNumber = Number.isFinite(requestedNumber) && requestedNumber >= 1 && requestedNumber <= 99;
 
+  if (!hasDatabaseUrl()) {
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "db_required_for_contact_roster"), request.url), 303);
+  }
+
   if (!contactLeadId) {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=invalid_roster_lock_fields", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "invalid_roster_lock_fields"), request.url), 303);
   }
   if (jerseyNumberRaw && !hasManualNumber) {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=invalid_roster_lock_fields", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "invalid_roster_lock_fields"), request.url), 303);
   }
 
   if (!["gold", "white", "black"].includes(primarySubRoster)) {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=primary_sub_roster_required", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "primary_sub_roster_required"), request.url), 303);
   }
 
   try {
@@ -62,7 +69,7 @@ export async function POST(request: Request) {
     });
 
     if (!lead) {
-      return NextResponse.redirect(new URL("/admin?section=contacts&error=contact_not_found", request.url), 303);
+      return NextResponse.redirect(new URL(withParam(returnTo, "error", "contact_not_found"), request.url), 303);
     }
 
     const fullName = lead.fullName?.trim() || lead.email || `Lead ${lead.id.slice(0, 6)}`;
@@ -89,7 +96,7 @@ export async function POST(request: Request) {
       const auto = nextAvailableNumber(used);
       if (!auto) {
         return NextResponse.redirect(
-          new URL("/admin?section=contacts&error=no_available_jersey_numbers", request.url),
+          new URL(withParam(returnTo, "error", "no_available_jersey_numbers"), request.url),
           303
         );
       }
@@ -105,7 +112,8 @@ export async function POST(request: Request) {
     });
 
     if (conflict) {
-      const url = new URL("/admin?section=contacts&error=reserved_number_conflict", request.url);
+      const url = new URL(returnTo, request.url);
+      url.searchParams.set("error", "reserved_number_conflict");
       url.searchParams.set("errorDetail", encodeURIComponent(`${conflict.fullName} already has #${conflict.jerseyNumber}`));
       return NextResponse.redirect(url, 303);
     }
@@ -129,8 +137,8 @@ export async function POST(request: Request) {
       }
     );
 
-    return NextResponse.redirect(new URL("/admin?section=contacts&contact=roster_locked", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "contact", "roster_locked"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=contact_roster_lock_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "contact_roster_lock_failed"), request.url), 303);
   }
 }

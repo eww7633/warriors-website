@@ -276,6 +276,7 @@ export default async function HomePage({
                 <p className="kicker">
                   {new Date(item.publishedAt || item.createdAt).toLocaleDateString()}
                 </p>
+                {item.tags.includes("home_feature") ? <p className="badge">Featured Story</p> : null}
                 <h4>{item.title}</h4>
                 <p>{item.summary}</p>
                 <p>

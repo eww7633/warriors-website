@@ -6,7 +6,7 @@ import GameScoreCard from "@/components/GameScoreCard";
 export default async function GamesPage({
   searchParams
 }: {
-  searchParams?: { score?: string; event?: string; error?: string };
+  searchParams?: { score?: string; event?: string; lineup?: string; error?: string };
 }) {
   const query = searchParams ?? {};
   const user = await getCurrentUser();
@@ -18,6 +18,7 @@ export default async function GamesPage({
       <p>Live scores, game logs, and scorekeeper controls.</p>
       {query.score === "saved" && <p className="badge">Scoreboard updated.</p>}
       {query.event === "saved" && <p className="badge">Live event added.</p>}
+      {query.lineup === "saved" && <p className="badge">Pregame lineup saved.</p>}
       {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       <div className="stack">
         {games.map((game) => {
@@ -49,6 +50,37 @@ export default async function GamesPage({
 
               {canScorekeep ? (
                 <>
+                  <form className="grid-form" action="/api/games/save-lineup" method="post">
+                    <input type="hidden" name="gameId" value={game.id} />
+                    <strong>Pregame Lineup</strong>
+                    <p className="muted">Select dressed Warriors and lock before opening live scoring.</p>
+                    {game.teamMembers && game.teamMembers.length > 0 ? (
+                      <div className="stack">
+                        {game.teamMembers.map((member) => (
+                          <label key={`${game.id}-lineup-${member.id}`}>
+                            <input
+                              type="checkbox"
+                              name="selectedUserIds"
+                              value={member.id}
+                              defaultChecked={(game.lineup?.selectedUserIds || []).includes(member.id)}
+                            />{" "}
+                            {member.fullName} {member.jerseyNumber ? `#${member.jerseyNumber}` : ""}
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="muted">No team roster assigned yet. Add players in DVHL/Hockey Ops first.</p>
+                    )}
+                    <label>
+                      Opponent lineup / notes
+                      <textarea name="opponentRoster" rows={3} defaultValue={game.lineup?.opponentRoster || ""} />
+                    </label>
+                    <label>
+                      <input name="locked" type="checkbox" defaultChecked={Boolean(game.lineup?.locked)} /> Lock lineup
+                    </label>
+                    <button className="button ghost" type="submit">Save Pregame Lineup</button>
+                  </form>
+
                   <form className="grid-form" action="/api/games/update-score" method="post">
                     <input type="hidden" name="gameId" value={game.id} />
                     <label>
@@ -126,6 +158,11 @@ export default async function GamesPage({
               ) : (
                 <p className="muted">No live events yet.</p>
               )}
+              {game.lineup ? (
+                <p className="muted">
+                  Lineup status: {game.lineup.locked ? "Locked" : "Draft"} | Selected: {game.lineup.selectedUserIds.length}
+                </p>
+              ) : null}
             </article>
           );
         })}

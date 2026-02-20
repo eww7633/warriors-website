@@ -98,7 +98,18 @@ export async function listAllNewsPosts() {
 
 export async function listPublishedNewsPosts(limit?: number) {
   const all = await listAllNewsPosts();
-  const published = all.filter((post) => post.published);
+  const published = all
+    .filter((post) => post.published)
+    .sort((a, b) => {
+      const aFeatured = a.tags.includes("home_feature") ? 1 : 0;
+      const bFeatured = b.tags.includes("home_feature") ? 1 : 0;
+      if (aFeatured !== bFeatured) {
+        return bFeatured - aFeatured;
+      }
+      const aTime = new Date(a.publishedAt || a.createdAt).getTime();
+      const bTime = new Date(b.publishedAt || b.createdAt).getTime();
+      return bTime - aTime;
+    });
   return typeof limit === "number" ? published.slice(0, limit) : published;
 }
 
