@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
-import { isSuperAdmin, upsertUserOpsRole } from "@/lib/hq/permissions";
+import { upsertUserOpsRole, userHasPermission } from "@/lib/hq/permissions";
 import { readStore } from "@/lib/hq/store";
 
 function parseRows(raw: string) {
@@ -29,7 +29,7 @@ function parseRows(raw: string) {
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || !(await isSuperAdmin(actor))) {
+  if (!actor || !(await userHasPermission(actor, "assign_ops_roles"))) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 

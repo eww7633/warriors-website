@@ -258,3 +258,71 @@ export async function linkContactLeadToMatchingUser(contactLeadId: string) {
     }
   });
 }
+
+export async function importContactLeads(input: {
+  source?: string;
+  rows: Array<{
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    tags?: string;
+    notes?: string;
+  }>;
+}) {
+  requireDatabaseMode();
+
+  const source = (input.source || "wix").trim() || "wix";
+  let imported = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (const row of input.rows) {
+    const fullName = (row.fullName || "").trim() || null;
+    const email = (row.email || "").trim().toLowerCase() || null;
+    const phone = (row.phone || "").trim() || null;
+    const tags = (row.tags || "").trim() || null;
+    const notes = (row.notes || "").trim() || null;
+
+    if (!fullName && !email) {
+      skipped += 1;
+      continue;
+    }
+
+    if (email) {
+      const existing = await getPrismaClient().contactLead.findFirst({
+        where: { email },
+        orderBy: { createdAt: "desc" }
+      });
+
+      if (existing) {
+        await getPrismaClient().contactLead.update({
+          where: { id: existing.id },
+          data: {
+            fullName: fullName || existing.fullName,
+            phone: phone || existing.phone,
+            tags: tags || existing.tags,
+            notes: notes || existing.notes,
+            source
+          }
+        });
+        updated += 1;
+        continue;
+      }
+    }
+
+    await getPrismaClient().contactLead.create({
+      data: {
+        fullName,
+        email,
+        phone,
+        source,
+        onboardingStatus: "imported",
+        tags,
+        notes
+      }
+    });
+    imported += 1;
+  }
+
+  return { imported, updated, skipped };
+}

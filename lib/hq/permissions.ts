@@ -235,6 +235,7 @@ export async function getUserPermissions(user: Pick<MemberUser, "id" | "email" |
     perms.add("manage_players");
     perms.add("manage_events");
     perms.add("manage_site_users");
+    perms.add("assign_ops_roles");
   }
 
   const emails = superAdminEmailSet();

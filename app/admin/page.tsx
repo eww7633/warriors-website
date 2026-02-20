@@ -29,7 +29,6 @@ import {
   listOnboardingChecklistTemplate
 } from "@/lib/hq/onboarding";
 import {
-  isSuperAdmin,
   listOpsRoleAssignments,
   listOpsRoleDefinitions,
   userHasPermission
@@ -168,7 +167,7 @@ export default async function AdminPage({
   const donationIntents = await listDonationIntents();
   const donationPayments = await listDonationPayments();
   const donationLedgerSummary = await getDonationLedgerSummary();
-  const actorIsSuperAdmin = await isSuperAdmin(user);
+  const actorIsSuperAdmin = await userHasPermission(user, "assign_ops_roles");
   const onboardingByLinkedUsers = await listOnboardingChecklistByUserIds(
     sportsData.contactLeads
       .map((lead) => lead.linkedUserId || "")
@@ -236,11 +235,12 @@ export default async function AdminPage({
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
     query.contact === "roster_locked" ? "Contact added to main roster queue with jersey lock." : null,
+    query.contact === "imported" ? `Contacts import complete: ${query.imported || "0"} added, ${query.updated || "0"} updated, ${query.skipped || "0"} skipped.` : null,
     query.userrole === "updated" ? "User role updated." : null,
     query.eventtype === "created" ? "Event type created." : null,
-    query.imported ? `Imported roster locks: ${query.imported}` : null,
-    query.updated ? `Updated roster locks: ${query.updated}` : null,
-    query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
+    query.contact !== "imported" && query.imported ? `Imported roster locks: ${query.imported}` : null,
+    query.contact !== "imported" && query.updated ? `Updated roster locks: ${query.updated}` : null,
+    query.contact !== "imported" && query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
     query.reservationlinked === "1" ? "Reservation linked to player account." : null,
     query.rosterselected === "1" ? "Final roster selection saved." : null,
     query.onboardingTemplate === "updated" ? "Onboarding checklist template updated." : null,
@@ -828,6 +828,30 @@ export default async function AdminPage({
               Invite link to share:{" "}
               <code>https://pghwarriorhockey.us/join</code>
             </p>
+            <details className="event-card admin-disclosure" open>
+              <summary>Import Wix Contacts</summary>
+              <p className="muted">
+                Paste CSV lines in the format:
+                <code> fullName,email,phone,tags,notes</code>. Header row optional.
+              </p>
+              <form className="grid-form" action="/api/admin/contacts/import" method="post">
+                <label>
+                  Source
+                  <select name="source" defaultValue="wix">
+                    <option value="wix">Wix</option>
+                    <option value="manual">Manual</option>
+                    <option value="other">Other</option>
+                  </select>
+                </label>
+                <textarea
+                  name="rows"
+                  rows={8}
+                  placeholder={`fullName,email,phone,tags,notes\nEvan Wawrykow,eww7633@yahoo.com,555-555-1212,player,veteran roster import`}
+                  required
+                />
+                <button className="button" type="submit">Import Contacts</button>
+              </form>
+            </details>
           </article>
 
           <article className="card">
@@ -874,6 +898,7 @@ export default async function AdminPage({
                     <p className="muted">Invite sender account: {inviteFromEmail}</p>
                     <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
                       <input type="hidden" name="contactLeadId" value={lead.id} />
+                      <input type="hidden" name="returnTo" value="/admin?section=contacts" />
                       <label>
                         Jersey number (optional)
                         <input name="jerseyNumber" type="number" min={1} max={99} placeholder="Leave blank for auto-assign" />

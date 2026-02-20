@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
-import { clearUserOpsRoles, isSuperAdmin, upsertUserOpsRole } from "@/lib/hq/permissions";
+import { clearUserOpsRoles, upsertUserOpsRole, userHasPermission } from "@/lib/hq/permissions";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const actor = await getCurrentUser();
-  if (!actor || !(await isSuperAdmin(actor))) {
+  if (!actor || !(await userHasPermission(actor, "assign_ops_roles"))) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
