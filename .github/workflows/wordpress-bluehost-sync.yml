@@ -69,6 +69,8 @@ jobs:
         run: |
           if [ -n "$BLUEHOST_WP_THEME_DIR" ]; then
             DEPLOY_DIR="$BLUEHOST_WP_THEME_DIR"
+          elif [[ "$BLUEHOST_WP_PLUGIN_DIR" == *"/public_html/wp-content/plugins/"* ]]; then
+            DEPLOY_DIR="public_html/wp-content/themes/"
           elif [[ "$BLUEHOST_WP_PLUGIN_DIR" == *"wp-content/plugins/"* ]]; then
             DEPLOY_DIR="${BLUEHOST_WP_PLUGIN_DIR%plugins/}themes/"
           else
