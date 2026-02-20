@@ -1,5 +1,5 @@
 import { readStore } from "@/lib/hq/store";
-import { listOpsRoleAssignments } from "@/lib/hq/permissions";
+import { listOpsRoleAssignments, OpsRoleKey } from "@/lib/hq/permissions";
 
 const roleCopy: Record<string, string> = {
   president: "Leads organizational strategy, governance, and partner alignment.",
@@ -9,7 +9,8 @@ const roleCopy: Record<string, string> = {
 export default async function LeadershipPage() {
   const [store, assignments] = await Promise.all([readStore(), listOpsRoleAssignments()]);
   const roleMap = new Map(assignments.map((entry) => [entry.roleKey, entry]));
-  const leadership = ["president", "vp_hockey_ops"].map((roleKey) => {
+  const leadershipRoles: OpsRoleKey[] = ["president", "vp_hockey_ops"];
+  const leadership = leadershipRoles.map((roleKey) => {
     const assignment = roleMap.get(roleKey);
     const user = assignment ? store.users.find((entry) => entry.id === assignment.userId) : null;
     return {
