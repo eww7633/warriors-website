@@ -107,3 +107,22 @@ jobs:
             **/*.zip
             **/.DS_Store
           dangerous-clean-slate: false
+
+      - name: Upload WordPress themes (public_html mirror)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ env.BLUEHOST_HOST }}
+          username: ${{ env.BLUEHOST_USER }}
+          password: ${{ env.BLUEHOST_PASS }}
+          protocol: ftp
+          port: 21
+          local-dir: integrations/wordpress/themes/
+          server-dir: /public_html/wp-content/themes/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/README.md
+            **/*.zip
+            **/.DS_Store
+          dangerous-clean-slate: false
