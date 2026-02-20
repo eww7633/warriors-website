@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
-import { hasDatabaseUrl } from "@/lib/db-env";
-import { getPrismaClient } from "@/lib/prisma";
 import {
   findBlockingRosterReservation,
   listRosterReservations,
   upsertRosterReservations
 } from "@/lib/hq/roster-reservations";
 import { readStore } from "@/lib/hq/store";
+import { getContactLeadById } from "@/lib/hq/ops-data";
 
 function nextAvailableNumber(used: Set<number>) {
   for (let number = 1; number <= 99; number += 1) {
@@ -39,10 +38,6 @@ export async function POST(request: Request) {
   const requestedNumber = Number(jerseyNumberRaw);
   const hasManualNumber = Number.isFinite(requestedNumber) && requestedNumber >= 1 && requestedNumber <= 99;
 
-  if (!hasDatabaseUrl()) {
-    return NextResponse.redirect(new URL(withParam(returnTo, "error", "db_required_for_contact_roster"), request.url), 303);
-  }
-
   if (!contactLeadId) {
     return NextResponse.redirect(new URL(withParam(returnTo, "error", "invalid_roster_lock_fields"), request.url), 303);
   }
@@ -55,18 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const lead = await getPrismaClient().contactLead.findUnique({
-      where: { id: contactLeadId },
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        notes: true,
-        linkedUserId: true,
-        onboardingStatus: true
-      }
-    });
+    const lead = await getContactLeadById(contactLeadId);
 
     if (!lead) {
       return NextResponse.redirect(new URL(withParam(returnTo, "error", "contact_not_found"), request.url), 303);

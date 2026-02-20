@@ -4,6 +4,32 @@ import { upsertUserOpsRole, userHasPermission } from "@/lib/hq/permissions";
 import { readStore } from "@/lib/hq/store";
 
 function parseRows(raw: string) {
+  function splitCsvLine(line: string) {
+    const values: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const char = line[index];
+      if (char === "\"") {
+        if (inQuotes && line[index + 1] === "\"") {
+          current += "\"";
+          index += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (char === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+    values.push(current.trim());
+    return values;
+  }
+
   const lines = raw
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -16,7 +42,7 @@ function parseRows(raw: string) {
   const rows = hasHeader ? lines.slice(1) : lines;
 
   return rows.map((line) => {
-    const cols = line.split(",").map((entry) => entry.trim());
+    const cols = splitCsvLine(line);
     return {
       email: (cols[0] || "").toLowerCase(),
       roleKey: cols[1] || "",
@@ -29,12 +55,16 @@ function parseRows(raw: string) {
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
-  if (!actor || !(await userHasPermission(actor, "assign_ops_roles"))) {
+  const canManageUsers = actor ? await userHasPermission(actor, "manage_site_users") : false;
+  const canAssignOpsRoles = actor ? await userHasPermission(actor, "assign_ops_roles") : false;
+  if (!actor || !canManageUsers) {
     return NextResponse.redirect(new URL("/login?error=unauthorized", request.url), 303);
   }
 
   const formData = await request.formData();
-  const rawRows = String(formData.get("rows") ?? "");
+  const uploadedCsv = formData.get("csvFile");
+  const uploadedCsvText = uploadedCsv instanceof File && uploadedCsv.size > 0 ? await uploadedCsv.text() : "";
+  const rawRows = uploadedCsvText || String(formData.get("rows") ?? "");
   const returnToRaw = String(formData.get("returnTo") ?? "").trim();
   const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=usermanagement";
   const rows = parseRows(rawRows);
@@ -50,6 +80,10 @@ export async function POST(request: Request) {
   for (const row of rows) {
     const user = store.users.find((entry) => entry.email.toLowerCase() === row.email);
     if (!user || !row.roleKey) {
+      skipped += 1;
+      continue;
+    }
+    if (row.roleKey === "super_admin" && !canAssignOpsRoles) {
       skipped += 1;
       continue;
     }

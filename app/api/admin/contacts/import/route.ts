@@ -3,6 +3,36 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
 import { importContactLeads } from "@/lib/hq/ops-data";
 
+function splitCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
 function parseRows(raw: string) {
   const lines = raw
     .split(/\r?\n/)
@@ -16,7 +46,7 @@ function parseRows(raw: string) {
   const rows = hasHeader ? lines.slice(1) : lines;
 
   return rows.map((line) => {
-    const cols = line.split(",").map((entry) => entry.trim());
+    const cols = splitCsvLine(line);
     return {
       fullName: cols[0] || "",
       email: cols[1] || "",
@@ -35,7 +65,9 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const source = String(formData.get("source") ?? "wix").trim() || "wix";
-  const rowsRaw = String(formData.get("rows") ?? "");
+  const uploadedCsv = formData.get("csvFile");
+  const uploadedCsvText = uploadedCsv instanceof File && uploadedCsv.size > 0 ? await uploadedCsv.text() : "";
+  const rowsRaw = uploadedCsvText || String(formData.get("rows") ?? "");
   const rows = parseRows(rowsRaw);
 
   if (rows.length === 0) {

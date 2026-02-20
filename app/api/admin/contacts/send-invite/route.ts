@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { getPrismaClient } from "@/lib/prisma";
-import { markContactLeadInvited } from "@/lib/hq/ops-data";
+import { getContactLeadById, markContactLeadInvited } from "@/lib/hq/ops-data";
 import { sendInviteEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
@@ -21,10 +20,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const lead = await getPrismaClient().contactLead.findUnique({
-      where: { id: contactLeadId },
-      select: { id: true, email: true, fullName: true }
-    });
+    const lead = await getContactLeadById(contactLeadId);
 
     if (!lead) {
       throw new Error("Contact not found.");

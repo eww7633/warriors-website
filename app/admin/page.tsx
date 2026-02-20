@@ -834,7 +834,7 @@ export default async function AdminPage({
                 Paste CSV lines in the format:
                 <code> fullName,email,phone,tags,notes</code>. Header row optional.
               </p>
-              <form className="grid-form" action="/api/admin/contacts/import" method="post">
+              <form className="grid-form" action="/api/admin/contacts/import" method="post" encType="multipart/form-data">
                 <label>
                   Source
                   <select name="source" defaultValue="wix">
@@ -842,6 +842,10 @@ export default async function AdminPage({
                     <option value="manual">Manual</option>
                     <option value="other">Other</option>
                   </select>
+                </label>
+                <label>
+                  Upload CSV (optional)
+                  <input name="csvFile" type="file" accept=".csv,text/csv,text/plain" />
                 </label>
                 <textarea
                   name="rows"
@@ -974,6 +978,36 @@ export default async function AdminPage({
                         </form>
                       )}
                     </div>
+                    {lead.linkedUserId ? (
+                      <details className="event-card admin-disclosure">
+                        <summary>Assign Hockey Ops role</summary>
+                        <form
+                          className="grid-form"
+                          action={`/api/admin/users/${lead.linkedUserId}/ops-role`}
+                          method="post"
+                        >
+                          <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+                          <label>
+                            Ops role
+                            <select name="roleKey" defaultValue="">
+                              <option value="" disabled>Select role</option>
+                              {roleDefinitions
+                                .filter((definition) => actorIsSuperAdmin || definition.key !== "super_admin")
+                                .map((definition) => (
+                                  <option key={definition.key} value={definition.key}>{definition.label}</option>
+                                ))}
+                            </select>
+                          </label>
+                          <input name="titleLabel" placeholder="Title label (optional)" />
+                          <input name="officialEmail" type="email" placeholder="Official email (optional)" />
+                          <input name="badgeLabel" placeholder="Badge label (optional)" />
+                          <button className="button ghost" type="submit">Assign Role</button>
+                        </form>
+                        <p className="muted">
+                          Current roles: {(roleAssignmentsByUserId.get(lead.linkedUserId) || []).map((entry) => entry.titleLabel).join(", ") || "None"}
+                        </p>
+                      </details>
+                    ) : null}
                     {lead.tags && <p className="muted">Tags: {lead.tags}</p>}
                         </>
                       );
@@ -1548,7 +1582,9 @@ export default async function AdminPage({
                       Assign Ops role
                       <select name="roleKey" defaultValue="">
                         <option value="">Select role</option>
-                        {roleDefinitions.map((entry) => (
+                        {roleDefinitions
+                          .filter((entry) => actorIsSuperAdmin || entry.key !== "super_admin")
+                          .map((entry) => (
                           <option key={entry.key} value={entry.key}>
                             {entry.label}
                           </option>
@@ -1572,9 +1608,18 @@ export default async function AdminPage({
           {actorIsSuperAdmin ? (
             <details className="card admin-disclosure" open>
               <summary>Ops Role Assignments</summary>
-              <form className="grid-form event-card" action="/api/admin/ops-roles/import" method="post">
+              <form
+                className="grid-form event-card"
+                action="/api/admin/ops-roles/import"
+                method="post"
+                encType="multipart/form-data"
+              >
                 <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
                 <strong>Bulk import ops roles</strong>
+                <label>
+                  Upload CSV (optional)
+                  <input name="csvFile" type="file" accept=".csv,text/csv,text/plain" />
+                </label>
                 <textarea
                   name="rows"
                   rows={6}
@@ -1598,7 +1643,9 @@ export default async function AdminPage({
                       Role
                       <select name="roleKey" defaultValue="">
                         <option value="">Select role</option>
-                        {roleDefinitions.map((entry) => (
+                        {roleDefinitions
+                          .filter((entry) => actorIsSuperAdmin || entry.key !== "super_admin")
+                          .map((entry) => (
                           <option key={entry.key} value={entry.key}>
                             {entry.label}
                           </option>
