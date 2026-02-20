@@ -5,6 +5,7 @@ This plugin adds:
 - Automatic menu-link normalization for login/signup/HQ labels
 - HQ CTA shortcode
 - Social links shortcode
+- Header HQ session bar shortcode (theme-agnostic)
 
 ## Install
 1. Upload folder `warriors-theme-tools` into `wp-content/plugins/`
@@ -14,6 +15,7 @@ This plugin adds:
 ## Shortcodes
 - `[warriors_hq_cta]`
 - `[warriors_social_links]`
+- `[warrior_hq_bar]` (or `[warriors_hq_bar]`)
 
 ## Recommended values
 - HQ Base URL: `https://hq.pghwarriorhockey.us`

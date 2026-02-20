@@ -12,7 +12,7 @@ function warriors_theme_tools_defaults() {
         'hq_base_url' => 'https://hq.pghwarriorhockey.us',
         'instagram_url' => 'https://instagram.com/pittsburghwarriorshockey',
         'facebook_url' => 'https://www.facebook.com/pittsburghwarriors/',
-        'inject_frontpage_block' => true,
+        'inject_frontpage_block' => false,
     ];
 }
 
@@ -608,6 +608,51 @@ h1, h2, h3, h4 {
 a {
   color: #1a4e7a !important;
 }
+.warrior-hq-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.warrior-hq-bar .label {
+  color: #f8f3e8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.warrior-hq-bar .warrior-hq-bar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+}
+.warrior-hq-bar .warrior-hq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0.42rem 0.75rem;
+  border: 1px solid transparent;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none !important;
+  line-height: 1.1;
+}
+.warrior-hq-bar .warrior-hq-btn.primary {
+  background: #d4a42f;
+  border-color: #d4a42f;
+  color: #11151c !important;
+}
+.warrior-hq-bar .warrior-hq-btn.secondary {
+  background: #0f1722;
+  border-color: #243144;
+  color: #f8fbff !important;
+}
+.warrior-hq-bar .status {
+  color: #d9cfbb;
+  font-size: 0.78rem;
+}
 @media (max-width: 900px) {
   main,
   .site-main,
@@ -709,6 +754,23 @@ window.WARRIORS_FB_URL = ' . wp_json_encode($opts['facebook_url']) . ';
     wp_register_script('warriors-theme-tools-inline', false, [], null, true);
     wp_enqueue_script('warriors-theme-tools-inline');
     wp_add_inline_script('warriors-theme-tools-inline', $js, 'before');
+
+    wp_enqueue_script(
+        'warriors-theme-tools-hq-bar',
+        plugin_dir_url(__FILE__) . 'assets/hq-bar.js',
+        [],
+        '0.2.6',
+        true
+    );
+    wp_add_inline_script(
+        'warriors-theme-tools-hq-bar',
+        'window.WARRIOR_HQ_BAR_CONFIG=' . wp_json_encode([
+            'hqBaseUrl' => $hq,
+            'sessionSummaryUrl' => $hq . '/api/public/session-summary',
+            'logoutUrl' => $hq . '/api/public/auth/logout',
+        ]) . ';',
+        'before'
+    );
 }
 add_action('wp_enqueue_scripts', 'warriors_theme_tools_enqueue_assets');
 
@@ -806,6 +868,33 @@ function warriors_theme_tools_social_shortcode() {
         . '</div>';
 }
 add_shortcode('warriors_social_links', 'warriors_theme_tools_social_shortcode');
+
+function warriors_theme_tools_hq_bar_shortcode($atts = []) {
+    $opts = warriors_theme_tools_get_options();
+    $hq = untrailingslashit($opts['hq_base_url']);
+    $atts = shortcode_atts([
+        'label' => 'Warrior HQ',
+        'show_label' => '1',
+    ], $atts, 'warrior_hq_bar');
+
+    $label_html = '';
+    if ($atts['show_label'] !== '0') {
+        $label_html = '<span class="label">' . esc_html($atts['label']) . '</span>';
+    }
+
+    $fallback = '<div class="warrior-hq-bar-actions">'
+        . '<a class="warrior-hq-btn primary" href="' . esc_url($hq . '/join') . '">Join</a>'
+        . '<a class="warrior-hq-btn secondary" href="' . esc_url($hq . '/login') . '">Log In</a>'
+        . '</div>';
+
+    return '<div class="warrior-hq-bar" data-hq-bar="1">'
+        . $label_html
+        . '<span class="status" data-hq-status>Checking account...</span>'
+        . '<div data-hq-actions>' . $fallback . '</div>'
+        . '</div>';
+}
+add_shortcode('warrior_hq_bar', 'warriors_theme_tools_hq_bar_shortcode');
+add_shortcode('warriors_hq_bar', 'warriors_theme_tools_hq_bar_shortcode');
 
 function warriors_theme_tools_fetch_public_events($feed_url, $limit = 3) {
     $response = wp_remote_get($feed_url, [
@@ -955,16 +1044,25 @@ function warriors_theme_tools_inject_frontpage_content($content) {
         return $content;
     }
 
-    $opts = warriors_theme_tools_get_options();
-    if (empty($opts['inject_frontpage_block'])) {
-        return $content;
-    }
-
-    // The public homepage should be a single polished experience,
-    // not mixed with legacy WonderBlocks sections.
-    return warriors_theme_tools_home_updates_shortcode();
+    return $content;
 }
 add_filter('the_content', 'warriors_theme_tools_inject_frontpage_content', 8);
+
+function warriors_theme_tools_render_shortcodes_in_block_content($block_content, $block) {
+    if (!is_string($block_content) || $block_content === '') {
+        return $block_content;
+    }
+
+    if (
+        strpos($block_content, '[warrior_hq_bar') === false
+        && strpos($block_content, '[warriors_hq_bar') === false
+    ) {
+        return $block_content;
+    }
+
+    return do_shortcode($block_content);
+}
+add_filter('render_block', 'warriors_theme_tools_render_shortcodes_in_block_content', 15, 2);
 
 function warriors_theme_tools_register_settings() {
     register_setting('warriors_theme_tools_settings', 'warriors_theme_tools_options', 'warriors_theme_tools_sanitize');
