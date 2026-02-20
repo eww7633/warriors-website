@@ -87,10 +87,10 @@ jobs:
           DEPLOY_DIR="${DEPLOY_DIR//wp-content\/wp-content\//wp-content/}"
 
           case "$DEPLOY_DIR" in
-            wp-content/themes/*)
+            wp-content/themes/*|public_html/wp-content/themes/*)
               ;;
             *)
-              echo "Resolved theme dir must be under wp-content/themes/. Got: $DEPLOY_DIR" >&2
+              echo "Resolved theme dir must be under wp-content/themes/ or public_html/wp-content/themes/. Got: $DEPLOY_DIR" >&2
               exit 1
               ;;
           esac
