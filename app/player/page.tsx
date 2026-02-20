@@ -20,6 +20,7 @@ import {
   getPlayerOnboardingState,
   isPlayerOnboardingComplete
 } from "@/lib/hq/player-onboarding";
+import { getNotificationPreference } from "@/lib/hq/notifications";
 import {
   canEventCollectGuests,
   getEventGuestIntentMap,
@@ -34,6 +35,7 @@ export const dynamic = "force-dynamic";
 const sections = [
   ["overview", "Overview"],
   ["onboarding", "Onboarding"],
+  ["notifications", "Notifications"],
   ["profile", "Profile"],
   ["events", "Events"],
   ["dvhl", "DVHL"],
@@ -66,14 +68,15 @@ export default async function PlayerPage({
     redirect("/login?error=sign_in_required");
   }
 
-  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments, onboardingState] = await Promise.all([
+  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments, onboardingState, notificationPref] = await Promise.all([
     readStore(),
     getPlayerRosterProfile(user.id),
     listPhotoSubmissionRequestsByUser(user.id),
     listJerseyNumberRequestsByUser(user.id),
     getPlayerProfileExtra(user.id),
     listTeamAssignmentsByUser(user.id),
-    getPlayerOnboardingState(user.id)
+    getPlayerOnboardingState(user.id),
+    getNotificationPreference(user.id)
   ]);
 
   const latestUser = store.users.find((entry) => entry.id === user.id) ?? user;
@@ -128,6 +131,7 @@ export default async function PlayerPage({
         {querySaved === "equipment" && <p className="badge">Equipment profile saved.</p>}
         {querySaved === "profile" && <p className="badge">Contact profile saved.</p>}
         {querySaved === "onboarding" && <p className="badge">Onboarding completed. Hockey Ops can now finalize your assignments.</p>}
+        {querySaved === "notifications" && <p className="badge">Notification preferences saved.</p>}
         {querySaved === "photo_request" && <p className="badge">Photo submission sent to Hockey Ops for review.</p>}
         {querySaved === "jersey_request" && <p className="badge">Jersey number request sent to Hockey Ops.</p>}
         {querySaved === "jersey_auto_granted" && <p className="badge">Jersey number updated automatically.</p>}
@@ -274,6 +278,43 @@ export default async function PlayerPage({
             </form>
           </>
         )}
+      </article>
+      )}
+
+      {section === "notifications" && (
+      <article className="card">
+        <h3>Notification Preferences</h3>
+        <p className="muted">
+          Choose what you want alerts for and how you want to receive them.
+        </p>
+        <form className="grid-form" action="/api/player/notifications" method="post">
+          <h4>Delivery Channels</h4>
+          <label><input name="channelEmail" type="checkbox" defaultChecked={notificationPref.channels.email} /> Email</label>
+          <label><input name="channelSms" type="checkbox" defaultChecked={notificationPref.channels.sms} /> SMS</label>
+          <label><input name="channelPush" type="checkbox" defaultChecked={notificationPref.channels.push} /> Push</label>
+
+          <h4>Frequency</h4>
+          <label>
+            <select name="frequency" defaultValue={notificationPref.frequency}>
+              <option value="immediate">Immediate</option>
+              <option value="daily">Daily digest</option>
+              <option value="weekly">Weekly digest</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+
+          <h4>Categories</h4>
+          <label><input name="catDvhl" type="checkbox" defaultChecked={notificationPref.categories.dvhl} /> DVHL updates</label>
+          <label><input name="catNational" type="checkbox" defaultChecked={notificationPref.categories.national} /> National tournaments</label>
+          <label><input name="catHockey" type="checkbox" defaultChecked={notificationPref.categories.hockey} /> Other hockey events</label>
+          <label><input name="catOffIce" type="checkbox" defaultChecked={notificationPref.categories.off_ice} /> Off-ice events</label>
+          <label><input name="catInterestDeadline" type="checkbox" defaultChecked={notificationPref.categories.interest_deadline} /> Interest deadline reminders</label>
+          <label><input name="catRosterFinalized" type="checkbox" defaultChecked={notificationPref.categories.interest_roster_finalized} /> Final roster announcements</label>
+          <label><input name="catGuestUpdates" type="checkbox" defaultChecked={notificationPref.categories.guest_updates} /> Guest request updates</label>
+          <label><input name="catNews" type="checkbox" defaultChecked={notificationPref.categories.news} /> Program news</label>
+
+          <button className="button" type="submit">Save Notification Preferences</button>
+        </form>
       </article>
       )}
 
