@@ -43,6 +43,21 @@
       </nav>
 
       <div class="wm-actions">
+        <div class="wm-social" aria-label="Social links">
+          <a class="wm-icon-btn" href="<?php echo warriors_modern_social_url('instagram'); ?>" target="_blank" rel="noreferrer" aria-label="Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="5" ry="5"></rect>
+              <circle cx="12" cy="12" r="3.5"></circle>
+              <circle cx="17.4" cy="6.6" r="1"></circle>
+            </svg>
+          </a>
+          <a class="wm-icon-btn" href="<?php echo warriors_modern_social_url('facebook'); ?>" target="_blank" rel="noreferrer" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v4h4v-4h3l1-4h-4V9c0-.7.3-1 1-1z"></path>
+            </svg>
+          </a>
+        </div>
+        <button class="wm-btn wm-btn-ghost wm-theme-toggle" type="button" aria-pressed="false">Dark</button>
         <a class="wm-btn wm-btn-gold" href="<?php echo esc_url(home_url('/donate')); ?>">Donate</a>
         <a class="wm-btn wm-btn-ghost" href="<?php echo warriors_modern_hq_url('/register'); ?>">Join</a>
         <a class="wm-btn wm-btn-dark" href="<?php echo warriors_modern_hq_url('/login'); ?>">Log in</a>

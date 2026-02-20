@@ -1,6 +1,7 @@
 (() => {
   const header = document.querySelector('.wm-header');
   const toggle = document.querySelector('.wm-menu-toggle');
+  const themeToggle = document.querySelector('.wm-theme-toggle');
   if (!header || !toggle) return;
 
   const closeMenu = () => {
@@ -34,4 +35,30 @@
       button.textContent = open ? '-' : '+';
     });
   });
+
+  const applyThemeState = (dark) => {
+    document.body.classList.toggle('wm-dark', dark);
+    if (themeToggle) {
+      themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      themeToggle.textContent = dark ? 'Light' : 'Dark';
+    }
+  };
+
+  let saved = null;
+  try {
+    saved = window.localStorage.getItem('wm-theme');
+  } catch (e) {}
+  if (saved === 'dark') {
+    applyThemeState(true);
+  }
+
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const dark = !document.body.classList.contains('wm-dark');
+      applyThemeState(dark);
+      try {
+        window.localStorage.setItem('wm-theme', dark ? 'dark' : 'light');
+      } catch (e) {}
+    });
+  }
 })();

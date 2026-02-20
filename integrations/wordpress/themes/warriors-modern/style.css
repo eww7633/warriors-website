@@ -3,7 +3,7 @@ Theme Name: Warriors Modern
 Theme URI: https://pghwarriorhockey.us
 Author: Warriors HQ
 Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
-Version: 1.0.2
+Version: 1.0.3
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -30,6 +30,9 @@ body {
   color: var(--wm-ink);
   background: radial-gradient(circle at 8% 0%, #f7f2e7 0%, var(--wm-bg) 55%, #e8e2d6 100%);
   line-height: 1.45;
+}
+body, p, li, h1, h2, h3, h4, h5, h6, .wm-page-content, .wm-page-content p, .wm-page-content li {
+  color: var(--wm-ink);
 }
 
 a { color: var(--wm-link); text-decoration: none; }
@@ -152,6 +155,33 @@ a:hover { text-decoration: underline; }
   display: flex;
   gap: .55rem;
   align-items: center;
+}
+.wm-social {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.wm-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbb996;
+  border-radius: 999px;
+  background: #f8f3e9;
+  color: #203347;
+}
+.wm-icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.wm-icon-btn[aria-label="Facebook"] svg {
+  fill: currentColor;
+  stroke: none;
 }
 
 .wm-menu-toggle {
@@ -378,7 +408,8 @@ a:hover { text-decoration: underline; }
     display: block;
     grid-column: 1 / -1;
   }
-  .wm-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .5rem; }
+  .wm-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+  .wm-social { grid-column: 1 / -1; }
   .wm-actions .wm-btn { width: 100%; padding: .55rem .5rem; font-size: .86rem; }
   .wm-home-grid { grid-template-columns: 1fr; }
 }
@@ -387,6 +418,43 @@ a:hover { text-decoration: underline; }
   .wm-shell { width: min(1220px, calc(100% - 1rem)); }
   .wm-nav ul { grid-template-columns: 1fr; }
   .wm-actions { grid-template-columns: 1fr; }
+}
+
+body.wm-dark {
+  --wm-bg: #0d1320;
+  --wm-surface: #131c2a;
+  --wm-surface-soft: #172233;
+  --wm-border: #2d3c53;
+  --wm-ink: #edf1f8;
+  --wm-muted: #c2cad9;
+  --wm-link: #8ec8ff;
+  --wm-gold: #d7ac3f;
+  --wm-black: #0a0f17;
+  background: radial-gradient(circle at 10% 0%, #19253a 0%, #0e1523 52%, #0a111d 100%);
+}
+body.wm-dark .wm-header { background: #101826; border-bottom-color: #2a3649; }
+body.wm-dark .wm-brand-sub { color: #c7d0df; }
+body.wm-dark .wm-menu-toggle { background: #182334; color: #d7e4f6; border-color: #355679; }
+body.wm-dark .wm-submenu,
+body.wm-dark .wm-panel,
+body.wm-dark .wm-nav a { background: #172233; border-color: #2d3c53; color: #e9eff8; }
+body.wm-dark .wm-nav a:hover,
+body.wm-dark .wm-submenu a:hover { background: #223148; }
+body.wm-dark .wm-icon-btn { background: #1a2537; border-color: #2f415c; color: #d7e6f8; }
+body.wm-dark .wm-stat,
+body.wm-dark .wm-event,
+body.wm-dark .wm-info-card { background: #1a2637; border-color: #2f415a; }
+body.wm-dark .wm-hero {
+  background:
+    radial-gradient(circle at 90% 10%, rgba(211,163,48,.25) 0%, rgba(211,163,48,0) 36%),
+    linear-gradient(180deg, #151f2f 0%, #1a2738 100%);
+}
+body.wm-dark .wm-muted,
+body.wm-dark .wm-hero p,
+body.wm-dark .wm-event p,
+body.wm-dark .wm-support ul,
+body.wm-dark .wm-stat span {
+  color: #d2dbea;
 }
 
 .wm-subnav {

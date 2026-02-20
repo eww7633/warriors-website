@@ -14,7 +14,7 @@ function warriors_modern_setup() {
 add_action('after_setup_theme', 'warriors_modern_setup');
 
 function warriors_modern_assets() {
-    wp_enqueue_style('warriors-modern-style', get_stylesheet_uri(), [], '1.0.1');
+    wp_enqueue_style('warriors-modern-style', get_stylesheet_uri(), [], '1.0.2');
     wp_enqueue_script(
         'warriors-modern-nav',
         get_template_directory_uri() . '/assets/js/navigation.js',
@@ -78,4 +78,23 @@ function warriors_modern_event_url($event) {
 function warriors_modern_hq_url($path) {
     $opts = warriors_modern_options();
     return esc_url(untrailingslashit($opts['hq_base']) . $path);
+}
+
+function warriors_modern_social_url($platform) {
+    $defaults = [
+        'instagram_url' => 'https://instagram.com/pittsburghwarriorshockey',
+        'facebook_url' => 'https://www.facebook.com/pittsburghwarriors/',
+    ];
+    $opts = get_option('warriors_theme_tools_options', []);
+    if (!is_array($opts)) {
+        $opts = [];
+    }
+
+    if ($platform === 'instagram') {
+        return esc_url($opts['instagram_url'] ?? $defaults['instagram_url']);
+    }
+    if ($platform === 'facebook') {
+        return esc_url($opts['facebook_url'] ?? $defaults['facebook_url']);
+    }
+    return '#';
 }
