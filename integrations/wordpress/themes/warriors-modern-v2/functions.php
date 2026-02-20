@@ -14,12 +14,12 @@ function warriors_modern_setup() {
 add_action('after_setup_theme', 'warriors_modern_setup');
 
 function warriors_modern_assets() {
-    wp_enqueue_style('warriors-modern-v2-style', get_stylesheet_uri(), [], '2.0.0');
+    wp_enqueue_style('warriors-modern-v2-style', get_stylesheet_uri(), [], '2.0.1');
     wp_enqueue_script(
         'warriors-modern-v2-nav',
         get_template_directory_uri() . '/assets/js/navigation.js',
         [],
-        '2.0.0',
+        '2.0.1',
         true
     );
 }

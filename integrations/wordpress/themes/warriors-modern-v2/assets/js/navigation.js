@@ -30,9 +30,21 @@
     button.addEventListener('click', () => {
       const item = button.closest('.wm-has-submenu');
       if (!item) return;
-      const open = item.classList.toggle('sub-open');
+      const open = item.classList.toggle('submenu-open');
       button.setAttribute('aria-expanded', open ? 'true' : 'false');
-      button.textContent = open ? '-' : '+';
+      button.textContent = open ? '▴' : '▾';
+    });
+  });
+
+  document.addEventListener('click', (event) => {
+    document.querySelectorAll('.wm-has-submenu.submenu-open').forEach((item) => {
+      if (item.contains(event.target)) return;
+      item.classList.remove('submenu-open');
+      const btn = item.querySelector('.wm-sub-toggle');
+      if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.textContent = '▾';
+      }
     });
   });
 
@@ -40,7 +52,6 @@
     document.body.classList.toggle('wm-dark', dark);
     if (themeToggle) {
       themeToggle.setAttribute('aria-pressed', dark ? 'true' : 'false');
-      themeToggle.textContent = dark ? 'Light' : 'Dark';
     }
   };
 

@@ -3,7 +3,7 @@ Theme Name: Warriors Modern V2
 Theme URI: https://pghwarriorhockey.us
 Author: Warriors HQ
 Description: Clean, donation-focused public theme for Pittsburgh Warriors Hockey Club.
-Version: 2.0.0
+Version: 2.0.1
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
@@ -121,13 +121,20 @@ a:hover { text-decoration: underline; }
 .wm-nav li { position: relative; }
 .wm-nav .wm-has-submenu > a { padding-right: 1.1rem; }
 .wm-sub-toggle {
-  display: none;
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: transparent;
-  color: var(--wm-link);
-  font-weight: 900;
+  color: #22354a;
+  font-weight: 800;
+  font-size: .78rem;
   cursor: pointer;
 }
+.wm-sub-toggle:hover { background: #efe6d2; border-color: #d7c5a4; }
 .wm-submenu {
   list-style: none;
   margin: 0;
@@ -150,8 +157,7 @@ a:hover { text-decoration: underline; }
   border-radius: 8px;
 }
 .wm-submenu a:hover { background: #efe6d2; text-decoration: none; }
-.wm-has-submenu:hover .wm-submenu,
-.wm-has-submenu:focus-within .wm-submenu {
+.wm-has-submenu.submenu-open .wm-submenu {
   display: block;
 }
 
@@ -177,35 +183,29 @@ a:hover { text-decoration: underline; }
 
 .wm-actions {
   display: flex;
-  gap: .55rem;
+  gap: .5rem;
   align-items: center;
 }
 .wm-social {
   display: inline-flex;
   align-items: center;
-  gap: .35rem;
+  gap: .4rem;
 }
 .wm-icon-btn {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid #cbb996;
   border-radius: 999px;
   background: #f8f3e9;
-  color: #203347;
+  color: #1b2f44;
 }
 .wm-icon-btn svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.8;
-}
-.wm-icon-btn[aria-label="Facebook"] svg {
+  width: 18px;
+  height: 18px;
   fill: currentColor;
-  stroke: none;
 }
 
 .wm-menu-toggle {
@@ -225,7 +225,8 @@ a:hover { text-decoration: underline; }
   justify-content: center;
   border-radius: 12px;
   border: 1px solid transparent;
-  padding: .58rem .95rem;
+  min-height: 38px;
+  padding: .56rem .95rem;
   font-weight: 800;
   line-height: 1.15;
   transition: transform .14s ease;
@@ -235,6 +236,21 @@ a:hover { text-decoration: underline; }
 .wm-btn-gold { background: var(--wm-gold); color: #11141a; }
 .wm-btn-dark { background: var(--wm-black); color: #fff !important; }
 .wm-btn-ghost { border-color: var(--wm-link); color: var(--wm-link); background: transparent; }
+.wm-theme-toggle {
+  width: 38px;
+  min-width: 38px;
+  padding: 0;
+}
+.wm-theme-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+.wm-icon-moon { display: none; }
+body.wm-dark .wm-icon-sun { display: none; }
+body.wm-dark .wm-icon-moon { display: block; }
 
 .wm-main {
   padding: 1.4rem 0 3rem;
@@ -418,9 +434,6 @@ a:hover { text-decoration: underline; }
   .wm-has-submenu { display: grid; grid-template-columns: 1fr auto; align-items: start; }
   .wm-has-submenu > a { grid-column: 1; }
   .wm-sub-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 30px;
     height: 30px;
     border: 1px solid var(--wm-border);
@@ -428,7 +441,7 @@ a:hover { text-decoration: underline; }
     border-radius: 7px;
     margin-top: 2px;
   }
-  .wm-has-submenu.sub-open .wm-submenu {
+  .wm-has-submenu.submenu-open .wm-submenu {
     display: block;
     grid-column: 1 / -1;
   }
@@ -462,6 +475,7 @@ body.wm-dark .wm-menu-toggle { background: #182334; color: #d7e4f6; border-color
 body.wm-dark .wm-submenu,
 body.wm-dark .wm-panel,
 body.wm-dark .wm-nav a { background: #172233; border-color: #2d3c53; color: #e9eff8; }
+body.wm-dark .wm-sub-toggle { color: #d9e7fb; border-color: #2d3c53; }
 body.wm-dark .wm-brand-title,
 body.wm-dark .wm-nav a,
 body.wm-dark .wm-submenu a,

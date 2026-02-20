@@ -27,7 +27,7 @@
         <ul>
           <li class="wm-has-submenu">
             <a href="<?php echo esc_url(home_url('/about')); ?>">About Us</a>
-            <button class="wm-sub-toggle" type="button" aria-expanded="false" aria-label="Toggle About subpages">+</button>
+            <button class="wm-sub-toggle" type="button" aria-expanded="false" aria-label="Toggle About subpages">▾</button>
             <ul class="wm-submenu">
               <li><a href="<?php echo esc_url(home_url('/about/leadership')); ?>">Leadership</a></li>
               <li><a href="<?php echo esc_url(home_url('/about/roster')); ?>">Roster</a></li>
@@ -39,6 +39,7 @@
           <li><a href="<?php echo esc_url(home_url('/partners')); ?>">Partners</a></li>
           <li><a href="<?php echo esc_url(home_url('/join')); ?>">Join</a></li>
           <li><a href="<?php echo esc_url(home_url('/events')); ?>">Events</a></li>
+          <li><a href="<?php echo warriors_modern_hq_url('/login'); ?>">Log in</a></li>
         </ul>
       </nav>
 
@@ -46,21 +47,20 @@
         <div class="wm-social" aria-label="Social links">
           <a class="wm-icon-btn" href="<?php echo warriors_modern_social_url('instagram'); ?>" target="_blank" rel="noreferrer" aria-label="Instagram">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <rect x="4" y="4" width="16" height="16" rx="5" ry="5"></rect>
-              <circle cx="12" cy="12" r="3.5"></circle>
-              <circle cx="17.4" cy="6.6" r="1"></circle>
+              <path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm10 2H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3Zm-5 3.5A4.5 4.5 0 1 1 7.5 12 4.5 4.5 0 0 1 12 7.5Zm0 2A2.5 2.5 0 1 0 14.5 12 2.5 2.5 0 0 0 12 9.5Zm5.2-2.4a1.1 1.1 0 1 1-1.1 1.1 1.1 1.1 0 0 1 1.1-1.1Z"></path>
             </svg>
           </a>
           <a class="wm-icon-btn" href="<?php echo warriors_modern_social_url('facebook'); ?>" target="_blank" rel="noreferrer" aria-label="Facebook">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M14 8h3V4h-3c-3 0-5 2-5 5v3H6v4h3v4h4v-4h3l1-4h-4V9c0-.7.3-1 1-1z"></path>
+              <path d="M13.5 22v-8h2.8l.5-3h-3.3V9.2c0-.9.3-1.5 1.6-1.5H17V4.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V11H8v3h2.5v8h3Z"></path>
             </svg>
           </a>
         </div>
-        <button class="wm-btn wm-btn-ghost wm-theme-toggle" type="button" aria-pressed="false">Dark</button>
+        <button class="wm-btn wm-btn-ghost wm-theme-toggle" type="button" aria-pressed="false" aria-label="Toggle dark mode">
+          <svg class="wm-theme-icon wm-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4V2m0 20v-2m8-8h2M2 12h2m12.95 6.95 1.41 1.41M5.64 5.64 4.22 4.22m14.14 0-1.41 1.42M5.64 18.36l-1.42 1.41M12 7a5 5 0 1 1-5 5 5 5 0 0 1 5-5Z"/></svg>
+          <svg class="wm-theme-icon wm-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 14.2A9 9 0 1 1 9.8 3a7 7 0 1 0 11.2 11.2Z"/></svg>
+        </button>
         <a class="wm-btn wm-btn-gold" href="<?php echo esc_url(home_url('/donate')); ?>">Donate</a>
-        <a class="wm-btn wm-btn-ghost" href="<?php echo warriors_modern_hq_url('/register'); ?>">Join</a>
-        <a class="wm-btn wm-btn-dark" href="<?php echo warriors_modern_hq_url('/login'); ?>">Log in</a>
       </div>
     </div>
   </div>
