@@ -11,6 +11,16 @@ export type MobileUser = {
   jerseyNumber?: number;
   avatarUrl?: string | null;
   lockerRoomAssignment?: string | null;
+  phone?: string | null;
+  position?: string | null;
+  pronouns?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  jerseyRequest?: string | null;
+  usaHockeyNumber?: string | null;
+  sharePhone?: boolean;
+  shareEmail?: boolean;
+  shareAddress?: boolean;
 };
 
 export type SessionState = {

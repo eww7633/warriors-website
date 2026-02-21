@@ -18,7 +18,7 @@ const renderStatus = (status: ReservationStatus | null) => {
 export default function EventDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
-  const { session } = useAuth();
+  const { session, handleApiError } = useAuth();
   const colors = useThemeColors();
   const [event, setEvent] = useState<MobileEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +31,10 @@ export default function EventDetailScreen() {
       if (!session.token) throw new Error('Session missing. Please sign in again.');
       setEvent(await apiClient.getEventDetail(session.token, params.id));
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Event unavailable');
     }
-  }, [params.id, session.token]);
+  }, [params.id, session.token, handleApiError]);
 
   useEffect(() => {
     load();
@@ -48,6 +49,7 @@ export default function EventDetailScreen() {
       setEvent((prev) => (prev ? { ...prev, viewerReservationStatus: status } : prev));
       await load();
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'RSVP failed');
     } finally {
       setSaving(false);
@@ -63,6 +65,7 @@ export default function EventDetailScreen() {
       setError('RSVP request submitted for approval.');
       await load();
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'RSVP request failed');
     } finally {
       setSaving(false);

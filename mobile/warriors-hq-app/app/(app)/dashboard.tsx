@@ -17,7 +17,7 @@ const formatStatus = (status: ReservationStatus | null): string => {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { session, logout } = useAuth();
+  const { session, logout, handleApiError } = useAuth();
   const colors = useThemeColors();
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [events, setEvents] = useState<MobileEvent[]>([]);
@@ -57,13 +57,15 @@ export default function DashboardScreen() {
         const summary = await apiClient.getDashboard(session.token);
         setDashboard(summary);
       } catch (dashboardErr) {
+        if (await handleApiError(dashboardErr)) return;
         setDashboard(null);
         setError(dashboardErr instanceof Error ? dashboardErr.message : 'Dashboard summary unavailable');
       }
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Unable to load dashboard');
     }
-  }, [session.token]);
+  }, [session.token, handleApiError]);
 
   useEffect(() => {
     load();
@@ -99,6 +101,7 @@ export default function DashboardScreen() {
         )
       );
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'RSVP failed');
     } finally {
       setUpdatingId(null);
@@ -113,6 +116,7 @@ export default function DashboardScreen() {
       await apiClient.requestRsvpApproval(session.token, eventId);
       setError('RSVP request submitted for approval.');
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Unable to submit RSVP request');
     } finally {
       setUpdatingId(null);

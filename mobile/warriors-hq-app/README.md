@@ -49,3 +49,6 @@ writes `EXPO_PUBLIC_API_BASE_URL`, and starts Expo iOS with cache clear.
 - Add to calendar (device calendar + subscription link)
 - Team directory (privacy-aware) + admin roster actions (email/text/call)
 - Offline read cache for events + announcements
+- Session-expired re-login handling with login notice
+- Profile completeness editing (phone/position/emergency/pronouns/jersey/USA Hockey) + share toggles
+- Admin RSVP approval queue screen (approve/deny)

@@ -19,7 +19,7 @@ const parseToken = (raw: string): string => {
 };
 
 export default function CheckInScreen() {
-  const { session } = useAuth();
+  const { session, handleApiError } = useAuth();
   const colors = useThemeColors();
   const isSupporter = session.user?.role === 'supporter';
   const [permission, requestPermission] = useCameraPermissions();
@@ -49,6 +49,7 @@ export default function CheckInScreen() {
       await scheduleCheckInConfirmationNotification();
       setMessage('Check-in complete.');
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Check-in failed');
     } finally {
       setBusy(false);

@@ -34,7 +34,7 @@ const toDisplayAddress = (member: MobileRosterMember, isAdmin: boolean): string 
 
 export default function TeamScreen() {
   const colors = useThemeColors();
-  const { session } = useAuth();
+  const { session, handleApiError } = useAuth();
   const [members, setMembers] = useState<MobileRosterMember[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -50,9 +50,10 @@ export default function TeamScreen() {
       const roster = await apiClient.getRoster(session.token, isAdmin);
       setMembers(roster);
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Roster unavailable');
     }
-  }, [isAdmin, session.token]);
+  }, [isAdmin, session.token, handleApiError]);
 
   useEffect(() => {
     load();

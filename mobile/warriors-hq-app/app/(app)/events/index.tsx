@@ -9,7 +9,7 @@ import { useThemeColors } from '@/lib/theme';
 import type { MobileEvent } from '@/lib/types';
 
 export default function EventsScreen() {
-  const { session } = useAuth();
+  const { session, handleApiError } = useAuth();
   const colors = useThemeColors();
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -35,9 +35,10 @@ export default function EventsScreen() {
       setError(null);
       setEvents(await apiClient.getEvents(session.token));
     } catch (e) {
+      if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Events unavailable');
     }
-  }, [session.token]);
+  }, [session.token, handleApiError]);
 
   useEffect(() => {
     load();

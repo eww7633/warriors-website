@@ -1,16 +1,19 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, SessionExpiredError } from '@/lib/api-client';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import type { MobileUser, SessionState } from '@/lib/types';
 
 type AuthContextValue = {
   ready: boolean;
   session: SessionState;
+  authNotice: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { fullName: string; email: string; password: string; phone?: string; position?: string }) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<MobileUser>) => Promise<void>;
+  consumeAuthNotice: () => void;
+  handleApiError: (error: unknown) => Promise<boolean>;
 };
 
 const KEY = 'hq_mobile_auth_state_v2';
@@ -20,6 +23,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider = ({ children }: PropsWithChildren) => {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<SessionState>(defaultSession);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const run = async () => {
@@ -52,10 +56,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await SecureStore.setItemAsync(KEY, JSON.stringify(value));
   };
 
+  const forceRelogin = async (message = 'Session expired. Please sign in again.') => {
+    await persist(defaultSession);
+    setAuthNotice(message);
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ready,
       session,
+      authNotice,
       login: async (email, password) => {
         const result = await apiClient.login(email, password);
         const nextSession: SessionState = {
@@ -64,6 +74,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           user: result.user as MobileUser
         };
         await persist(nextSession);
+        setAuthNotice(null);
         try {
           const pushToken = await registerForPushNotificationsAsync();
           if (pushToken) {
@@ -85,6 +96,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           }
         }
         await persist(defaultSession);
+        setAuthNotice(null);
       },
       updateUser: async (patch) => {
         if (!session.user) return;
@@ -95,9 +107,19 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
             ...patch
           }
         });
+      },
+      consumeAuthNotice: () => {
+        setAuthNotice(null);
+      },
+      handleApiError: async (error) => {
+        if (error instanceof SessionExpiredError) {
+          await forceRelogin(error.message);
+          return true;
+        }
+        return false;
       }
     }),
-    [ready, session]
+    [ready, session, authNotice]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

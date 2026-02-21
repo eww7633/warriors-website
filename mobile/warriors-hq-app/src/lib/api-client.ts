@@ -43,7 +43,17 @@ const normalizeUser = (raw: Record<string, unknown>): MobileUser => ({
       : raw.profileImageUrl
         ? String(raw.profileImageUrl)
         : null,
-  lockerRoomAssignment: raw.lockerRoomAssignment ? String(raw.lockerRoomAssignment) : null
+  lockerRoomAssignment: raw.lockerRoomAssignment ? String(raw.lockerRoomAssignment) : null,
+  phone: raw.phone ? String(raw.phone) : null,
+  position: raw.position ? String(raw.position) : null,
+  pronouns: raw.pronouns ? String(raw.pronouns) : null,
+  emergencyContactName: raw.emergencyContactName ? String(raw.emergencyContactName) : null,
+  emergencyContactPhone: raw.emergencyContactPhone ? String(raw.emergencyContactPhone) : null,
+  jerseyRequest: raw.jerseyRequest ? String(raw.jerseyRequest) : null,
+  usaHockeyNumber: raw.usaHockeyNumber ? String(raw.usaHockeyNumber) : null,
+  sharePhone: Boolean(raw.sharePhone ?? raw.phoneVisibleToTeam),
+  shareEmail: Boolean(raw.shareEmail ?? raw.emailVisibleToTeam),
+  shareAddress: Boolean(raw.shareAddress ?? raw.addressVisibleToTeam)
 });
 
 const networkErrorMessage = () =>
@@ -276,6 +286,70 @@ export const apiClient = {
     } as DashboardSummary;
   },
 
+  async getProfile(token: string): Promise<MobileUser> {
+    let response = await authorized('/api/mobile/profile', token);
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/mobile/me', token);
+    }
+
+    await throwIfUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as { user?: Record<string, unknown> } | Record<string, unknown>;
+    const raw = 'user' in payload ? payload.user : payload;
+    if (!raw) {
+      throw new Error('Profile unavailable');
+    }
+    return normalizeUser(raw as Record<string, unknown>);
+  },
+
+  async updateProfile(
+    token: string,
+    input: Partial<
+      Pick<
+        MobileUser,
+        | 'phone'
+        | 'position'
+        | 'pronouns'
+        | 'emergencyContactName'
+        | 'emergencyContactPhone'
+        | 'jerseyRequest'
+        | 'usaHockeyNumber'
+        | 'sharePhone'
+        | 'shareEmail'
+        | 'shareAddress'
+      >
+    >
+  ): Promise<MobileUser> {
+    let response = await authorized('/api/mobile/profile', token, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input)
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/account/profile', token, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input)
+      });
+    }
+
+    await throwIfUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as { user?: Record<string, unknown> } | Record<string, unknown>;
+    const raw = 'user' in payload ? payload.user : payload;
+    if (!raw) {
+      throw new Error('Profile saved, but user payload is missing.');
+    }
+    return normalizeUser(raw as Record<string, unknown>);
+  },
+
   async getEvents(token: string): Promise<MobileEvent[]> {
     try {
       const response = await authorized('/api/mobile/events', token);
@@ -493,7 +567,16 @@ export const apiClient = {
     }
   },
 
-  async createAnnouncement(token: string, input: { title: string; body: string }): Promise<void> {
+  async createAnnouncement(
+    token: string,
+    input: {
+      title: string;
+      body: string;
+      pinned?: boolean;
+      audience?: 'all' | 'players' | 'supporters' | 'admins';
+      expiresAt?: string | null;
+    }
+  ): Promise<void> {
     let response = await authorized('/api/mobile/announcements', token, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

@@ -8,7 +8,7 @@ import { useThemeColors } from '@/lib/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, authNotice, consumeAuthNotice } = useAuth();
   const colors = useThemeColors();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,8 +38,10 @@ export default function LoginScreen() {
       <Card>
         <Field value={email} placeholder="Email" onChangeText={setEmail} />
         <Field value={password} placeholder="Password" onChangeText={setPassword} secureTextEntry />
+        <ErrorText message={authNotice} />
         <ErrorText message={error} />
         <Button label="Login" onPress={onSubmit} loading={loading} disabled={!email || !password} />
+        {authNotice ? <Button label="Dismiss message" variant="secondary" onPress={consumeAuthNotice} /> : null}
       </Card>
       <Text style={{ color: colors.textMuted }}>
         Need access? <Link href="/(auth)/register" style={{ color: colors.link }}>Request account</Link>
