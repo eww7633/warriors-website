@@ -37,6 +37,8 @@ export type MobileEvent = {
     isManager: boolean;
     role: 'player' | 'admin' | null;
     requestedPosition: string | null;
+    jerseyNumber: number | null;
+    avatarUrl: string | null;
   }>;
 };
 

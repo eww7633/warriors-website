@@ -24,13 +24,13 @@ const lightColors: AppColors = {
   text: '#101418',
   textMuted: '#4b5563',
   border: '#d1d5db',
-  primary: '#c8102e',
-  primaryText: '#ffffff',
-  secondary: '#111827',
+  primary: '#d8a333',
+  primaryText: '#11151a',
+  secondary: '#11151a',
   secondaryText: '#ffffff',
   danger: '#991b1b',
   dangerText: '#ffffff',
-  link: '#0f4c81',
+  link: '#8a6110',
   success: '#166534'
 };
 
@@ -40,13 +40,13 @@ const darkColors: AppColors = {
   text: '#f3f4f6',
   textMuted: '#c4c9d1',
   border: '#313743',
-  primary: '#c8102e',
-  primaryText: '#ffffff',
+  primary: '#dbac45',
+  primaryText: '#11151a',
   secondary: '#2b3240',
   secondaryText: '#f3f4f6',
   danger: '#991b1b',
   dangerText: '#ffffff',
-  link: '#7db8ff',
+  link: '#f1c86a',
   success: '#86efac'
 };
 
@@ -56,4 +56,3 @@ export const useThemeColors = (): AppColors => {
   const scheme = useColorScheme();
   return getThemeColors(scheme === 'light' ? 'light' : 'dark');
 };
-

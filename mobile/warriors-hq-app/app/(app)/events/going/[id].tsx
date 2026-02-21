@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { PlayerAvatar } from '@/components/player-avatar';
 import { Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
@@ -99,11 +100,22 @@ export default function GoingListScreen() {
         <View style={{ gap: 10, paddingBottom: 16 }}>
           {filtered.map((member) => (
             <Card key={member.userId}>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{member.fullName}</Text>
-              <Text style={{ color: colors.textMuted }}>
-                {member.isManager ? 'Manager' : 'Player'}
-                {member.requestedPosition ? ` · ${member.requestedPosition}` : ''}
-              </Text>
+              <View style={styles.memberRow}>
+                <PlayerAvatar
+                  fullName={member.fullName}
+                  jerseyNumber={member.jerseyNumber}
+                  avatarUrl={member.avatarUrl}
+                  seed={member.userId}
+                />
+                <View style={styles.memberTextWrap}>
+                  <Text style={{ color: colors.text, fontWeight: '700' }}>{member.fullName}</Text>
+                  <Text style={{ color: colors.textMuted }}>
+                    {member.isManager ? 'Manager' : 'Player'}
+                    {member.jerseyNumber ? ` · #${member.jerseyNumber}` : ''}
+                    {member.requestedPosition ? ` · ${member.requestedPosition}` : ''}
+                  </Text>
+                </View>
+              </View>
             </Card>
           ))}
           {event && !filtered.length ? (
@@ -138,5 +150,13 @@ const styles = StyleSheet.create({
   chipText: {
     fontWeight: '600',
     fontSize: 12
+  },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  memberTextWrap: {
+    flex: 1
   }
 });

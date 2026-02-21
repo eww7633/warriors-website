@@ -2,6 +2,14 @@ import { API_BASE_URL } from '@/lib/env';
 import type { DashboardSummary, MobileEvent, MobileUser, ReservationStatus } from '@/lib/types';
 
 const buildUrl = (path: string): string => `${API_BASE_URL}${path}`;
+const toNullableNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+};
 
 const networkErrorMessage = () =>
   `Unable to reach API at ${API_BASE_URL}. Start backend (npm run dev) or update EXPO_PUBLIC_API_BASE_URL.`;
@@ -28,7 +36,17 @@ const normalizeEvent = (raw: Record<string, unknown>): MobileEvent => {
       status: 'going' as ReservationStatus,
       isManager: Boolean(entry.isManager),
       role: (entry.role as 'player' | 'admin' | null) ?? null,
-      requestedPosition: entry.requestedPosition ? String(entry.requestedPosition) : null
+      requestedPosition: entry.requestedPosition ? String(entry.requestedPosition) : null,
+      jerseyNumber: toNullableNumber(
+        entry.jerseyNumber ?? entry.sweaterNumber ?? entry.number ?? entry.playerNumber ?? entry.rosterNumber
+      ),
+      avatarUrl: entry.avatarUrl
+        ? String(entry.avatarUrl)
+        : entry.photoUrl
+          ? String(entry.photoUrl)
+          : entry.profileImageUrl
+            ? String(entry.profileImageUrl)
+            : null
     }));
 
   return {

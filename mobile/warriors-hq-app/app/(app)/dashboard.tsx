@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
@@ -137,9 +138,22 @@ export default function DashboardScreen() {
             Your RSVP: {formatStatus(event.viewerReservationStatus)} · Going: {event.goingCount} · Total RSVPs: {event.reservationCount}
           </Text>
           {event.goingMembers.length > 0 ? (
-            <Text style={{ color: colors.textMuted }}>
-              Going: {event.goingMembers.slice(0, 6).map((entry) => entry.fullName).join(', ')}
-            </Text>
+            <View style={styles.memberPreviewWrap}>
+              {event.goingMembers.slice(0, 6).map((entry) => (
+                <View key={`${event.id}-${entry.userId}`} style={styles.memberPreview}>
+                  <PlayerAvatar
+                    fullName={entry.fullName}
+                    jerseyNumber={entry.jerseyNumber}
+                    avatarUrl={entry.avatarUrl}
+                    seed={entry.userId}
+                    size={30}
+                  />
+                  <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>
+                    {entry.fullName}
+                  </Text>
+                </View>
+              ))}
+            </View>
           ) : (
             <Text style={{ color: colors.textMuted }}>Going list not available yet.</Text>
           )}
@@ -216,5 +230,13 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '600'
+  },
+  memberPreviewWrap: {
+    gap: 6
+  },
+  memberPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   }
 });

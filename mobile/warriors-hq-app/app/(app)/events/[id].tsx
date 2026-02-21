@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, ScrollView, Text } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
@@ -73,9 +74,19 @@ export default function EventDetailScreen() {
             <Text style={{ color: colors.text, fontWeight: '700' }}>Who is Going</Text>
             {event.goingMembers.length ? (
               event.goingMembers.map((member) => (
-                <Text key={member.userId} style={{ color: colors.textMuted }}>
-                  {member.fullName}
-                </Text>
+                <View key={member.userId} style={styles.memberRow}>
+                  <PlayerAvatar
+                    fullName={member.fullName}
+                    jerseyNumber={member.jerseyNumber}
+                    avatarUrl={member.avatarUrl}
+                    seed={member.userId}
+                    size={32}
+                  />
+                  <Text style={{ color: colors.textMuted }}>
+                    {member.fullName}
+                    {member.jerseyNumber ? ` · #${member.jerseyNumber}` : ''}
+                  </Text>
+                </View>
               ))
             ) : (
               <Text style={{ color: colors.textMuted }}>No published going list yet.</Text>
@@ -101,3 +112,11 @@ export default function EventDetailScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  }
+});
