@@ -9,6 +9,7 @@ import {
   markMobilePushTriggerProcessed
 } from "@/lib/hq/mobile-push";
 import { listMobileDeviceTokensByUser } from "@/lib/hq/mobile-device-tokens";
+import { sendMobilePush } from "@/lib/hq/mobile-push-provider";
 
 function categoryForTrigger(
   type: "rsvp_updated" | "reminder_sent" | "announcement_sent" | "checkin_completed",
@@ -26,37 +27,6 @@ function categoryForTrigger(
     return "hockey";
   }
   return "hockey";
-}
-
-async function sendPushViaWebhook(input: {
-  token: string;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
-}) {
-  const webhook = process.env.MOBILE_PUSH_WEBHOOK_URL;
-  if (!webhook) {
-    return { ok: false as const, reason: "no_provider", status: 0 };
-  }
-
-  try {
-    const response = await fetch(webhook, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        token: input.token,
-        title: input.title,
-        body: input.body,
-        data: input.data || {}
-      })
-    });
-    if (!response.ok) {
-      return { ok: false as const, reason: "provider_rejected", status: response.status };
-    }
-    return { ok: true as const, status: response.status };
-  } catch {
-    return { ok: false as const, reason: "provider_unreachable", status: 0 };
-  }
 }
 
 export async function POST(request: Request) {
@@ -119,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     for (const device of devices) {
-      const result = await sendPushViaWebhook({
+      const result = await sendMobilePush({
         token: device.token,
         title: trigger.title,
         body: trigger.body,
@@ -146,7 +116,7 @@ export async function POST(request: Request) {
           targetUserId: trigger.targetUserId,
           deviceToken: device.token,
           status: "queued_no_provider",
-          reason: result.reason
+          reason: `${result.provider}:${result.reason}`
         });
         queuedNoProvider += 1;
       } else {
@@ -156,7 +126,7 @@ export async function POST(request: Request) {
           deviceToken: device.token,
           status: "failed",
           providerResponseCode: result.status,
-          reason: result.reason
+          reason: `${result.provider}:${result.reason}`
         });
         failed += 1;
       }

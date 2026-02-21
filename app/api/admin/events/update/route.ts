@@ -15,6 +15,22 @@ function toGoogleMapsSearchUrl(value: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
 }
 
+function resolveEventTypeId(input: {
+  eventTypeId: string;
+  eventTypePreset: string;
+  eventTypes: Awaited<ReturnType<typeof listEventTypes>>;
+}) {
+  if (input.eventTypeId) {
+    return input.eventTypeId;
+  }
+  const preset = input.eventTypePreset.trim().toLowerCase();
+  if (!preset) {
+    return "";
+  }
+  const match = input.eventTypes.find((entry) => entry.name.trim().toLowerCase() === preset);
+  return match?.id || "";
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
 
@@ -37,6 +53,7 @@ export async function POST(request: Request) {
   const locationPublicMapUrl = String(formData.get("locationPublicMapUrl") ?? "").trim();
   const locationPrivateMapUrl = String(formData.get("locationPrivateMapUrl") ?? "").trim();
   const eventTypeId = String(formData.get("eventTypeId") ?? "").trim();
+  const eventTypePreset = String(formData.get("eventTypePreset") ?? "").trim();
   const managerUserId = String(formData.get("managerUserId") ?? "").trim();
   const returnToRaw = String(formData.get("returnTo") ?? "").trim();
   const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=onice";
@@ -65,6 +82,12 @@ export async function POST(request: Request) {
   }
 
   try {
+    const eventTypes = await listEventTypes();
+    const effectiveEventTypeId = resolveEventTypeId({
+      eventTypeId,
+      eventTypePreset,
+      eventTypes
+    });
     await updateEvent({
       eventId,
       title,
@@ -77,12 +100,11 @@ export async function POST(request: Request) {
       locationPrivate,
       locationPublicMapUrl: locationPublicMapUrl || toGoogleMapsSearchUrl(locationPublic),
       locationPrivateMapUrl: locationPrivateMapUrl || toGoogleMapsSearchUrl(locationPrivate),
-      eventTypeId: eventTypeId || undefined,
+      eventTypeId: effectiveEventTypeId || undefined,
       managerUserId: managerUserId || undefined
     });
-    const eventTypes = await listEventTypes();
     const eventTypeName =
-      eventTypes.find((entry) => entry.id === (eventTypeId || ""))?.name || "";
+      eventTypes.find((entry) => entry.id === (effectiveEventTypeId || ""))?.name || "";
     const guestsAllowedForEventType = allowGuestRequests && !isDvhlEvent(eventTypeName);
     const effectiveSignupMode = isDvhlEvent(eventTypeName) ? "straight_rsvp" : signupMode;
     await upsertEventSignupConfig({

@@ -189,7 +189,9 @@ The backend now records push-trigger events for downstream delivery workers in `
 ### Admin push processing endpoint
 - `POST /api/admin/mobile-push/process?limit=100`
 - Auth: admin with site-user management permission
-- Effect: drains pending trigger records, filters by user push preferences + device tokens, and forwards to provider webhook when configured:
-  - env var: `MOBILE_PUSH_WEBHOOK_URL`
+- Effect: drains pending trigger records, filters by user push preferences + device tokens, and forwards to configured push provider:
+  - `MOBILE_PUSH_PROVIDER=expo|webhook` (optional, defaults to `expo` when Expo env is present, otherwise `webhook`)
+  - for `expo`: optional `EXPO_ACCESS_TOKEN`, token format must be `ExponentPushToken[...]` or `ExpoPushToken[...]`
+  - for `webhook`: `MOBILE_PUSH_WEBHOOK_URL`
 - Success `200`:
   - `{ ok, processedTriggers, delivered, queuedNoProvider, skipped, failed }`

@@ -1385,6 +1385,18 @@ export default async function AdminPage({
                 </select>
               </label>
               <label>
+                Quick type preset
+                <select name="eventTypePreset" defaultValue="">
+                  <option value="">No preset</option>
+                  <option value="Practice">Practice</option>
+                  <option value="Scrimmage">Scrimmage</option>
+                  <option value="Game">Game</option>
+                  <option value="Tournament">Tournament</option>
+                  <option value="Volunteer">Volunteer</option>
+                  <option value="Off-Ice">Off-Ice</option>
+                </select>
+              </label>
+              <label>
                 Signup flow
                 <select name="signupMode" defaultValue="straight_rsvp">
                   <option value="straight_rsvp">Straight RSVP (unlimited)</option>
@@ -1400,8 +1412,11 @@ export default async function AdminPage({
               <input name="locationPrivate" placeholder="Private location (players/admin)" />
               <details className="event-card admin-disclosure">
                 <summary>Location links and image media (optional)</summary>
-                <input name="locationPublicMapUrl" placeholder="Public maps URL (leave blank to auto-generate from address)" />
-                <input name="locationPrivateMapUrl" placeholder="Private maps URL (leave blank to auto-generate from address)" />
+                <p className="muted">
+                  Map links auto-generate from entered addresses. Only fill these when you need an override.
+                </p>
+                <input name="locationPublicMapUrl" placeholder="Public maps URL override (optional)" />
+                <input name="locationPrivateMapUrl" placeholder="Private maps URL override (optional)" />
                 <label>
                   Hero image from media library
                   <select name="heroImageChoice" defaultValue="">
@@ -1517,6 +1532,18 @@ export default async function AdminPage({
                       </select>
                     </label>
                     <label>
+                      Quick type preset
+                      <select name="eventTypePreset" defaultValue="">
+                        <option value="">No change</option>
+                        <option value="Practice">Practice</option>
+                        <option value="Scrimmage">Scrimmage</option>
+                        <option value="Game">Game</option>
+                        <option value="Tournament">Tournament</option>
+                        <option value="Volunteer">Volunteer</option>
+                        <option value="Off-Ice">Off-Ice</option>
+                      </select>
+                    </label>
+                    <label>
                       Signup flow
                       <select
                         name="signupMode"
@@ -1540,8 +1567,11 @@ export default async function AdminPage({
                     <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
                     <details className="event-card admin-disclosure">
                       <summary>Location links and image media (optional)</summary>
-                      <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public maps URL (leave blank to auto-generate from address)" />
-                      <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private maps URL (leave blank to auto-generate from address)" />
+                      <p className="muted">
+                        Map links auto-generate from entered addresses. Only fill these when you need an override.
+                      </p>
+                      <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public maps URL override (optional)" />
+                      <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private maps URL override (optional)" />
                       <label>
                         Hero image from media library
                         <select name="heroImageChoice" defaultValue="">
