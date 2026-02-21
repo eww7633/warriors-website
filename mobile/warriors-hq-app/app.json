@@ -21,7 +21,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Warriors HQ uses camera access to scan QR check-in codes.",
         "NSCalendarsUsageDescription": "Warriors HQ uses calendar access to add your team events.",
-        "NSUserNotificationsUsageDescription": "Warriors HQ sends reminders for RSVP updates, announcements, and check-ins."
+        "NSUserNotificationsUsageDescription": "Warriors HQ sends reminders for RSVP updates, announcements, and check-ins.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,8 +31,10 @@
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.READ_CALENDAR",
-        "android.permission.WRITE_CALENDAR"
-      ]
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "versionCode": 2
     },
     "plugins": [
       "expo-router",
@@ -47,7 +50,11 @@
       "sentryDsn": "",
       "appSupportEmail": "ops@pghwarriorhockey.us",
       "privacyUrl": "",
-      "featureFlagsUrl": ""
+      "featureFlagsUrl": "",
+      "router": {},
+      "eas": {
+        "projectId": "5dc54460-d9b0-48c2-8a44-1b5b09d170d8"
+      }
     }
   }
 }
