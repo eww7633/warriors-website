@@ -350,6 +350,16 @@ export default async function AdminPage({
       .toLowerCase()
       .includes(userSearch);
   });
+  const filteredPendingUsers = pendingUsers.filter((member) => {
+    if (!userSearch) return true;
+    return [member.fullName, member.email, member.requestedPosition || "", member.status]
+      .join(" ")
+      .toLowerCase()
+      .includes(userSearch);
+  });
+  const recentUsers = [...store.users]
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+    .slice(0, 12);
   const filteredContactLeads = sportsData.contactLeads.filter((lead) => {
     if (!userSearch) return true;
     return [
@@ -970,11 +980,13 @@ export default async function AdminPage({
                 <button className="button" type="submit">Save Onboarding Template</button>
               </form>
             </details>
-            {pendingUsers.length === 0 ? (
-              <p className="muted">No pending player applications.</p>
+            {filteredPendingUsers.length === 0 ? (
+              <p className="muted">
+                {userSearch ? "No pending player applications match this search." : "No pending player applications."}
+              </p>
             ) : (
               <div className="stack">
-                {pendingUsers.map((candidate) => {
+                {filteredPendingUsers.map((candidate) => {
                   const extra = profileExtraByUserId.get(candidate.id);
                   return (
                     <div key={candidate.id} className="event-card stack">
@@ -1040,6 +1052,24 @@ export default async function AdminPage({
                 })}
               </div>
             )}
+          </article>
+
+          <article className="card">
+            <h3>Recent Registrations</h3>
+            <p className="muted">Most recently created/updated website users (latest first).</p>
+            <div className="stack">
+              {recentUsers.map((member) => (
+                <div key={member.id} className="event-card">
+                  <strong>{member.fullName}</strong>
+                  <p>{member.email}</p>
+                  <p>Role: {member.role} | Status: {member.status}</p>
+                  <p className="muted">
+                    Created: {new Date(member.createdAt).toLocaleString()} | Updated: {new Date(member.updatedAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+              {recentUsers.length === 0 ? <p className="muted">No users found.</p> : null}
+            </div>
           </article>
 
           <article className="card">
