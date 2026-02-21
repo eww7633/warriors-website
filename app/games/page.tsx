@@ -1,16 +1,23 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listLiveGames } from "@/lib/hq/live-games";
+import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
+import { getJerseyPlanState } from "@/lib/hq/jersey-plans";
+import { userHasPermission } from "@/lib/hq/permissions";
 import GameScoreCard from "@/components/GameScoreCard";
 
 export default async function GamesPage({
   searchParams
 }: {
-  searchParams?: { score?: string; event?: string; lineup?: string; error?: string };
+  searchParams?: { score?: string; event?: string; lineup?: string; jersey?: string; error?: string };
 }) {
   const query = searchParams ?? {};
   const user = await getCurrentUser();
   const games = await listLiveGames();
+  const teamControlMap = await getDvhlTeamControlMap(games.map((game) => game.teamId).filter(Boolean));
+  const jerseyState = await getJerseyPlanState(games.map((game) => game.id));
+  const canManageEvents = user ? await userHasPermission(user, "manage_events") : false;
+  const canManageDvhl = user ? await userHasPermission(user, "manage_dvhl") : false;
   const myGames = user
     ? games.filter((game) => user.role === "admin" || (user.status === "approved" && game.scorekeeperUserId === user.id))
     : [];
@@ -26,6 +33,8 @@ export default async function GamesPage({
       {query.score === "saved" && <p className="badge">Scoreboard updated.</p>}
       {query.event === "saved" && <p className="badge">Live event added.</p>}
       {query.lineup === "saved" && <p className="badge">Pregame lineup saved.</p>}
+      {query.jersey === "directive_saved" && <p className="badge">Jersey directive saved.</p>}
+      {query.jersey === "availability_saved" && <p className="badge">Jersey availability updated.</p>}
       {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
       {user ? (
         <p className="muted">
@@ -38,6 +47,23 @@ export default async function GamesPage({
             user &&
               (user.role === "admin" ||
                 (user.status === "approved" && game.scorekeeperUserId === user.id))
+          );
+          const canSetJerseyDirective = Boolean(
+            user &&
+              user.status === "approved" &&
+              (user.role === "admin" ||
+                canManageEvents ||
+                canManageDvhl ||
+                teamControlMap[game.teamId]?.captainUserId === user.id)
+          );
+          const playerAvailability = jerseyState.availabilityByGameId[game.id] || [];
+          const myAvailability = user ? playerAvailability.find((entry) => entry.userId === user.id) : null;
+          const unavailablePlayers = playerAvailability.filter((entry) => !entry.hasJersey);
+          const jerseyDirective = jerseyState.directivesByGameId[game.id];
+          const canReportAvailability = Boolean(
+            user &&
+              user.status === "approved" &&
+              (user.role === "admin" || (game.teamMembers || []).some((member) => member.id === user.id))
           );
 
           return (
@@ -60,6 +86,69 @@ export default async function GamesPage({
                 {!canScorekeep && game.scorekeeperStaffName ? " (staff assignment is view-only unless admin)" : ""}
               </p>
               {canScorekeep ? <p className="badge">Assigned to you</p> : null}
+              <p className="muted">
+                Jersey plan:{" "}
+                {jerseyDirective
+                  ? `${jerseyDirective.instruction.replaceAll("_", " ")}${jerseyDirective.note ? ` | ${jerseyDirective.note}` : ""}`
+                  : "No jersey directive yet."}
+              </p>
+
+              {canSetJerseyDirective ? (
+                <form className="grid-form" action="/api/games/jersey-directive" method="post">
+                  <input type="hidden" name="gameId" value={game.id} />
+                  <input type="hidden" name="returnTo" value="/games" />
+                  <label>
+                    Captain/Ops jersey instruction
+                    <select name="instruction" defaultValue={jerseyDirective?.instruction || "both_sets"}>
+                      <option value="home_dark">Home dark jerseys</option>
+                      <option value="home_light">Home light jerseys</option>
+                      <option value="away_dark">Away dark jerseys</option>
+                      <option value="away_light">Away light jerseys</option>
+                      <option value="both_sets">Bring both sets</option>
+                      <option value="custom">Custom note only</option>
+                    </select>
+                  </label>
+                  <input name="note" placeholder="Optional note" defaultValue={jerseyDirective?.note || ""} />
+                  <button className="button ghost" type="submit">Save Jersey Plan</button>
+                </form>
+              ) : null}
+
+              {canReportAvailability ? (
+                <form className="grid-form" action="/api/games/jersey-availability" method="post">
+                  <input type="hidden" name="gameId" value={game.id} />
+                  <input type="hidden" name="returnTo" value="/games" />
+                  <label>
+                    My jersey availability
+                    <select name="availability" defaultValue={myAvailability?.hasJersey === false ? "missing" : "have"}>
+                      <option value="have">I have the required jersey</option>
+                      <option value="missing">I do not have a jersey available</option>
+                    </select>
+                  </label>
+                  <input
+                    name="note"
+                    placeholder="Optional details (size, which set missing, etc.)"
+                    defaultValue={myAvailability?.note || ""}
+                  />
+                  <button className="button alt" type="submit">Update Availability</button>
+                </form>
+              ) : null}
+
+              {(canSetJerseyDirective || (user && user.role === "admin")) && unavailablePlayers.length > 0 ? (
+                <div className="event-card">
+                  <strong>Players missing jerseys</strong>
+                  <ul>
+                    {unavailablePlayers.map((entry) => {
+                      const player = game.teamMembers?.find((member) => member.id === entry.userId);
+                      return (
+                        <li key={`${entry.gameId}-${entry.userId}`}>
+                          {player?.fullName || entry.userId}
+                          {entry.note ? ` | ${entry.note}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : null}
 
               {canScorekeep ? (
                 <>

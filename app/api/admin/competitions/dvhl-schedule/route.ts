@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { replaceDvhlSchedule } from "@/lib/hq/competitions";
+import { replaceDvhlSchedule, resolveDvhlPlayoffWeekEightFromSemis } from "@/lib/hq/competitions";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
 import { getCurrentUser } from "@/lib/hq/session";
 
@@ -148,6 +148,68 @@ export async function POST(request: Request) {
       gameGapMinutes,
       location: location || undefined
     });
+  } else if (mode === "playoffs") {
+    const semi1 = {
+      homeTeamId: asText(formData, "semi1Home"),
+      awayTeamId: asText(formData, "semi1Away"),
+      startsAt: asText(formData, "semi1StartsAt"),
+      location: asText(formData, "semi1Location")
+    };
+    const semi2 = {
+      homeTeamId: asText(formData, "semi2Home"),
+      awayTeamId: asText(formData, "semi2Away"),
+      startsAt: asText(formData, "semi2StartsAt"),
+      location: asText(formData, "semi2Location")
+    };
+    const final = {
+      homeTeamId: asText(formData, "finalHome"),
+      awayTeamId: asText(formData, "finalAway"),
+      startsAt: asText(formData, "finalStartsAt"),
+      location: asText(formData, "finalLocation")
+    };
+    const toiletBowl = {
+      homeTeamId: asText(formData, "toiletHome"),
+      awayTeamId: asText(formData, "toiletAway"),
+      startsAt: asText(formData, "toiletStartsAt") || asText(formData, "finalStartsAt"),
+      location: asText(formData, "toiletLocation") || asText(formData, "finalLocation")
+    };
+
+    if (
+      !semi1.homeTeamId ||
+      !semi1.awayTeamId ||
+      !semi2.homeTeamId ||
+      !semi2.awayTeamId ||
+      !final.homeTeamId ||
+      !final.awayTeamId ||
+      !toiletBowl.homeTeamId ||
+      !toiletBowl.awayTeamId
+    ) {
+      return NextResponse.redirect(new URL(withParam(returnTo, "error", "playoff_missing_team_ids"), request.url), 303);
+    }
+
+    weeks = [
+      {
+        weekNumber: 7,
+        games: [semi1, semi2]
+      },
+      {
+        weekNumber: 8,
+        games: [final, toiletBowl]
+      }
+    ];
+  } else if (mode === "playoff_resolve") {
+    try {
+      await resolveDvhlPlayoffWeekEightFromSemis({
+        competitionId,
+        finalStartsAt: asText(formData, "finalStartsAt") || undefined,
+        finalLocation: asText(formData, "finalLocation") || undefined,
+        toiletStartsAt: asText(formData, "toiletStartsAt") || undefined,
+        toiletLocation: asText(formData, "toiletLocation") || undefined
+      });
+      return NextResponse.redirect(new URL(withParam(returnTo, "dvhl", "playoff_resolved"), request.url), 303);
+    } catch {
+      return NextResponse.redirect(new URL(withParam(returnTo, "error", "playoff_resolve_failed"), request.url), 303);
+    }
   } else {
     weeks = Array.from({ length: 6 }, (_, index) => {
       const weekNumber = index + 1;

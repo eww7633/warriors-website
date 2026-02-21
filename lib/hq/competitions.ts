@@ -401,6 +401,103 @@ export async function replaceDvhlSchedule(input: {
   return { created };
 }
 
+export async function resolveDvhlPlayoffWeekEightFromSemis(input: {
+  competitionId: string;
+  finalStartsAt?: string;
+  finalLocation?: string;
+  toiletStartsAt?: string;
+  toiletLocation?: string;
+}) {
+  ensureDbMode();
+
+  const competition = await getPrismaClient().competition.findUnique({
+    where: { id: input.competitionId },
+    include: {
+      teams: true,
+      games: {
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }]
+      }
+    }
+  });
+
+  if (!competition || competition.type !== "DVHL") {
+    throw new Error("DVHL competition not found.");
+  }
+
+  const teamByName = new Map(competition.teams.map((team) => [team.name, team]));
+  const week7Games = competition.games
+    .filter((game) => (game.notes || "").includes("[DVHL-SCHED] week 7"))
+    .slice(0, 2);
+
+  if (week7Games.length < 2) {
+    throw new Error("Need two Week 7 semifinal games before generating Week 8.");
+  }
+
+  const semis = week7Games.map((game) => {
+    const homeTeam = teamByName.get(game.team.name);
+    const awayTeam = teamByName.get(game.opponent);
+    if (!homeTeam || !awayTeam) {
+      throw new Error("Could not map semifinal teams from game records.");
+    }
+    if (game.warriorsScore === game.opponentScore) {
+      throw new Error("Semifinal games must have a winner before generating Week 8.");
+    }
+    const winner = game.warriorsScore > game.opponentScore ? homeTeam : awayTeam;
+    const loser = game.warriorsScore > game.opponentScore ? awayTeam : homeTeam;
+    return { winner, loser };
+  });
+
+  const week8Existing = competition.games.filter((game) => (game.notes || "").includes("[DVHL-SCHED] week 8"));
+  const existingFinal = week8Existing.find((game) => (game.notes || "").includes("playoff:defenders-cup")) || week8Existing[0];
+  const existingToilet = week8Existing.find((game) => (game.notes || "").includes("playoff:toilet-bowl")) || week8Existing[1];
+
+  await getPrismaClient().competitionGame.deleteMany({
+    where: {
+      competitionId: input.competitionId,
+      notes: {
+        contains: "[DVHL-SCHED] week 8"
+      }
+    }
+  });
+
+  const finalStartsAt = parseOptionalDate(input.finalStartsAt) ?? existingFinal?.startsAt ?? undefined;
+  const toiletStartsAt = parseOptionalDate(input.toiletStartsAt) ?? existingToilet?.startsAt ?? finalStartsAt;
+  const finalLocation = input.finalLocation || existingFinal?.location || undefined;
+  const toiletLocation = input.toiletLocation || existingToilet?.location || finalLocation;
+
+  await getPrismaClient().competitionGame.create({
+    data: {
+      competitionId: input.competitionId,
+      teamId: semis[0].winner.id,
+      opponent: semis[1].winner.name,
+      startsAt: finalStartsAt,
+      location: finalLocation,
+      notes: "[DVHL-SCHED] week 8 | playoff:defenders-cup"
+    }
+  });
+
+  await getPrismaClient().competitionGame.create({
+    data: {
+      competitionId: input.competitionId,
+      teamId: semis[0].loser.id,
+      opponent: semis[1].loser.name,
+      startsAt: toiletStartsAt,
+      location: toiletLocation,
+      notes: "[DVHL-SCHED] week 8 | playoff:toilet-bowl"
+    }
+  });
+
+  return { generated: 2 };
+}
+
 export async function listEligiblePlayers() {
   if (!hasDatabaseUrl()) {
     return [];

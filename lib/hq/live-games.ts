@@ -31,6 +31,7 @@ export async function listLiveGames() {
       const roster = rosters.find((entry) => entry.id === game.rosterId);
       return {
         id: game.id,
+        teamId: game.rosterId ?? game.id,
         title: `${roster?.name ?? "Warriors"} vs ${game.opponent}`,
         opponent: game.opponent,
         startsAt: game.startsAt,
@@ -123,6 +124,7 @@ export async function listLiveGames() {
       return { lineup };
     })(),
     id: row.id,
+    teamId: row.teamId,
     title: `${row.team.name} vs ${row.opponent}`,
     opponent: row.opponent,
     startsAt: row.startsAt?.toISOString() ?? row.createdAt.toISOString(),

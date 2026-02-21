@@ -3,6 +3,14 @@ import { redirect } from "next/navigation";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { listCompetitions, listEligiblePlayers } from "@/lib/hq/competitions";
 import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
+import { listDvhlSkillRatingsWithUsers } from "@/lib/hq/dvhl-skill-ratings";
+import {
+  getDvhlDraftSession,
+  getDvhlPlanPhase,
+  getDvhlSeasonPlan,
+  listDvhlSignupIntents,
+  listDvhlSubRequests
+} from "@/lib/hq/dvhl-workflows";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
 import { getCurrentUser } from "@/lib/hq/session";
 import { listSportsData } from "@/lib/hq/ops-data";
@@ -14,6 +22,7 @@ const tabs = [
   ["seasons", "Seasons"],
   ["teams", "Teams"],
   ["schedule", "Schedule"],
+  ["draft", "Draft"],
   ["standings", "Standings"],
   ["stats", "Stats"],
   ["subs", "Sub Pool"]
@@ -147,13 +156,30 @@ function defaultDvhlPairings(teamIds: string[]) {
   ];
 }
 
+function nextDraftTeamId(draft?: {
+  pickOrderTeamIds: string[];
+  currentPickIndex: number;
+  draftMode: "manual" | "snake";
+}) {
+  if (!draft || draft.pickOrderTeamIds.length === 0) return "";
+  const teamCount = draft.pickOrderTeamIds.length;
+  const roundIndex = Math.floor(draft.currentPickIndex / teamCount);
+  const inRound = draft.currentPickIndex % teamCount;
+  if (draft.draftMode === "snake" && roundIndex % 2 === 1) {
+    return draft.pickOrderTeamIds[teamCount - 1 - inRound];
+  }
+  return draft.pickOrderTeamIds[inRound];
+}
+
 export default async function AdminDvhlPage({
   searchParams
 }: {
   searchParams?: {
     tab?: string;
     teamId?: string;
+    competitionId?: string;
     error?: string;
+    errorDetail?: string;
     competition?: string;
     assignment?: string;
     game?: string;
@@ -182,10 +208,11 @@ export default async function AdminDvhlPage({
     ? (searchParams?.tab as Tab)
     : "dashboard";
 
-  const [competitions, eligiblePlayers, sportsData] = await Promise.all([
+  const [competitions, eligiblePlayers, sportsData, dvhlSkillRatings] = await Promise.all([
     listCompetitions(),
     listEligiblePlayers(),
-    listSportsData()
+    listSportsData(),
+    listDvhlSkillRatingsWithUsers()
   ]);
 
   const dvhlCompetitions = competitions.filter((competition) => competition.type === "DVHL");
@@ -199,6 +226,14 @@ export default async function AdminDvhlPage({
   const selectedTeamId =
     dvhlTeams.find((entry) => entry.team.id === searchParams?.teamId)?.team.id || dvhlTeams[0]?.team.id;
   const selectedTeamBundle = dvhlTeams.find((entry) => entry.team.id === selectedTeamId);
+  const selectedCompetitionId =
+    dvhlCompetitions.find((entry) => entry.id === searchParams?.competitionId)?.id || dvhlCompetitions[0]?.id;
+  const selectedCompetition = dvhlCompetitions.find((entry) => entry.id === selectedCompetitionId);
+  const selectedDraft = selectedCompetitionId ? await getDvhlDraftSession(selectedCompetitionId) : null;
+  const selectedPlan = selectedCompetitionId ? await getDvhlSeasonPlan(selectedCompetitionId) : null;
+  const selectedPlanPhase = getDvhlPlanPhase(selectedPlan);
+  const selectedSignups = await listDvhlSignupIntents(selectedCompetitionId);
+  const subRequests = await listDvhlSubRequests(selectedCompetitionId);
 
   const statusMessages = [
     searchParams?.competition === "created" ? "DVHL season created." : null,
@@ -207,13 +242,26 @@ export default async function AdminDvhlPage({
     searchParams?.dvhl === "captain_saved" ? "Captain saved." : null,
     searchParams?.dvhl === "subpool_saved" ? "Sub pool updated." : null,
     searchParams?.dvhl === "schedule_saved" ? "DVHL schedule saved." : null,
+    searchParams?.dvhl === "playoff_resolved" ? "Week 8 Defenders Cup and Toilet Bowl generated from Week 7 scores." : null,
+    searchParams?.dvhl === "draft_started" ? "DVHL draft session started." : null,
+    searchParams?.dvhl === "draft_closed" ? "DVHL draft session closed." : null,
+    searchParams?.dvhl === "draft_pick_saved" ? "Draft pick saved and player assigned." : null,
+    searchParams?.dvhl === "plan_saved" ? "DVHL workflow plan saved." : null,
+    searchParams?.dvhl === "captains_assigned" ? "Captains assigned to teams." : null,
+    searchParams?.dvhl === "sub_request_created" ? "Sub request posted." : null,
+    searchParams?.dvhl === "sub_request_accepted" ? "Sub request accepted." : null,
+    searchParams?.dvhl === "sub_request_cancelled" ? "Sub request cancelled." : null,
     searchParams?.assignment === "saved" ? "Player added to team." : null,
     searchParams?.assignment === "removed" ? "Player removed from team." : null,
     searchParams?.game === "created" ? "Game added to schedule." : null,
     searchParams?.scorekeeper === "saved" ? "Scorekeeper updated." : null
   ].filter(Boolean) as string[];
 
-  const errorMessage = searchParams?.error ? searchParams.error.replaceAll("_", " ") : null;
+  const errorMessage = searchParams?.error
+    ? searchParams.errorDetail
+      ? decodeURIComponent(searchParams.errorDetail)
+      : searchParams.error.replaceAll("_", " ")
+    : null;
 
   const totalGames = dvhlTeams.reduce((sum, entry) => sum + entry.team.games.length, 0);
   const totalRostered = dvhlTeams.reduce((sum, entry) => sum + entry.team.members.length, 0);
@@ -221,6 +269,7 @@ export default async function AdminDvhlPage({
     (sum, entry) => sum + (controlsByTeamId[entry.team.id]?.subPoolUserIds.length || 0),
     0
   );
+  const ratingsSubmitted = dvhlSkillRatings.length;
 
   return (
     <section className="stack admin-shell">
@@ -234,6 +283,7 @@ export default async function AdminDvhlPage({
           <div className="admin-kpi"><span className="muted">Rostered slots</span><strong>{totalRostered}</strong></div>
           <div className="admin-kpi"><span className="muted">Scheduled games</span><strong>{totalGames}</strong></div>
           <div className="admin-kpi"><span className="muted">Sub pool spots</span><strong>{totalSubs}</strong></div>
+          <div className="admin-kpi"><span className="muted">Skill ratings</span><strong>{ratingsSubmitted}</strong></div>
         </div>
         {statusMessages.map((message) => (
           <p key={message} className="badge">{message}</p>
@@ -341,6 +391,20 @@ export default async function AdminDvhlPage({
 
           {tab === "teams" && (
             <div className="stack">
+              <article className="card">
+                <h3>Roster Import Shortcuts</h3>
+                <p className="muted">
+                  Use this first if playoff players are missing. Bulk-import contacts, then place them onto DVHL teams.
+                </p>
+                <div className="cta-row">
+                  <Link className="button" href="/admin?section=contacts">
+                    Open Contacts Queue
+                  </Link>
+                  <Link className="button ghost" href="/admin/roster">
+                    Open Central Player Manager
+                  </Link>
+                </div>
+              </article>
               <article className="card">
                 <h3>Add Team To DVHL Season</h3>
                 <form className="grid-form" action="/api/admin/competitions/dvhl-team" method="post">
@@ -528,6 +592,145 @@ export default async function AdminDvhlPage({
                           </form>
                         </details>
                       ) : null}
+                      {competition.teams.length >= 4 ? (
+                        <details className="event-card admin-disclosure" open>
+                          <summary>Manual Playoff Setup (Bypass Wizard)</summary>
+                          <p className="muted">
+                            Fast setup for current playoffs: two semifinals in week 7, then Defenders Cup + Toilet Bowl in week 8.
+                          </p>
+                          <form className="grid-form" action="/api/admin/competitions/dvhl-schedule" method="post">
+                            <input type="hidden" name="mode" value="playoffs" />
+                            <input type="hidden" name="competitionId" value={competition.id} />
+                            <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
+                            <label>
+                              <input type="checkbox" name="clearExisting" defaultChecked /> Replace existing season schedule
+                            </label>
+                            <strong>Semi Final 1</strong>
+                            <label>
+                              Home team
+                              <select name="semi1Home" defaultValue={competition.teams[0]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-semi1-home`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Away team
+                              <select name="semi1Away" defaultValue={competition.teams[3]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-semi1-away`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Date/time
+                              <input name="semi1StartsAt" type="datetime-local" />
+                            </label>
+                            <input name="semi1Location" placeholder="Location (optional)" />
+
+                            <strong>Semi Final 2</strong>
+                            <label>
+                              Home team
+                              <select name="semi2Home" defaultValue={competition.teams[1]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-semi2-home`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Away team
+                              <select name="semi2Away" defaultValue={competition.teams[2]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-semi2-away`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Date/time
+                              <input name="semi2StartsAt" type="datetime-local" />
+                            </label>
+                            <input name="semi2Location" placeholder="Location (optional)" />
+
+                            <strong>Defenders Cup (Championship)</strong>
+                            <label>
+                              Home team
+                              <select name="finalHome" defaultValue={competition.teams[0]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-final-home`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Away team
+                              <select name="finalAway" defaultValue={competition.teams[1]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-final-away`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Date/time
+                              <input name="finalStartsAt" type="datetime-local" />
+                            </label>
+                            <input name="finalLocation" placeholder="Location (optional)" />
+
+                            <strong>Toilet Bowl (3rd Place)</strong>
+                            <label>
+                              Home team
+                              <select name="toiletHome" defaultValue={competition.teams[2]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-toilet-home`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Away team
+                              <select name="toiletAway" defaultValue={competition.teams[3]?.id || ""}>
+                                <option value="" disabled>Select team</option>
+                                {competition.teams.map((team) => (
+                                  <option key={`${team.id}-toilet-away`} value={team.id}>{team.name}</option>
+                                ))}
+                              </select>
+                            </label>
+                            <label>
+                              Date/time (leave blank to use Defenders Cup time)
+                              <input name="toiletStartsAt" type="datetime-local" />
+                            </label>
+                            <input name="toiletLocation" placeholder="Location (leave blank to use Defenders Cup location)" />
+
+                            <button className="button" type="submit">Save Playoff Schedule</button>
+                          </form>
+                        </details>
+                        <details className="event-card admin-disclosure" open>
+                          <summary>Resolve Week 8 From Week 7 Scores</summary>
+                          <p className="muted">
+                            After semifinal scores are final, generate Defenders Cup (winners) and Toilet Bowl (losers) automatically.
+                          </p>
+                          <form className="grid-form" action="/api/admin/competitions/dvhl-schedule" method="post">
+                            <input type="hidden" name="mode" value="playoff_resolve" />
+                            <input type="hidden" name="competitionId" value={competition.id} />
+                            <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
+                            <label>
+                              Defenders Cup date/time (optional override)
+                              <input name="finalStartsAt" type="datetime-local" />
+                            </label>
+                            <input name="finalLocation" placeholder="Defenders Cup location (optional override)" />
+                            <label>
+                              Toilet Bowl date/time (optional override)
+                              <input name="toiletStartsAt" type="datetime-local" />
+                            </label>
+                            <input name="toiletLocation" placeholder="Toilet Bowl location (optional override)" />
+                            <button className="button ghost" type="submit">Generate Week 8 From Semis</button>
+                          </form>
+                        </details>
+                      ) : null}
                       {competition.teams.length < 4 ? (
                         <p className="muted">Add at least 4 teams to use the guided DVHL weekly builder.</p>
                       ) : (
@@ -651,6 +854,252 @@ export default async function AdminDvhlPage({
             </div>
           )}
 
+          {tab === "draft" && (
+            <div className="stack">
+              <article className="card">
+                <h3>DVHL Workflow Wizard</h3>
+                {selectedCompetition ? (
+                  <div className="stack">
+                    <p className="muted">
+                      Phase: <strong>{selectedPlanPhase.replaceAll("_", " ")}</strong>
+                    </p>
+                    <form className="grid-form" action="/api/admin/competitions/dvhl-plan" method="post">
+                      <input type="hidden" name="competitionId" value={selectedCompetition.id} />
+                      <input type="hidden" name="returnTo" value={`/admin/dvhl?tab=draft&competitionId=${selectedCompetition.id}`} />
+                      <h4>Step 1: Signup Window + Draft Program</h4>
+                      <label>
+                        Player signup closes
+                        <input
+                          name="signupClosesAt"
+                          type="datetime-local"
+                          defaultValue={selectedPlan?.signupClosesAt ? new Date(selectedPlan.signupClosesAt).toISOString().slice(0, 16) : ""}
+                        />
+                      </label>
+                      <label>
+                        Captain interest closes
+                        <input
+                          name="captainSignupClosesAt"
+                          type="datetime-local"
+                          defaultValue={selectedPlan?.captainSignupClosesAt ? new Date(selectedPlan.captainSignupClosesAt).toISOString().slice(0, 16) : ""}
+                        />
+                      </label>
+                      <label>
+                        Desired captain count
+                        <input name="desiredCaptainCount" type="number" min={1} max={8} defaultValue={selectedPlan?.desiredCaptainCount || 4} />
+                      </label>
+                      <label>
+                        Team pick order strategy
+                        <select name="teamOrderStrategy" defaultValue={selectedPlan?.teamOrderStrategy || "manual"}>
+                          <option value="manual">Use team list order (manual)</option>
+                          <option value="random">Randomize team order at draft start</option>
+                        </select>
+                      </label>
+                      <label>
+                        Player pool strategy
+                        <select name="playerPoolStrategy" defaultValue={selectedPlan?.playerPoolStrategy || "all_signups"}>
+                          <option value="all_signups">Use player signups for this season</option>
+                          <option value="all_eligible">Use all eligible players</option>
+                          <option value="ops_selected">Use players already on DVHL team rosters</option>
+                        </select>
+                      </label>
+                      <label>
+                        Draft mode
+                        <select name="draftMode" defaultValue={selectedPlan?.draftMode || "manual"}>
+                          <option value="manual">Manual order</option>
+                          <option value="snake">Snake draft</option>
+                        </select>
+                      </label>
+                      <label>
+                        Draft rounds
+                        <input name="rounds" type="number" min={1} max={20} defaultValue={selectedPlan?.rounds || 1} />
+                      </label>
+                      <button className="button" type="submit" name="action" value="save_plan">
+                        Save Workflow Plan
+                      </button>
+                    </form>
+
+                    <h4>Step 2: Signups + Captain Interest</h4>
+                    <p className="muted">
+                      Players signed up: <strong>{selectedSignups.length}</strong> | Captain volunteers:{" "}
+                      <strong>{selectedSignups.filter((entry) => entry.wantsCaptain).length}</strong>
+                    </p>
+                    <form className="grid-form" action="/api/admin/competitions/dvhl-plan" method="post">
+                      <input type="hidden" name="action" value="assign_captains" />
+                      <input type="hidden" name="competitionId" value={selectedCompetition.id} />
+                      <input type="hidden" name="returnTo" value={`/admin/dvhl?tab=draft&competitionId=${selectedCompetition.id}`} />
+                      {selectedCompetition.teams.map((team) => (
+                        <label key={team.id}>
+                          {team.name} captain
+                          <input type="hidden" name="teamIds" value={team.id} />
+                          <select name="captainUserIds" defaultValue={controlsByTeamId[team.id]?.captainUserId || ""}>
+                            <option value="">No captain selected</option>
+                            {selectedSignups
+                              .filter((entry) => entry.wantsCaptain)
+                              .map((entry) => {
+                                const player = eligiblePlayers.find((user) => user.id === entry.userId);
+                                return (
+                                  <option key={`${team.id}-${entry.userId}`} value={entry.userId}>
+                                    {player?.fullName || entry.userId}
+                                  </option>
+                                );
+                              })}
+                          </select>
+                        </label>
+                      ))}
+                      <button className="button ghost" type="submit">Assign Captains</button>
+                    </form>
+                    <p className="muted">
+                      Step 3: Start draft below. The draft setup will default from this workflow plan, and you can still override pool/order for special cases.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="muted">Create a DVHL season first.</p>
+                )}
+              </article>
+
+              <article className="card">
+                <h3>DVHL Draft Session</h3>
+                {selectedCompetition ? (
+                  <>
+                    <p className="muted">Season: {selectedCompetition.title}</p>
+                    <form className="grid-form" action="/api/admin/competitions/dvhl-draft" method="post">
+                      <input type="hidden" name="competitionId" value={selectedCompetition.id} />
+                      <input type="hidden" name="returnTo" value={`/admin/dvhl?tab=draft&competitionId=${selectedCompetition.id}`} />
+                      <label>
+                        Draft pool players
+                        <select
+                          name="poolUserIds"
+                          multiple
+                          size={Math.min(12, Math.max(6, eligiblePlayers.length))}
+                        >
+                          {eligiblePlayers.map((entry) => (
+                            <option key={entry.id} value={entry.id}>
+                              {entry.fullName} {entry.jerseyNumber ? `#${entry.jerseyNumber}` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Team pick order
+                        <select
+                          name="pickOrderTeamIds"
+                          multiple
+                          size={Math.min(8, Math.max(4, selectedCompetition.teams.length))}
+                        >
+                          {selectedCompetition.teams.map((team) => (
+                            <option key={team.id} value={team.id}>
+                              {team.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="muted">
+                        Leave pool/order unselected to use the workflow plan defaults.
+                      </p>
+                      <label>
+                        <input type="checkbox" name="includeAllEligible" /> Include all eligible players in pool
+                      </label>
+                      <label>
+                        Draft mode override
+                        <select name="draftMode" defaultValue={selectedPlan?.draftMode || "manual"}>
+                          <option value="manual">Manual order</option>
+                          <option value="snake">Snake draft</option>
+                        </select>
+                      </label>
+                      <label>
+                        Rounds
+                        <input name="rounds" type="number" min={1} max={20} defaultValue={selectedPlan?.rounds || 1} />
+                      </label>
+                      <div className="cta-row">
+                        <button className="button" type="submit" name="action" value="start">
+                          Start / Reset Draft
+                        </button>
+                        <button className="button alt" type="submit" name="action" value="close">
+                          Close Draft
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                ) : (
+                  <p className="muted">Create a DVHL season first.</p>
+                )}
+              </article>
+
+              <article className="card">
+                <h3>Draft Board</h3>
+                {!selectedDraft ? (
+                  <p className="muted">No active draft for this season yet.</p>
+                ) : (
+                  <div className="stack">
+                    <p>
+                      Status: <strong>{selectedDraft.status}</strong> | Picks:{" "}
+                      <strong>{selectedDraft.picks.length}</strong> | Next team:{" "}
+                      <strong>{nextDraftTeamId(selectedDraft) || "-"}</strong>
+                      {" | "}
+                      Mode: <strong>{selectedDraft.draftMode}</strong>
+                    </p>
+                    {selectedDraft.status === "open" && selectedCompetition ? (
+                      <form className="grid-form" action="/api/dvhl/draft/pick" method="post">
+                        <input type="hidden" name="competitionId" value={selectedCompetition.id} />
+                        <input type="hidden" name="returnTo" value={`/admin/dvhl?tab=draft&competitionId=${selectedCompetition.id}`} />
+                        <label>
+                          Team making pick
+                          <select name="teamId" defaultValue={nextDraftTeamId(selectedDraft) || ""} required>
+                            <option value="" disabled>Select team</option>
+                            {selectedCompetition.teams.map((team) => (
+                              <option key={team.id} value={team.id}>{team.name}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          Select player
+                          <select name="userId" defaultValue="" required>
+                            <option value="" disabled>Select player</option>
+                            {selectedDraft.poolUserIds
+                              .filter((userId) => !selectedDraft.picks.some((pick) => pick.userId === userId))
+                              .map((userId) => {
+                                const player = eligiblePlayers.find((entry) => entry.id === userId);
+                                return (
+                                  <option key={userId} value={userId}>
+                                    {player?.fullName || userId}
+                                  </option>
+                                );
+                              })}
+                          </select>
+                        </label>
+                        <button className="button" type="submit">Save Pick</button>
+                      </form>
+                    ) : null}
+                    {selectedDraft.picks.length === 0 ? (
+                      <p className="muted">No picks made yet.</p>
+                    ) : (
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Pick</th>
+                            <th>Round</th>
+                            <th>Team</th>
+                            <th>Player</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedDraft.picks.map((pick) => (
+                            <tr key={`${pick.pickNumber}-${pick.userId}`}>
+                              <td>{pick.pickNumber}</td>
+                              <td>{pick.round}</td>
+                              <td>{selectedCompetition?.teams.find((team) => team.id === pick.teamId)?.name || pick.teamId}</td>
+                              <td>{eligiblePlayers.find((entry) => entry.id === pick.userId)?.fullName || pick.userId}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </article>
+            </div>
+          )}
+
           {tab === "standings" && (
             <article className="card">
               <h3>Standings</h3>
@@ -692,47 +1141,116 @@ export default async function AdminDvhlPage({
           )}
 
           {tab === "stats" && (
-            <article className="card">
-              <h3>DVHL Team Stats</h3>
-              {dvhlTeams.length === 0 ? (
-                <p className="muted">No DVHL teams available.</p>
-              ) : (
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Team</th>
-                      <th>Season</th>
-                      <th>Players</th>
-                      <th>Games</th>
-                      <th>Tracked Events</th>
-                      <th>Captains</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dvhlTeams.map(({ competition, team }) => (
-                      <tr key={team.id}>
-                        <td>{team.name}</td>
-                        <td>{competition.title}</td>
-                        <td>{team.members.length}</td>
-                        <td>{team.games.length}</td>
-                        <td>{team.games.reduce((sum, game) => sum + game.events.length, 0)}</td>
-                        <td>{controlsByTeamId[team.id]?.captainUserId ? 1 : 0}</td>
+            <div className="stack">
+              <article className="card">
+                <h3>DVHL Team Stats</h3>
+                {dvhlTeams.length === 0 ? (
+                  <p className="muted">No DVHL teams available.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Season</th>
+                        <th>Players</th>
+                        <th>Games</th>
+                        <th>Tracked Events</th>
+                        <th>Captains</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </article>
+                    </thead>
+                    <tbody>
+                      {dvhlTeams.map(({ competition, team }) => (
+                        <tr key={team.id}>
+                          <td>{team.name}</td>
+                          <td>{competition.title}</td>
+                          <td>{team.members.length}</td>
+                          <td>{team.games.length}</td>
+                          <td>{team.games.reduce((sum, game) => sum + game.events.length, 0)}</td>
+                          <td>{controlsByTeamId[team.id]?.captainUserId ? 1 : 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </article>
+              <article className="card">
+                <h3>Player Skill Ratings</h3>
+                <p className="muted">
+                  Ratings come from player self-assessment in Player Hub DVHL tab.
+                </p>
+                {dvhlSkillRatings.length === 0 ? (
+                  <p className="muted">No skill ratings submitted yet.</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Player</th>
+                        <th>Position</th>
+                        <th>Rating</th>
+                        <th>Level</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dvhlSkillRatings.map((entry) => (
+                        <tr key={entry.userId}>
+                          <td>{entry.fullName}</td>
+                          <td>{entry.position}</td>
+                          <td>{entry.rating}</td>
+                          <td>{entry.level}</td>
+                          <td>{toDateLabel(entry.updatedAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </article>
+            </div>
           )}
 
           {tab === "subs" && (
             <div className="stack">
+              <article className="card">
+                <h3>Open Sub Requests</h3>
+                {subRequests.length === 0 ? (
+                  <p className="muted">No sub requests posted.</p>
+                ) : (
+                  <div className="stack">
+                    {subRequests.map((request) => (
+                      <div key={request.id} className="event-card">
+                        <strong>
+                          {dvhlTeams.find((entry) => entry.team.id === request.teamId)?.team.name || request.teamId}
+                        </strong>
+                        <p>Status: {request.status}</p>
+                        <p>{request.message || "No note"}</p>
+                        {request.status === "open" ? (
+                          <form className="cta-row" action="/api/dvhl/sub-request" method="post">
+                            <input type="hidden" name="action" value="cancel" />
+                            <input type="hidden" name="requestId" value={request.id} />
+                            <input type="hidden" name="returnTo" value={`/admin/dvhl?tab=subs&competitionId=${request.competitionId}`} />
+                            <button className="button alt" type="submit">Cancel Request</button>
+                          </form>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </article>
+
               {dvhlTeams.map(({ competition, team }) => {
                 const subIds = controlsByTeamId[team.id]?.subPoolUserIds || [];
                 return (
                   <article key={team.id} className="card">
                     <h3>{team.name} Sub Pool</h3>
                     <p className="muted">{competition.title}</p>
+                    <form className="grid-form" action="/api/dvhl/sub-request" method="post">
+                      <input type="hidden" name="action" value="create" />
+                      <input type="hidden" name="competitionId" value={competition.id} />
+                      <input type="hidden" name="teamId" value={team.id} />
+                      <input type="hidden" name="returnTo" value="/admin/dvhl?tab=subs" />
+                      <input name="message" placeholder="Need 2 subs for Thursday game at 8:30 PM" />
+                      <button className="button ghost" type="submit">Post Sub Request</button>
+                    </form>
                     <form className="grid-form" action="/api/admin/competitions/dvhl-sub-pool" method="post">
                       <input type="hidden" name="returnTo" value="/admin/dvhl?tab=subs" />
                       <input type="hidden" name="teamId" value={team.id} />
