@@ -11,6 +11,13 @@ export default async function GamesPage({
   const query = searchParams ?? {};
   const user = await getCurrentUser();
   const games = await listLiveGames();
+  const myGames = user
+    ? games.filter((game) => user.role === "admin" || (user.status === "approved" && game.scorekeeperUserId === user.id))
+    : [];
+  const otherGames = user
+    ? games.filter((game) => !(user.role === "admin" || (user.status === "approved" && game.scorekeeperUserId === user.id)))
+    : games;
+  const orderedGames = [...myGames, ...otherGames];
 
   return (
     <section className="card">
@@ -20,8 +27,13 @@ export default async function GamesPage({
       {query.event === "saved" && <p className="badge">Live event added.</p>}
       {query.lineup === "saved" && <p className="badge">Pregame lineup saved.</p>}
       {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
+      {user ? (
+        <p className="muted">
+          Assigned to you: <strong>{myGames.length}</strong> game{myGames.length === 1 ? "" : "s"}.
+        </p>
+      ) : null}
       <div className="stack">
-        {games.map((game) => {
+        {orderedGames.map((game) => {
           const canScorekeep = Boolean(
             user &&
               (user.role === "admin" ||
@@ -47,6 +59,7 @@ export default async function GamesPage({
                 Scorekeeper: {game.scorekeeperName || game.scorekeeperStaffName || "Unassigned"}
                 {!canScorekeep && game.scorekeeperStaffName ? " (staff assignment is view-only unless admin)" : ""}
               </p>
+              {canScorekeep ? <p className="badge">Assigned to you</p> : null}
 
               {canScorekeep ? (
                 <>
@@ -166,7 +179,7 @@ export default async function GamesPage({
             </article>
           );
         })}
-        {games.length === 0 && (
+        {orderedGames.length === 0 && (
           <p className="muted">
             No games yet. Create competition games in <Link href="/admin?section=competitions">Hockey Ops competitions</Link>.
           </p>

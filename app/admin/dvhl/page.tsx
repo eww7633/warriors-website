@@ -250,7 +250,7 @@ export default async function AdminDvhlPage({
                 {label}
               </Link>
             ))}
-            <Link href="/admin?section=events" className="admin-side-link">Events</Link>
+            <Link href="/admin?section=onice" className="admin-side-link">On-Ice Events</Link>
             <Link href="/admin?section=players" className="admin-side-link">Players</Link>
           </nav>
         </aside>
@@ -610,6 +610,9 @@ export default async function AdminDvhlPage({
                               <strong>{homeTeam} vs {game.opponent}</strong>
                               <p>{toDateLabel(game.startsAt)} | {game.location || "No location"}</p>
                               <p>Score: {game.warriorsScore} - {game.opponentScore} | {game.liveStatus}</p>
+                              <p>
+                                <Link href={`/games#${game.id}`}>Open this game in live console</Link>
+                              </p>
                               <label>
                                 Scorekeeper type
                                 <select name="scorekeeperType" defaultValue={game.scorekeeperUser ? "player" : game.scorekeeperStaff ? "staff" : "none"}>
