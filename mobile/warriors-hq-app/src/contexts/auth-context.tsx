@@ -9,6 +9,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   register: (input: { fullName: string; email: string; password: string; phone?: string; position?: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (patch: Partial<MobileUser>) => Promise<void>;
 };
 
 const KEY = 'hq_mobile_auth_state_v2';
@@ -60,6 +61,16 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
           }
         }
         await persist(defaultSession);
+      },
+      updateUser: async (patch) => {
+        if (!session.user) return;
+        await persist({
+          ...session,
+          user: {
+            ...session.user,
+            ...patch
+          }
+        });
       }
     }),
     [ready, session]

@@ -1,4 +1,4 @@
-import { useColorScheme } from 'react-native';
+import { usePreferences } from '@/contexts/preferences-context';
 
 type ThemeName = 'light' | 'dark';
 
@@ -53,6 +53,6 @@ const darkColors: AppColors = {
 export const getThemeColors = (theme: ThemeName): AppColors => (theme === 'light' ? lightColors : darkColors);
 
 export const useThemeColors = (): AppColors => {
-  const scheme = useColorScheme();
-  return getThemeColors(scheme === 'light' ? 'light' : 'dark');
+  const { resolvedTheme } = usePreferences();
+  return getThemeColors(resolvedTheme);
 };

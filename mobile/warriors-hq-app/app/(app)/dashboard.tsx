@@ -24,15 +24,19 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | ReservationStatus>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const isSupporter = session.user?.role === 'supporter';
 
   const upcoming = useMemo(
     () => [...events].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).slice(0, 8),
     [events]
   );
   const filteredEvents = useMemo(() => {
-    if (filter === 'all') return upcoming;
-    return upcoming.filter((event) => event.viewerReservationStatus === filter);
-  }, [upcoming, filter]);
+    const byRsvp = filter === 'all' ? upcoming : upcoming.filter((event) => event.viewerReservationStatus === filter);
+    if (typeFilter === 'all') return byRsvp;
+    return byRsvp.filter((event) => event.eventType === typeFilter);
+  }, [upcoming, filter, typeFilter]);
+  const eventTypes = useMemo(() => ['all', ...Array.from(new Set(events.map((event) => event.eventType).filter(Boolean)))], [events]);
 
   const load = useCallback(async () => {
     if (!session.token) {
@@ -95,14 +99,32 @@ export default function DashboardScreen() {
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.text} />}
     >
-      <Title>Events</Title>
-      <Subtitle>
-        {session.user?.fullName || session.user?.email || 'Player'} · {dashboard?.stats.visibleEvents ?? events.length} visible events
-      </Subtitle>
+      <Card>
+        <View style={styles.profileRow}>
+          <View style={styles.profileIdentity}>
+            <PlayerAvatar
+              fullName={session.user?.fullName || 'User'}
+              jerseyNumber={session.user?.jerseyNumber ?? null}
+              avatarUrl={session.user?.avatarUrl ?? null}
+              seed={session.user?.id || session.user?.email || 'user'}
+              size={54}
+            />
+            <View style={{ flex: 1 }}>
+              <Title>{session.user?.fullName || session.user?.email || 'Player'}</Title>
+              <Subtitle>
+                {isSupporter ? 'Supporter View' : 'Player View'} · {dashboard?.stats.visibleEvents ?? events.length} visible events
+              </Subtitle>
+            </View>
+          </View>
+          <Pressable style={[styles.settingsButton, { borderColor: colors.border }]} onPress={() => router.push('/(app)/settings')}>
+            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 18 }}>⚙</Text>
+          </Pressable>
+        </View>
+      </Card>
 
       <Card>
         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Quick Actions</Text>
-        <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} />
+        {!isSupporter ? <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} /> : null}
         <Button label="Full Event List" onPress={() => router.push('/(app)/events')} />
       </Card>
 
@@ -110,19 +132,40 @@ export default function DashboardScreen() {
 
       <Card>
         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Filter</Text>
-        <View style={styles.chips}>
-          {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => (
+        {!isSupporter ? (
+          <View style={styles.chips}>
+            {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => (
+              <Pressable
+                key={value}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border },
+                  filter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                ]}
+                onPress={() => setFilter(value)}
+              >
+                <Text style={[styles.chipText, { color: colors.text }]}>
+                  {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text style={{ color: colors.textMuted }}>Supporter accounts can filter by event type.</Text>
+        )}
+        <View style={[styles.chips, { marginTop: 8 }]}>
+          {eventTypes.map((value) => (
             <Pressable
               key={value}
               style={[
                 styles.chip,
                 { borderColor: colors.border },
-                filter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                typeFilter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
               ]}
-              onPress={() => setFilter(value)}
+              onPress={() => setTypeFilter(value)}
             >
               <Text style={[styles.chipText, { color: colors.text }]}>
-                {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
+                {value === 'all' ? 'All Types' : value}
               </Text>
             </Pressable>
           ))}
@@ -135,9 +178,11 @@ export default function DashboardScreen() {
           <Text style={{ color: colors.textMuted }}>{new Date(event.startsAt).toLocaleString()}</Text>
           <Text style={{ color: colors.textMuted }}>{event.location}</Text>
           <Text style={{ color: colors.textMuted }}>
-            Your RSVP: {formatStatus(event.viewerReservationStatus)} · Going: {event.goingCount} · Total RSVPs: {event.reservationCount}
+            {!isSupporter ? `Your RSVP: ${formatStatus(event.viewerReservationStatus)} · ` : ''}
+            Type: {event.eventType}
+            {!isSupporter ? ` · Going: ${event.goingCount} · Total RSVPs: ${event.reservationCount}` : ''}
           </Text>
-          {event.goingMembers.length > 0 ? (
+          {!isSupporter && event.goingMembers.length > 0 ? (
             <View style={styles.memberPreviewWrap}>
               {event.goingMembers.slice(0, 6).map((entry) => (
                 <View key={`${event.id}-${entry.userId}`} style={styles.memberPreview}>
@@ -154,41 +199,45 @@ export default function DashboardScreen() {
                 </View>
               ))}
             </View>
-          ) : (
+          ) : !isSupporter ? (
             <Text style={{ color: colors.textMuted }}>Going list not available yet.</Text>
-          )}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <View style={{ flex: 1 }}>
-              <Button
-                label="Going"
-                onPress={() => onRsvp(event.id, 'going')}
-                disabled={updatingId === event.id}
-                loading={updatingId === event.id}
-              />
+          ) : null}
+          {!isSupporter ? (
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Going"
+                  onPress={() => onRsvp(event.id, 'going')}
+                  disabled={updatingId === event.id}
+                  loading={updatingId === event.id}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Maybe"
+                  variant="secondary"
+                  onPress={() => onRsvp(event.id, 'maybe')}
+                  disabled={updatingId === event.id}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label="Not Going"
+                  variant="danger"
+                  onPress={() => onRsvp(event.id, 'not_going')}
+                  disabled={updatingId === event.id}
+                />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                label="Maybe"
-                variant="secondary"
-                onPress={() => onRsvp(event.id, 'maybe')}
-                disabled={updatingId === event.id}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button
-                label="Not Going"
-                variant="danger"
-                onPress={() => onRsvp(event.id, 'not_going')}
-                disabled={updatingId === event.id}
-              />
-            </View>
-          </View>
+          ) : null}
           <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/${event.id}`)}>
             Open details
           </Text>
-          <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/going/${event.id}`)}>
-            See who&apos;s going
-          </Text>
+          {!isSupporter ? (
+            <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/going/${event.id}`)}>
+              See who&apos;s going
+            </Text>
+          ) : null}
           {event.locationMapUrl ? (
             <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
               Open map
@@ -238,5 +287,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  profileIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1
+  },
+  settingsButton: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8
   }
 });

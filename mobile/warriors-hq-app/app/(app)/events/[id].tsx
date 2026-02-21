@@ -22,6 +22,7 @@ export default function EventDetailScreen() {
   const [event, setEvent] = useState<MobileEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const isSupporter = session.user?.role === 'supporter';
 
   const load = useCallback(async () => {
     try {
@@ -62,49 +63,56 @@ export default function EventDetailScreen() {
             <Subtitle>{new Date(event.startsAt).toLocaleString()}</Subtitle>
             <Text style={{ color: colors.textMuted }}>{event.location}</Text>
             <Text style={{ color: colors.textMuted }}>{event.publicDetails || 'No details.'}</Text>
-            <Text style={{ color: colors.textMuted }}>Your RSVP: {renderStatus(event.viewerReservationStatus)}</Text>
-            <Text style={{ color: colors.textMuted }}>Going: {event.goingCount} · Total RSVPs: {event.reservationCount}</Text>
+            {!isSupporter ? <Text style={{ color: colors.textMuted }}>Your RSVP: {renderStatus(event.viewerReservationStatus)}</Text> : null}
+            <Text style={{ color: colors.textMuted }}>
+              Type: {event.eventType}
+              {!isSupporter ? ` · Going: ${event.goingCount} · Total RSVPs: ${event.reservationCount}` : ''}
+            </Text>
             {event.locationMapUrl ? (
               <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
                 Open map
               </Text>
             ) : null}
           </Card>
-          <Card>
-            <Text style={{ color: colors.text, fontWeight: '700' }}>Who is Going</Text>
-            {event.goingMembers.length ? (
-              event.goingMembers.map((member) => (
-                <View key={member.userId} style={styles.memberRow}>
-                  <PlayerAvatar
-                    fullName={member.fullName}
-                    jerseyNumber={member.jerseyNumber}
-                    avatarUrl={member.avatarUrl}
-                    seed={member.userId}
-                    size={32}
-                  />
-                  <Text style={{ color: colors.textMuted }}>
-                    {member.fullName}
-                    {member.jerseyNumber ? ` · #${member.jerseyNumber}` : ''}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <Text style={{ color: colors.textMuted }}>No published going list yet.</Text>
-            )}
-            <Text
-              style={{ color: colors.link, marginTop: 4 }}
-              onPress={() => {
-                if (params.id) {
-                  router.push(`/(app)/events/going/${params.id}`);
-                }
-              }}
-            >
-              Use dedicated going list view
-            </Text>
-          </Card>
-          <Button label="Going" onPress={() => onRsvp('going')} loading={saving} disabled={saving} />
-          <Button label="Maybe" variant="secondary" onPress={() => onRsvp('maybe')} disabled={saving} />
-          <Button label="Not Going" variant="danger" onPress={() => onRsvp('not_going')} disabled={saving} />
+          {!isSupporter ? (
+            <>
+              <Card>
+                <Text style={{ color: colors.text, fontWeight: '700' }}>Who is Going</Text>
+                {event.goingMembers.length ? (
+                  event.goingMembers.map((member) => (
+                    <View key={member.userId} style={styles.memberRow}>
+                      <PlayerAvatar
+                        fullName={member.fullName}
+                        jerseyNumber={member.jerseyNumber}
+                        avatarUrl={member.avatarUrl}
+                        seed={member.userId}
+                        size={32}
+                      />
+                      <Text style={{ color: colors.textMuted }}>
+                        {member.fullName}
+                        {member.jerseyNumber ? ` · #${member.jerseyNumber}` : ''}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={{ color: colors.textMuted }}>No published going list yet.</Text>
+                )}
+                <Text
+                  style={{ color: colors.link, marginTop: 4 }}
+                  onPress={() => {
+                    if (params.id) {
+                      router.push(`/(app)/events/going/${params.id}`);
+                    }
+                  }}
+                >
+                  Use dedicated going list view
+                </Text>
+              </Card>
+              <Button label="Going" onPress={() => onRsvp('going')} loading={saving} disabled={saving} />
+              <Button label="Maybe" variant="secondary" onPress={() => onRsvp('maybe')} disabled={saving} />
+              <Button label="Not Going" variant="danger" onPress={() => onRsvp('not_going')} disabled={saving} />
+            </>
+          ) : null}
         </ScrollView>
       ) : (
         <Text style={{ color: colors.textMuted }}>Loading...</Text>

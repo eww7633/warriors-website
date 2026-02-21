@@ -54,7 +54,8 @@ export const Button = ({ label, onPress, disabled, loading, variant = 'primary' 
       : variant === 'danger'
         ? { backgroundColor: colors.danger }
         : { backgroundColor: colors.secondary };
-  const textColor = variant === 'secondary' ? colors.secondaryText : colors.primaryText;
+  const textColor =
+    variant === 'secondary' ? colors.secondaryText : variant === 'danger' ? colors.dangerText : colors.primaryText;
 
   return (
     <Pressable disabled={disabled || loading} onPress={onPress} style={[styles.button, toneStyle, (disabled || loading) && styles.buttonDisabled]}>

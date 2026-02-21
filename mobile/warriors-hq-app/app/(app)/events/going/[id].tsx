@@ -19,6 +19,7 @@ export default function GoingListScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
   const colors = useThemeColors();
+  const isSupporter = session.user?.role === 'supporter';
   const [event, setEvent] = useState<MobileEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -63,8 +64,16 @@ export default function GoingListScreen() {
       <Title>Who&apos;s Going</Title>
       <Subtitle>{event ? `${event.title} · ${event.goingCount} going` : 'Loading...'}</Subtitle>
       <ErrorText message={error} />
+      {isSupporter ? (
+        <Card>
+          <Text style={{ color: colors.textMuted }}>
+            Going lists are player-only details. Supporter accounts can view event details and schedule.
+          </Text>
+        </Card>
+      ) : null}
 
-      <Card>
+      {!isSupporter ? (
+        <Card>
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -94,11 +103,12 @@ export default function GoingListScreen() {
             <Text style={[styles.chipText, { color: colors.text }]}>Alphabetical</Text>
           </Pressable>
         </View>
-      </Card>
+        </Card>
+      ) : null}
 
       <ScrollView>
         <View style={{ gap: 10, paddingBottom: 16 }}>
-          {filtered.map((member) => (
+          {!isSupporter ? filtered.map((member) => (
             <Card key={member.userId}>
               <View style={styles.memberRow}>
                 <PlayerAvatar
@@ -117,8 +127,8 @@ export default function GoingListScreen() {
                 </View>
               </View>
             </Card>
-          ))}
-          {event && !filtered.length ? (
+          )) : null}
+          {event && !filtered.length && !isSupporter ? (
             <Card>
               <Text style={{ color: colors.textMuted }}>No matching players.</Text>
             </Card>

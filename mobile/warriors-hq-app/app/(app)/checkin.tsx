@@ -20,6 +20,7 @@ const parseToken = (raw: string): string => {
 export default function CheckInScreen() {
   const { session } = useAuth();
   const colors = useThemeColors();
+  const isSupporter = session.user?.role === 'supporter';
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,6 +52,20 @@ export default function CheckInScreen() {
       setBusy(false);
     }
   };
+
+  if (isSupporter) {
+    return (
+      <Screen>
+        <Title>QR Check-In</Title>
+        <Subtitle>Player-only feature</Subtitle>
+        <Card>
+          <Text style={{ color: colors.textMuted }}>
+            Supporters can browse events, but QR attendance check-in is only available for players and staff.
+          </Text>
+        </Card>
+      </Screen>
+    );
+  }
 
   if (!permission) return <Screen><Text style={{ color: colors.textMuted }}>Loading camera permission...</Text></Screen>;
   if (!permission.granted) {

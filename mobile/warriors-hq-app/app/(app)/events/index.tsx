@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
-import { Linking, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
@@ -13,6 +13,13 @@ export default function EventsScreen() {
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const isSupporter = session.user?.role === 'supporter';
+  const eventTypes = useMemo(() => ['all', ...Array.from(new Set(events.map((event) => event.eventType).filter(Boolean)))], [events]);
+  const filteredEvents = useMemo(
+    () => (typeFilter === 'all' ? events : events.filter((event) => event.eventType === typeFilter)),
+    [events, typeFilter]
+  );
 
   const load = useCallback(async () => {
     if (!session.token) return;
@@ -32,8 +39,26 @@ export default function EventsScreen() {
   return (
     <Screen>
       <Title>All Events</Title>
-      <Subtitle>See what is coming up and who is signing up</Subtitle>
+      <Subtitle>See what is coming up{isSupporter ? '' : ' and who is signing up'}</Subtitle>
       <ErrorText message={error} />
+      <Card>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>Filter by Type</Text>
+        <View style={styles.chips}>
+          {eventTypes.map((value) => (
+            <Pressable
+              key={value}
+              style={[
+                styles.chip,
+                { borderColor: colors.border },
+                typeFilter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
+              ]}
+              onPress={() => setTypeFilter(value)}
+            >
+              <Text style={{ color: colors.text, fontWeight: '600' }}>{value === 'all' ? 'All Types' : value}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -48,18 +73,23 @@ export default function EventsScreen() {
         }
       >
         <View style={{ gap: 10, paddingBottom: 16 }}>
-          {events.map((event) => (
+          {filteredEvents.map((event) => (
             <Card key={event.id}>
               <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{event.title}</Text>
               <Text style={{ color: colors.textMuted }}>{new Date(event.startsAt).toLocaleString()}</Text>
               <Text style={{ color: colors.textMuted }}>{event.location}</Text>
-              <Text style={{ color: colors.textMuted }}>Going: {event.goingCount} · RSVPs: {event.reservationCount}</Text>
+              <Text style={{ color: colors.textMuted }}>
+                Type: {event.eventType}
+                {!isSupporter ? ` · Going: ${event.goingCount} · RSVPs: ${event.reservationCount}` : ''}
+              </Text>
               <Link href={`/(app)/events/${event.id}`} style={{ color: colors.link }}>
                 Open detail
               </Link>
-              <Link href={`/(app)/events/going/${event.id}`} style={{ color: colors.link }}>
-                Who&apos;s going
-              </Link>
+              {!isSupporter ? (
+                <Link href={`/(app)/events/going/${event.id}`} style={{ color: colors.link }}>
+                  Who&apos;s going
+                </Link>
+              ) : null}
               {event.locationMapUrl ? (
                 <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
                   Open map
@@ -72,3 +102,17 @@ export default function EventsScreen() {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  }
+});

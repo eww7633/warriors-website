@@ -30,7 +30,7 @@ export default function LoginScreen() {
   return (
     <Screen>
       <Title>Warriors HQ</Title>
-      <Subtitle>Mobile player portal login</Subtitle>
+      <Subtitle>Players and supporters can sign in</Subtitle>
       <Card>
         <Field value={email} placeholder="Email" onChangeText={setEmail} />
         <Field value={password} placeholder="Password" onChangeText={setPassword} secureTextEntry />

@@ -22,6 +22,7 @@ export default function AppLayout() {
       <Stack.Screen name="events/[id]" options={{ title: 'Event Detail' }} />
       <Stack.Screen name="events/going/[id]" options={{ title: "Who's Going" }} />
       <Stack.Screen name="checkin" options={{ title: 'QR Check-In' }} />
+      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
     </Stack>
   );
 }

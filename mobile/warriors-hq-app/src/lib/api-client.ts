@@ -11,6 +11,24 @@ const toNullableNumber = (value: unknown): number | null => {
   return null;
 };
 
+const normalizeUser = (raw: Record<string, unknown>): MobileUser => ({
+  id: String(raw.id ?? ''),
+  fullName: String(raw.fullName ?? raw.name ?? 'User'),
+  email: String(raw.email ?? ''),
+  role: (raw.role as MobileUser['role']) ?? 'player',
+  status: (raw.status as MobileUser['status']) ?? 'approved',
+  rosterId: raw.rosterId ? String(raw.rosterId) : undefined,
+  jerseyNumber: toNullableNumber(raw.jerseyNumber ?? raw.sweaterNumber ?? raw.number) ?? undefined,
+  avatarUrl: raw.avatarUrl
+    ? String(raw.avatarUrl)
+    : raw.photoUrl
+      ? String(raw.photoUrl)
+      : raw.profileImageUrl
+        ? String(raw.profileImageUrl)
+        : null,
+  lockerRoomAssignment: raw.lockerRoomAssignment ? String(raw.lockerRoomAssignment) : null
+});
+
 const networkErrorMessage = () =>
   `Unable to reach API at ${API_BASE_URL}. Start backend (npm run dev) or update EXPO_PUBLIC_API_BASE_URL.`;
 
@@ -116,7 +134,10 @@ export const apiClient = {
     }
 
     const payload = (await response.json()) as { token: string; user: MobileUser };
-    return payload;
+    return {
+      token: payload.token,
+      user: normalizeUser(payload.user as unknown as Record<string, unknown>)
+    };
   },
 
   async register(input: { fullName: string; email: string; password: string; phone?: string; position?: string }): Promise<void> {
@@ -146,7 +167,11 @@ export const apiClient = {
       throw new Error(await parseErrorPayload(response));
     }
 
-    return (await response.json()) as DashboardSummary;
+    const payload = (await response.json()) as DashboardSummary & { user?: Record<string, unknown> };
+    return {
+      ...payload,
+      user: payload.user ? normalizeUser(payload.user) : payload.user
+    } as DashboardSummary;
   },
 
   async getEvents(token: string): Promise<MobileEvent[]> {
@@ -192,5 +217,35 @@ export const apiClient = {
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
+  },
+
+  async uploadProfilePhoto(token: string, uri: string): Promise<MobileUser> {
+    const form = new FormData();
+    const fileName = uri.split('/').pop() || 'profile.jpg';
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+
+    form.append('photo', { uri, name: fileName, type: mimeType } as unknown as Blob);
+
+    const tryUpload = async (path: string) =>
+      authorized(path, token, {
+        method: 'POST',
+        body: form
+      });
+
+    let response = await tryUpload('/api/mobile/profile/photo');
+    if (response.status === 404 || response.status === 405) {
+      response = await tryUpload('/api/mobile/profile/avatar');
+    }
+
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as { user?: Record<string, unknown> };
+    if (!payload.user) {
+      throw new Error('Profile photo uploaded, but user payload is missing.');
+    }
+    return normalizeUser(payload.user);
   }
 };

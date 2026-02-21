@@ -4,10 +4,12 @@ export type MobileUser = {
   id: string;
   fullName: string;
   email: string;
-  role: 'player' | 'admin';
+  role: 'player' | 'admin' | 'supporter';
   status: 'pending' | 'approved' | 'rejected';
   rosterId?: string;
   jerseyNumber?: number;
+  avatarUrl?: string | null;
+  lockerRoomAssignment?: string | null;
 };
 
 export type SessionState = {
