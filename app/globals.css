@@ -1515,6 +1515,26 @@ html[data-theme="dark"] .auth-actions .button.ghost {
     linear-gradient(160deg, #fffdf8 0%, #f7efe0 100%);
 }
 
+.events-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(7, 12, 20, 0.58);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 1rem 0.8rem;
+}
+
+.events-modal-card {
+  width: min(1080px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 44px rgba(5, 10, 18, 0.42);
+}
+
 .events-feature-header {
   display: flex;
   justify-content: space-between;

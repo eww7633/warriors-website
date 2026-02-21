@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type EventCategory = "dvhl" | "national" | "hockey" | "off_ice";
 
@@ -120,6 +120,7 @@ export default function PublicEventsExperience({ events, hubCta }: Props) {
     new Date(firstEventDate.getFullYear(), firstEventDate.getMonth(), 1)
   );
   const [selectedId, setSelectedId] = useState(sorted[0]?.id || "");
+  const [modalOpen, setModalOpen] = useState(false);
 
   const byDay = useMemo(() => {
     const map: Record<string, PublicEvent[]> = {};
@@ -161,6 +162,17 @@ export default function PublicEventsExperience({ events, hubCta }: Props) {
       setShareStatus("Unable to share right now.");
     }
   };
+
+  useEffect(() => {
+    if (!modalOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen]);
 
   return (
     <section className="events-experience stack">
@@ -242,7 +254,10 @@ export default function PublicEventsExperience({ events, hubCta }: Props) {
                       key={event.id}
                       type="button"
                       className={`events-chip ${event.category} ${selectedEvent?.id === event.id ? "active" : ""}`}
-                      onClick={() => setSelectedId(event.id)}
+                      onClick={() => {
+                        setSelectedId(event.id);
+                        setModalOpen(true);
+                      }}
                     >
                       {event.title}
                     </button>
@@ -254,63 +269,72 @@ export default function PublicEventsExperience({ events, hubCta }: Props) {
         </div>
       </article>
 
-      {selectedEvent ? (
-        <article className="card events-feature-card">
-          <div className="events-feature-header">
-            <p className={`events-type-pill ${selectedEvent.category}`}>
-              {categoryLabel(selectedEvent.category)}
-            </p>
-            <p className="muted">{parseDate(selectedEvent.date).toLocaleString()}</p>
-          </div>
-          <h3>{selectedEvent.title}</h3>
-          {selectedEvent.heroImageUrl ? (
-            <img src={selectedEvent.heroImageUrl} alt={selectedEvent.title} className="event-feature-image" loading="lazy" />
-          ) : null}
-          <p>{selectedEvent.publicDetails}</p>
-          {selectedEvent.locationPublic ? <p><strong>Location:</strong> {selectedEvent.locationPublic}</p> : null}
-
-          <iframe
-            title={`Map for ${selectedEvent.title}`}
-            loading="lazy"
-            className="event-map"
-            src={mapEmbedUrl(selectedEvent.locationPublic, selectedEvent.locationPublicMapUrl)}
-          />
-
-          <div className="cta-row">
-            <a className="button" href={hubCta.href}>
-              {selectedEvent.signupMode === "interest_gathering" ? "Submit Interest in HQ" : hubCta.label}
-            </a>
-            <a className="button ghost" href={mapSearchUrl(selectedEvent.locationPublic, selectedEvent.locationPublicMapUrl)} target="_blank" rel="noreferrer">
-              Open Map
-            </a>
-            <a className="button ghost" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(selectedEvent.eventUrl)}`} target="_blank" rel="noreferrer">
-              Share on Facebook
-            </a>
-            <a className="button ghost" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedEvent.title)}&url=${encodeURIComponent(selectedEvent.eventUrl)}`} target="_blank" rel="noreferrer">
-              Share on X
-            </a>
-            <button className="button ghost" type="button" onClick={() => runShare(selectedEvent)}>
-              Share / Copy Link
-            </button>
-          </div>
-          {shareStatus ? <p className="muted">{shareStatus}</p> : null}
-          <div className="cta-row">
-            <a className="button alt" href={googleCalendarUrl(selectedEvent)} target="_blank" rel="noreferrer">
-              Add to Google Calendar
-            </a>
-            <a className="button ghost" href={outlookCalendarUrl(selectedEvent)} target="_blank" rel="noreferrer">
-              Add to Outlook
-            </a>
-            <a className="button" href={`/api/public/events/${encodeURIComponent(selectedEvent.id)}/ics`}>
-              Download iCal (.ics)
-            </a>
-          </div>
-        </article>
-      ) : (
+      {sorted.length === 0 ? (
         <article className="card">
           <p className="muted">No events are currently scheduled.</p>
         </article>
-      )}
+      ) : null}
+
+      {selectedEvent && modalOpen ? (
+        <div className="events-modal-backdrop" role="presentation" onClick={() => setModalOpen(false)}>
+          <article className="card events-feature-card events-modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="events-feature-header">
+              <p className={`events-type-pill ${selectedEvent.category}`}>
+                {categoryLabel(selectedEvent.category)}
+              </p>
+              <div className="cta-row">
+                <p className="muted">{parseDate(selectedEvent.date).toLocaleString()}</p>
+                <button className="button ghost" type="button" onClick={() => setModalOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+            <h3>{selectedEvent.title}</h3>
+            {selectedEvent.heroImageUrl ? (
+              <img src={selectedEvent.heroImageUrl} alt={selectedEvent.title} className="event-feature-image" loading="lazy" />
+            ) : null}
+            <p>{selectedEvent.publicDetails}</p>
+            {selectedEvent.locationPublic ? <p><strong>Location:</strong> {selectedEvent.locationPublic}</p> : null}
+
+            <iframe
+              title={`Map for ${selectedEvent.title}`}
+              loading="lazy"
+              className="event-map"
+              src={mapEmbedUrl(selectedEvent.locationPublic, selectedEvent.locationPublicMapUrl)}
+            />
+
+            <div className="cta-row">
+              <a className="button" href={hubCta.href}>
+                {selectedEvent.signupMode === "interest_gathering" ? "Submit Interest in HQ" : hubCta.label}
+              </a>
+              <a className="button ghost" href={mapSearchUrl(selectedEvent.locationPublic, selectedEvent.locationPublicMapUrl)} target="_blank" rel="noreferrer">
+                Open Map
+              </a>
+              <a className="button ghost" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(selectedEvent.eventUrl)}`} target="_blank" rel="noreferrer">
+                Share on Facebook
+              </a>
+              <a className="button ghost" href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(selectedEvent.title)}&url=${encodeURIComponent(selectedEvent.eventUrl)}`} target="_blank" rel="noreferrer">
+                Share on X
+              </a>
+              <button className="button ghost" type="button" onClick={() => runShare(selectedEvent)}>
+                Share / Copy Link
+              </button>
+            </div>
+            {shareStatus ? <p className="muted">{shareStatus}</p> : null}
+            <div className="cta-row">
+              <a className="button alt" href={googleCalendarUrl(selectedEvent)} target="_blank" rel="noreferrer">
+                Add to Google Calendar
+              </a>
+              <a className="button ghost" href={outlookCalendarUrl(selectedEvent)} target="_blank" rel="noreferrer">
+                Add to Outlook
+              </a>
+              <a className="button" href={`/api/public/events/${encodeURIComponent(selectedEvent.id)}/ics`}>
+                Download iCal (.ics)
+              </a>
+            </div>
+          </article>
+        </div>
+      ) : null}
     </section>
   );
 }
