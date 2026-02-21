@@ -230,7 +230,7 @@ export default async function AdminDvhlPage({
     dvhlCompetitions.find((entry) => entry.id === searchParams?.competitionId)?.id || dvhlCompetitions[0]?.id;
   const selectedCompetition = dvhlCompetitions.find((entry) => entry.id === selectedCompetitionId);
   const selectedDraft = selectedCompetitionId ? await getDvhlDraftSession(selectedCompetitionId) : null;
-  const selectedPlan = selectedCompetitionId ? await getDvhlSeasonPlan(selectedCompetitionId) : null;
+  const selectedPlan = selectedCompetitionId ? await getDvhlSeasonPlan(selectedCompetitionId) : undefined;
   const selectedPlanPhase = getDvhlPlanPhase(selectedPlan);
   const selectedSignups = await listDvhlSignupIntents(selectedCompetitionId);
   const subRequests = await listDvhlSubRequests(selectedCompetitionId);
@@ -550,6 +550,7 @@ export default async function AdminDvhlPage({
                         Default rotation: 1v2 + 3v4, then 1v3 + 2v4, then 1v4 + 2v3, repeated for weeks 4-6.
                       </p>
                       {competition.teams.length >= 4 ? (
+                        <>
                         <details className="event-card admin-disclosure" open>
                           <summary>One-Click DVHL Schedule Preset</summary>
                           <p className="muted">
@@ -591,8 +592,10 @@ export default async function AdminDvhlPage({
                             <button className="button" type="submit">Generate Preset Schedule</button>
                           </form>
                         </details>
+                        </>
                       ) : null}
                       {competition.teams.length >= 4 ? (
+                        <>
                         <details className="event-card admin-disclosure" open>
                           <summary>Manual Playoff Setup (Bypass Wizard)</summary>
                           <p className="muted">
@@ -730,6 +733,7 @@ export default async function AdminDvhlPage({
                             <button className="button ghost" type="submit">Generate Week 8 From Semis</button>
                           </form>
                         </details>
+                        </>
                       ) : null}
                       {competition.teams.length < 4 ? (
                         <p className="muted">Add at least 4 teams to use the guided DVHL weekly builder.</p>

@@ -120,9 +120,13 @@ export default async function AdminPage({
     bulkInvited?: string;
     queueInvited?: string;
     queueLinked?: string;
+    queueProvisioned?: string;
     queuePromoted?: string;
     queueRostered?: string;
     queueSkipped?: string;
+    usersCreated?: string;
+    usersLinked?: string;
+    usersSkipped?: string;
     generated?: string;
     contactSearch?: string;
   };
@@ -934,7 +938,7 @@ export default async function AdminPage({
               </p>
             </details>
             <details className="event-card admin-disclosure" open>
-              <summary>Imported Contacts Queue (Invite -> Link -> Promote -> Roster)</summary>
+              <summary>Imported Contacts Queue (Invite → Link → Promote → Roster)</summary>
               <p className="muted">
                 One-click queue workflow for selected contacts. Use full pipeline for contacts ready to become players.
               </p>

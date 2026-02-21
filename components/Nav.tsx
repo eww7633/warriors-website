@@ -24,6 +24,7 @@ export async function Nav() {
   const isSupporterOrPending = Boolean(hasSession && !isApprovedPlayer);
   const showHqButton = isApprovedPlayer;
   const showOpsButton = Boolean(hasAdminAccess);
+  const accountName = user?.fullName || "Account";
 
   const profile = user && isApprovedPlayer ? await getPlayerRosterProfile(user.id) : null;
   const accountAvatarUrl =
@@ -145,11 +146,11 @@ export async function Nav() {
         <div className="account-strip" aria-label="Account quick actions">
           <Link href="/account" className="account-chip">
             {accountAvatarUrl ? (
-              <img src={accountAvatarUrl} alt={`${user.fullName} avatar`} className="account-avatar" />
+              <img src={accountAvatarUrl} alt={`${accountName} avatar`} className="account-avatar" />
             ) : (
-              <span className="account-avatar-fallback">{initialsFor(user.fullName)}</span>
+              <span className="account-avatar-fallback">{initialsFor(accountName)}</span>
             )}
-            <span>Welcome {user.fullName}</span>
+            <span>Welcome {accountName}</span>
           </Link>
           <div className="account-hub-switch">
             {showHqButton ? (
