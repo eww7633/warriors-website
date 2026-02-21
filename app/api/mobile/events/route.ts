@@ -29,27 +29,58 @@ export async function GET(request: Request) {
   ]);
 
   return NextResponse.json({
-    events: events.map((event) => ({
-      ...event,
-      viewerReservationStatus: boards.viewerStatusByEvent[event.id] || null,
-      reservationCount: (boards.byEvent[event.id] || []).length,
-      goingCount: (boards.byEvent[event.id] || []).filter((entry) => entry.status === "going").length,
-      reservationBoard: boards.byEvent[event.id] || [],
-      canManage: user.role === "admin" || (user.role === "player" && event.managerUserId === user.id),
-      signupMode: signupConfigs[event.id]?.signupMode || "straight_rsvp",
-      interestClosesAt: signupConfigs[event.id]?.interestClosesAt || null,
-      signupClosed: isInterestSignupClosed(signupConfigs[event.id]),
-      finalRosterSelectedCount: rosterSelections[event.id]?.selectedUserIds.length || 0,
-      viewerSelectedFinalRoster: (rosterSelections[event.id]?.selectedUserIds || []).includes(user.id),
-      allowGuestRequests: canEventCollectGuests(signupConfigs[event.id], event.eventTypeName),
-      guestCostEnabled: Boolean(signupConfigs[event.id]?.guestCostEnabled),
-      guestCostLabel: signupConfigs[event.id]?.guestCostLabel || null,
-      guestCostAmountUsd:
-        typeof signupConfigs[event.id]?.guestCostAmountUsd === "number"
-          ? signupConfigs[event.id]?.guestCostAmountUsd
-          : null,
-      viewerGuestIntent:
-        (guestIntents[event.id] || []).find((entry) => entry.userId === user.id) || null
-    }))
+    events: events.map((event) => {
+        const reservationBoard = boards.byEvent[event.id] || [];
+        const canManage = user.role === "admin" || (user.role === "player" && event.managerUserId === user.id);
+        const selectedIds = rosterSelections[event.id]?.selectedUserIds || [];
+        const signupConfig = signupConfigs[event.id];
+        const signupMode = signupConfig?.signupMode || "straight_rsvp";
+        const viewerReservationStatus = boards.viewerStatusByEvent[event.id] || null;
+        const viewerNeedsApproval =
+          signupMode === "interest_gathering" && viewerReservationStatus === "going" && !selectedIds.includes(user.id);
+        const viewerCanRsvp = user.role === "admin" || (user.role === "player" && user.status === "approved");
+        const reservationBoardPublic =
+          canManage || (user.role === "player" && user.status === "approved")
+            ? reservationBoard
+            : reservationBoard.map((entry) => ({
+                userId: entry.userId,
+                fullName: "Player",
+                status: entry.status
+              }));
+
+        return {
+          ...event,
+          viewerReservationStatus,
+          reservationCount: reservationBoard.length,
+          goingCount: reservationBoard.filter((entry) => entry.status === "going").length,
+          reservationBoard: reservationBoardPublic,
+          canManage,
+          signupMode,
+          interestClosesAt: signupConfig?.interestClosesAt || null,
+          signupClosed: isInterestSignupClosed(signupConfig),
+          finalRosterSelectedCount: selectedIds.length,
+          viewerSelectedFinalRoster: selectedIds.includes(user.id),
+          viewerNeedsApproval,
+          viewerCanRsvp,
+          requiresUsaHockeyVerified: Boolean(signupConfig?.requiresUsaHockeyVerified),
+          allowGuestRequests: canEventCollectGuests(signupConfig, event.eventTypeName),
+          guestCostEnabled: Boolean(signupConfig?.guestCostEnabled),
+          guestCostLabel: signupConfig?.guestCostLabel || null,
+          guestCostAmountUsd:
+            typeof signupConfig?.guestCostAmountUsd === "number" ? signupConfig?.guestCostAmountUsd : null,
+          viewerGuestIntent: (guestIntents[event.id] || []).find((entry) => entry.userId === user.id) || null,
+          rsvpApprovalQueue:
+            canManage && signupMode === "interest_gathering"
+              ? reservationBoard
+                  .filter((entry) => entry.status === "going" && !selectedIds.includes(entry.userId))
+                  .map((entry) => ({
+                    userId: entry.userId,
+                    fullName: entry.fullName,
+                    status: entry.status,
+                    note: entry.note || null
+                  }))
+              : []
+        };
+      })
   });
 }

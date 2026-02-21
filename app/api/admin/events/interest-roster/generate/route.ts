@@ -12,6 +12,7 @@ import { readStore } from "@/lib/hq/store";
 import { getCurrentUser } from "@/lib/hq/session";
 import { sendInterestRosterFinalizedEmail } from "@/lib/email";
 import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 function getReturnPath(raw: string) {
   const value = raw.trim();
@@ -106,6 +107,19 @@ export async function POST(request: Request) {
 
       await Promise.all(
         selectedUsers.map(async (member) => {
+          try {
+            await enqueueMobilePushTrigger({
+              type: "reminder_sent",
+              actorUserId: actor.id,
+              targetUserId: member.id,
+              eventId: event.id,
+              title: "Final roster selected",
+              body: `Hockey Ops selected you for ${event.title}.`,
+              payload: {
+                category: "interest_roster_finalized"
+              }
+            });
+          } catch {}
           if (!(await canEmailUserForCategory(member.id, "interest_roster_finalized"))) {
             return;
           }

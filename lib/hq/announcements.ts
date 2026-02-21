@@ -4,6 +4,7 @@ import path from "node:path";
 import { sendAnnouncementEmail } from "@/lib/email";
 import { NotificationCategory, getNotificationPreference } from "@/lib/hq/notifications";
 import { readStore } from "@/lib/hq/store";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 export type AnnouncementCategory = "general" | "events" | "dvhl" | "urgent";
 export type AnnouncementAudience = "players" | "all_users";
@@ -367,6 +368,23 @@ export async function dispatchAnnouncement(input: {
         reason: `${channel}_provider_not_configured`,
         createdAt
       });
+      if (channel === "push") {
+        try {
+          await enqueueMobilePushTrigger({
+            type: "announcement_sent",
+            actorUserId: input.actorUserId,
+            targetUserId: recipient.id,
+            title: announcement.title,
+            body: announcement.body,
+            payload: {
+              announcementId: announcement.id,
+              audience: announcement.audience,
+              category: announcement.category,
+              hqUrl
+            }
+          });
+        } catch {}
+      }
     }
   }
 

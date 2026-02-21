@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { addCheckInRecord } from "@/lib/hq/store";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -41,6 +42,20 @@ export async function POST(request: Request) {
       | "absent",
     note
   });
+  try {
+    await enqueueMobilePushTrigger({
+      type: "checkin_completed",
+      actorUserId: user.id,
+      targetUserId: user.id,
+      eventId,
+      title: "Check-in recorded",
+      body: `${user.fullName} attendance status updated.`,
+      payload: {
+        channel: "web",
+        attendanceStatus
+      }
+    });
+  } catch {}
 
   return NextResponse.redirect(new URL("/check-in?saved=1", request.url), 303);
 }

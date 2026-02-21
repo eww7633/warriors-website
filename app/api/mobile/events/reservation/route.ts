@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
 import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 export async function POST(request: Request) {
   const user = await getCurrentUserFromRequest(request);
@@ -44,6 +45,20 @@ export async function POST(request: Request) {
       status,
       note
     });
+    try {
+      await enqueueMobilePushTrigger({
+        type: "rsvp_updated",
+        actorUserId: user.id,
+        targetUserId: user.id,
+        eventId,
+        title: "RSVP updated",
+        body: `${user.fullName} set RSVP to ${status.replaceAll("_", " ")}.`,
+        payload: {
+          channel: "mobile",
+          note: note || undefined
+        }
+      });
+    } catch {}
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "reservation_save_failed" }, { status: 500 });

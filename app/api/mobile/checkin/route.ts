@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/hq/session";
 import { completeQrCheckIn } from "@/lib/hq/events";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 export async function POST(request: Request) {
   const user = await getCurrentUserFromRequest(request);
@@ -22,10 +23,23 @@ export async function POST(request: Request) {
 
   try {
     const result = await completeQrCheckIn({ token, userId: user.id });
+    try {
+      await enqueueMobilePushTrigger({
+        type: "checkin_completed",
+        actorUserId: user.id,
+        targetUserId: user.id,
+        eventId: result.eventId,
+        title: "Check-in recorded",
+        body: `${user.fullName} completed event check-in.`,
+        payload: {
+          channel: "mobile",
+          tokenType: "qr"
+        }
+      });
+    } catch {}
     return NextResponse.json({ ok: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "qr_check_in_failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-

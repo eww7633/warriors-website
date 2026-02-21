@@ -49,6 +49,10 @@ Base URL: same host as the production website backend (for example `https://pghw
     - `signupClosed` (boolean)
     - `finalRosterSelectedCount` (number)
     - `viewerSelectedFinalRoster` (boolean)
+    - `viewerNeedsApproval` (boolean)
+    - `viewerCanRsvp` (boolean)
+    - `requiresUsaHockeyVerified` (boolean)
+    - `rsvpApprovalQueue` (array; manager/admin only, else empty)
     - `allowGuestRequests` (boolean)
     - `guestCostEnabled` (boolean)
     - `guestCostLabel` (string or `null`)
@@ -70,6 +74,25 @@ Base URL: same host as the production website backend (for example `https://pghw
   - `401 { error: "unauthorized" }`
   - `403 { error: "approval_required" | "interest_signup_closed" }`
   - `500 { error: "reservation_save_failed" }`
+
+### `POST /api/mobile/events/reservation/request`
+- Auth: bearer required
+- Body (JSON):
+  - `eventId` (string, required)
+- Success `200`:
+  - `{ ok: true, request: { eventId, userId, status: "going", viewerNeedsApproval: true } }`
+- Errors:
+  - `400 { error: "invalid_json" | "event_id_required" | "approval_queue_not_enabled" }`
+  - `401 { error: "unauthorized" }`
+  - `403 { error: "approval_required" | "interest_signup_closed" }`
+
+### `GET /api/mobile/events/rsvp-queue`
+- Auth: bearer required
+- Query:
+  - `eventId` (string, optional)
+- Success `200`:
+  - `{ queue: [{ eventId, eventTitle, signupMode, interestClosesAt, selectedUserIds, pending[] }] }`
+  - Only returns events managed by requester (or all for admin).
 
 ### `POST /api/mobile/events/guest-intent`
 - Auth: bearer required
@@ -96,3 +119,46 @@ Base URL: same host as the production website backend (for example `https://pghw
 - Errors:
   - `400 { error: "invalid_json" | "missing_token" | "<qr/checkin message>" }`
   - `401 { error: "unauthorized" }`
+
+### `GET /api/mobile/profile`
+- Auth: bearer required
+- Success `200`:
+  - `{ user, profile, rosterPrivacy }`
+  - `user.role` is mobile-normalized as `"player" | "admin" | "supporter"` (backend `public` maps to `supporter`).
+  - `rosterPrivacy.visibility` is `"members"` or `"counts"`.
+
+### `POST /api/mobile/profile`
+- Auth: bearer required
+- Body (JSON):
+  - `addressLine1`, `addressLine2`, `city`, `stateProvince`, `postalCode`, `country` (optional strings)
+  - `usaHockeyNumber` (optional string)
+  - `needsEquipment` (optional boolean)
+  - `playerExperienceSummary` (optional string)
+- Success `200`:
+  - `{ ok: true, user, profile, rosterPrivacy }`
+- Errors:
+  - `400 { error: "invalid_json" }`
+  - `401 { error: "unauthorized" }`
+  - `403 { error: "approval_required" }`
+
+### `POST /api/mobile/analytics/event`
+- Auth: bearer required
+- Body (JSON):
+  - `name` (required string)
+  - `eventId` (optional string)
+  - `screen` (optional string)
+  - `metadata` (optional object)
+  - `occurredAt` (optional ISO string)
+- Success `200`:
+  - `{ ok: true, id, receivedAt }`
+- Errors:
+  - `400 { error: "invalid_json" | "analytics_event_name_required" | "analytics_track_failed" }`
+  - `401 { error: "unauthorized" }`
+
+## Push Trigger Hooks (Server-Side)
+
+The backend now records push-trigger events for downstream delivery workers in `mobile-push-triggers` storage for:
+- RSVP updates (`rsvp_updated`)
+- Reminders (`reminder_sent`) including USA Hockey reminder sends and finalized-interest roster notices
+- Announcements (`announcement_sent`)
+- Check-ins (`checkin_completed`)

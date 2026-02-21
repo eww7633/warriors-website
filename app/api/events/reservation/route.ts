@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
 import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
 import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
+import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 function getReturnPath(raw: string) {
   const value = raw.trim();
@@ -66,6 +67,20 @@ export async function POST(request: Request) {
       status,
       note
     });
+    try {
+      await enqueueMobilePushTrigger({
+        type: "rsvp_updated",
+        actorUserId: user.id,
+        targetUserId: user.id,
+        eventId,
+        title: "RSVP updated",
+        body: `${user.fullName} set RSVP to ${status.replaceAll("_", " ")}.`,
+        payload: {
+          channel: "web",
+          note: note || undefined
+        }
+      });
+    } catch {}
     return NextResponse.redirect(
       new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}reservation=saved`, request.url),
       303

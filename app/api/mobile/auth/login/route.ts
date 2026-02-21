@@ -17,13 +17,14 @@ function toPublicUser(user: {
   createdAt: string;
   updatedAt: string;
 }) {
+  const mobileRole = user.role === "public" ? "supporter" : user.role;
   return {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
     requestedPosition: user.requestedPosition,
     phone: user.phone,
-    role: user.role,
+    role: mobileRole,
     status: user.status,
     activityStatus: user.activityStatus,
     rosterId: user.rosterId,
@@ -61,4 +62,3 @@ export async function POST(request: Request) {
     user: toPublicUser(user)
   });
 }
-
