@@ -244,7 +244,7 @@ export default async function CentralRosterPage({
               ? "Primary sub-roster is required (Gold, White, or Black)."
               : query.error === "headshot_upload_required"
               ? "External photo URLs are disabled. Use Upload Headshot so photos are stored on this website."
-              : query.error.replaceAll("_", " ")}
+              : decodeURIComponent(query.error).replaceAll("_", " ")}
           </p>
         )}
         <form action="/api/admin/roster/migrate-legacy" method="post">

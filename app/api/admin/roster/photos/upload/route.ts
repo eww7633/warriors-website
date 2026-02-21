@@ -61,7 +61,8 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.redirect(new URL("/admin/roster?saved=1", request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL("/admin/roster?error=photo_upload_failed", request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "photo_upload_failed");
+    return NextResponse.redirect(new URL(`/admin/roster?error=${reason}`, request.url), 303);
   }
 }

@@ -1,6 +1,11 @@
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
 import { readStore, writeStore } from "@/lib/hq/store";
+import {
+  addLocalPlayerPhoto,
+  listLocalPlayerPhotosByUser,
+  listLocalPlayerPhotosMapByUserIds
+} from "@/lib/hq/local-player-photos";
 
 export type CentralRosterPlayer = {
   id: string;
@@ -33,6 +38,7 @@ type JerseyConflict = {
 
 async function listCentralRosterPlayersFromStore() {
   const store = await readStore();
+  const photosByUserId = await listLocalPlayerPhotosMapByUserIds(store.users.map((entry) => entry.id));
   return store.users
     .filter((user) => user.role === "player")
     .map((user) => ({
@@ -46,7 +52,7 @@ async function listCentralRosterPlayersFromStore() {
       rosterId: user.rosterId,
       jerseyNumber: user.jerseyNumber,
       competitionHistory: [],
-      photos: [],
+      photos: photosByUserId.get(user.id) || [],
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     })) satisfies CentralRosterPlayer[];
@@ -309,7 +315,12 @@ export async function addPlayerPhoto(input: {
   makePrimary?: boolean;
 }) {
   if (!hasDatabaseUrl()) {
-    throw new Error("Database mode is required for player photo history.");
+    const store = await readStore();
+    const player = store.users.find((entry) => entry.id === input.userId);
+    if (!player || player.role !== "player") {
+      throw new Error("Only player accounts support profile photos.");
+    }
+    return addLocalPlayerPhoto(input);
   }
 
   const player = await getPrismaClient().user.findUnique({
@@ -350,13 +361,15 @@ export async function getPlayerRosterProfile(userId: string) {
       return null;
     }
 
+    const photos = await listLocalPlayerPhotosByUser(userId);
+
     return {
       id: user.id,
       fullName: user.fullName,
       rosterId: user.rosterId,
       jerseyNumber: user.jerseyNumber,
       requestedPosition: user.requestedPosition,
-      photos: [] as Array<{ id: string; imageUrl: string; caption?: string; isPrimary: boolean; createdAt: string }>
+      photos
     };
   }
 

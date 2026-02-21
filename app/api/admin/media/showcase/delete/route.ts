@@ -4,8 +4,16 @@ import path from "node:path";
 import { getCurrentUser } from "@/lib/hq/session";
 import { userHasPermission } from "@/lib/hq/permissions";
 
-function isSafeFileName(name: string) {
-  return /^[a-zA-Z0-9._-]+$/.test(name);
+function normalizeRelativeMediaPath(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const withoutPrefix = trimmed.startsWith("/uploads/showcase/")
+    ? trimmed.slice("/uploads/showcase/".length)
+    : trimmed;
+  if (!withoutPrefix) return "";
+  if (withoutPrefix.includes("..")) return "";
+  if (!/^[a-zA-Z0-9._/-]+$/.test(withoutPrefix)) return "";
+  return withoutPrefix.replace(/^\/+/, "");
 }
 
 export async function POST(request: Request) {
@@ -15,13 +23,13 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const fileName = String(formData.get("fileName") ?? "").trim();
-  if (!fileName || !isSafeFileName(fileName)) {
+  const imagePath = normalizeRelativeMediaPath(String(formData.get("imagePath") ?? ""));
+  if (!imagePath) {
     return NextResponse.redirect(new URL("/admin?section=media&error=invalid_media_file", request.url), 303);
   }
 
   try {
-    const fullPath = path.join(process.cwd(), "public", "uploads", "showcase", fileName);
+    const fullPath = path.join(process.cwd(), "public", "uploads", "showcase", imagePath);
     await fs.unlink(fullPath);
     return NextResponse.redirect(new URL("/admin?section=media&media=deleted", request.url), 303);
   } catch {

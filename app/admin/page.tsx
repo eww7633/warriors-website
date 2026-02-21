@@ -38,7 +38,7 @@ import {
   listDonationIntents,
   listDonationPayments
 } from "@/lib/hq/donations";
-import { listLocalShowcasePhotos } from "@/lib/showcase-photos";
+import { listLocalShowcaseGalleries, listLocalShowcasePhotos } from "@/lib/showcase-photos";
 import {
   listAnnouncementDeliveriesByAnnouncement,
   listAnnouncements,
@@ -173,7 +173,7 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, announcements] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, showcaseGalleries, announcements] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
@@ -185,6 +185,7 @@ export default async function AdminPage({
     listRosterReservations(),
     listAllNewsPosts(),
     listLocalShowcasePhotos(),
+    listLocalShowcaseGalleries(),
     listAnnouncements({ includeExpired: true, limit: 100 })
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
@@ -347,6 +348,13 @@ export default async function AdminPage({
   const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
   const scopedEvents = section === "onice" ? onIceEvents : section === "office" ? offIceEvents : allEvents;
   const inviteFromEmail = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
+  const showcaseByGallery = showcasePhotos.reduce((acc, photo) => {
+    const key = photo.gallery || "general";
+    const list = acc.get(key) || [];
+    list.push(photo);
+    acc.set(key, list);
+    return acc;
+  }, new Map<string, Array<(typeof showcasePhotos)[number]>>());
   const announcementDeliveryCounts = new Map<string, { sent: number; failed: number; queued: number }>();
   const announcementViewsById = new Map<string, string[]>();
   for (const item of announcements) {
@@ -1483,7 +1491,7 @@ export default async function AdminPage({
           <article className="card">
             <h3>Homepage Showcase Media</h3>
             <p className="muted">
-              Upload photos stored directly on this website for homepage sections and cards.
+              Upload one or many photos into galleries. These assets are reused across homepage, events, and news.
             </p>
             <form
               className="grid-form"
@@ -1491,30 +1499,54 @@ export default async function AdminPage({
               method="post"
               encType="multipart/form-data"
             >
-              <input name="photoFile" type="file" accept="image/*" required />
-              <button className="button" type="submit">Upload Showcase Photo</button>
+              <label>
+                Gallery name
+                <input
+                  name="galleryName"
+                  placeholder="general, veterans-day-2026, dvhl-playoffs"
+                  defaultValue="general"
+                />
+              </label>
+              <label>
+                Select photos
+                <input name="photoFiles" type="file" accept="image/*" multiple required />
+              </label>
+              <button className="button" type="submit">Upload To Gallery</button>
             </form>
+            <p className="muted">
+              Existing galleries: {showcaseGalleries.length > 0 ? showcaseGalleries.join(", ") : "none yet"}
+            </p>
           </article>
           <article className="card">
             <h3>Current Showcase Library</h3>
             {showcasePhotos.length === 0 ? (
               <p className="muted">No local showcase photos yet. Upload at least one image.</p>
             ) : (
-              <div className="about-card-grid">
-                {showcasePhotos.map((photo) => (
-                  <article key={photo.id} className="event-card stack">
-                    <img src={photo.imageUrl} alt={photo.fileName} style={{ width: "100%", borderRadius: "10px" }} />
-                    <p className="muted">{photo.fileName}</p>
-                    <div className="cta-row">
-                      <a className="button ghost" href={photo.viewUrl} target="_blank" rel="noreferrer">
-                        Open
-                      </a>
-                      <form action="/api/admin/media/showcase/delete" method="post">
-                        <input type="hidden" name="fileName" value={photo.fileName} />
-                        <button className="button alt" type="submit">Delete</button>
-                      </form>
+              <div className="stack">
+                {Array.from(showcaseByGallery.entries()).map(([gallery, photos]) => (
+                  <section key={gallery} className="event-card stack">
+                    <div className="event-top">
+                      <strong>Gallery: {gallery}</strong>
+                      <span className="user-pill">{photos.length} items</span>
                     </div>
-                  </article>
+                    <div className="about-card-grid">
+                      {photos.map((photo) => (
+                        <article key={photo.id} className="event-card stack">
+                          <img src={photo.imageUrl} alt={photo.fileName} style={{ width: "100%", borderRadius: "10px" }} />
+                          <p className="muted">{photo.fileName}</p>
+                          <div className="cta-row">
+                            <a className="button ghost" href={photo.viewUrl} target="_blank" rel="noreferrer">
+                              Open
+                            </a>
+                            <form action="/api/admin/media/showcase/delete" method="post">
+                              <input type="hidden" name="imagePath" value={photo.imageUrl} />
+                              <button className="button alt" type="submit">Delete</button>
+                            </form>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </section>
                 ))}
               </div>
             )}
@@ -1656,7 +1688,9 @@ export default async function AdminPage({
                   <select name="heroImageChoice" defaultValue="">
                     <option value="">None selected</option>
                     {showcasePhotos.map((photo) => (
-                      <option key={`hero-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                      <option key={`hero-${photo.id}`} value={photo.imageUrl}>
+                        [{photo.gallery}] {photo.fileName}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -1666,7 +1700,9 @@ export default async function AdminPage({
                   <select name="thumbnailImageChoice" defaultValue="">
                     <option value="">None selected</option>
                     {showcasePhotos.map((photo) => (
-                      <option key={`thumb-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                      <option key={`thumb-${photo.id}`} value={photo.imageUrl}>
+                        [{photo.gallery}] {photo.fileName}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -1788,7 +1824,9 @@ export default async function AdminPage({
                         <select name="heroImageChoice" defaultValue="">
                           <option value="">Keep current</option>
                           {showcasePhotos.map((photo) => (
-                            <option key={`hero-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                            <option key={`hero-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>
+                              [{photo.gallery}] {photo.fileName}
+                            </option>
                           ))}
                         </select>
                       </label>
@@ -1802,7 +1840,9 @@ export default async function AdminPage({
                         <select name="thumbnailImageChoice" defaultValue="">
                           <option value="">Keep current</option>
                           {showcasePhotos.map((photo) => (
-                            <option key={`thumb-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                            <option key={`thumb-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>
+                              [{photo.gallery}] {photo.fileName}
+                            </option>
                           ))}
                         </select>
                       </label>

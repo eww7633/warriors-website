@@ -3,6 +3,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { roster as mockRoster } from "@/lib/mockData";
 import { readStore } from "@/lib/hq/store";
 import { getUserOpsBadges } from "@/lib/hq/permissions";
+import { listLocalPlayerPhotosMapByUserIds } from "@/lib/hq/local-player-photos";
 
 export type PublicRosterProfile = {
   id: string;
@@ -30,6 +31,7 @@ export async function listPublicRosterProfiles() {
   if (!hasDatabaseUrl()) {
     const store = await readStore();
     const players = store.users.filter((user) => user.role === "player" && user.status === "approved");
+    const photosByUserId = await listLocalPlayerPhotosMapByUserIds(players.map((entry) => entry.id));
     const badges = await Promise.all(players.map((player) => getUserOpsBadges(player.id)));
     return players
       .map((user, index) => ({
@@ -39,7 +41,7 @@ export async function listPublicRosterProfiles() {
         rosterId: user.rosterId ?? undefined,
         position: user.requestedPosition ?? undefined,
         status: user.activityStatus ?? "active",
-        photos: [],
+        photos: photosByUserId.get(user.id) || [],
         stats: {
           tournamentsPlayed: 0,
           teamsPlayedOn: 0,
