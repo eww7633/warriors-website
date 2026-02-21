@@ -1349,7 +1349,7 @@ export default async function AdminPage({
             </form>
           </details>
 
-          <details className="card admin-disclosure" open>
+          <details className="card admin-disclosure">
             <summary>Event Types</summary>
             <p className="muted">
               Add event categories that can be reused in scheduling and reporting.
@@ -1368,17 +1368,14 @@ export default async function AdminPage({
             <h3>Publish Event (Public Site Feed Source)</h3>
             <form className="grid-form" action="/api/admin/events" method="post">
               <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
+              <h4>Step 1: Core Details</h4>
+              <input name="title" placeholder="Event title" required />
               <label>
-                Event type
-                <select name="eventTypeId" defaultValue="">
-                  <option value="">Uncategorized</option>
-                  {eventTypes.map((eventType) => (
-                    <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
-                  ))}
-                </select>
+                Start date/time
+                <input name="startsAt" type="datetime-local" required />
               </label>
               <label>
-                Quick type preset
+                Event category preset
                 <select name="eventTypePreset" defaultValue="">
                   <option value="">No preset</option>
                   <option value="Practice">Practice</option>
@@ -1390,21 +1387,81 @@ export default async function AdminPage({
                 </select>
               </label>
               <label>
+                Event type override
+                <select name="eventTypeId" defaultValue="">
+                  <option value="">Use preset/default</option>
+                  {eventTypes.map((eventType) => (
+                    <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 Signup flow
                 <select name="signupMode" defaultValue="straight_rsvp">
                   <option value="straight_rsvp">Straight RSVP (unlimited)</option>
                   <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
                 </select>
               </label>
-              <input name="title" placeholder="Event title" required />
-              <label>
-                Start date/time
-                <input name="startsAt" type="datetime-local" required />
-              </label>
               <input name="locationPublic" placeholder="Public location" />
-              <input name="locationPrivate" placeholder="Private location (players/admin)" />
+              <label>
+                Public details
+                <input name="publicDetails" placeholder="Public summary" required />
+              </label>
+              <label>
+                <input name="published" type="checkbox" defaultChecked /> Publish to public feed
+              </label>
+
               <details className="event-card admin-disclosure">
-                <summary>Location links and image media (optional)</summary>
+                <summary>Step 2: Team + Visibility (advanced)</summary>
+                <input name="locationPrivate" placeholder="Private location (players/admin)" />
+                <label>
+                  Game manager
+                  <select name="managerUserId" defaultValue="">
+                    <option value="">No manager assigned</option>
+                    {approvedPlayers.map((member) => (
+                      <option key={member.id} value={member.id}>{member.fullName}</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Private details
+                  <input name="privateDetails" placeholder="Private logistics" />
+                </label>
+                <label>
+                  Visibility
+                  <select name="visibility" defaultValue="public">
+                    <option value="public">Public</option>
+                    <option value="player_only">Player only</option>
+                    <option value="internal">Internal (admin only)</option>
+                  </select>
+                </label>
+                <label>
+                  <input name="requiresUsaHockeyVerified" type="checkbox" /> Require verified USA Hockey number
+                </label>
+              </details>
+
+              <details className="event-card admin-disclosure">
+                <summary>Step 3: Interest + Guest Rules (optional)</summary>
+                <label>
+                  Interest closes at
+                  <input name="interestClosesAt" type="datetime-local" />
+                </label>
+                <label>
+                  Target roster size
+                  <input name="targetRosterSize" type="number" min={1} step={1} placeholder="Optional" />
+                </label>
+                <label>
+                  <input name="allowGuestRequests" type="checkbox" /> Allow players to request guests (disabled for DVHL)
+                </label>
+                <label>
+                  <input name="guestCostEnabled" type="checkbox" /> Guest cost applies
+                </label>
+                <input name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
+                <input name="guestCostAmountUsd" type="number" min={0} step="0.01" placeholder="Guest cost amount (USD)" />
+              </details>
+
+              <details className="event-card admin-disclosure">
+                <summary>Step 4: Maps + Images (optional)</summary>
                 <p className="muted">
                   Map links auto-generate from entered addresses. Only fill these when you need an override.
                 </p>
@@ -1435,53 +1492,6 @@ export default async function AdminPage({
                 </label>
                 <input name="thumbnailImageUrl" placeholder="Thumbnail URL (optional override)" />
               </details>
-              <label>
-                Game manager
-                <select name="managerUserId" defaultValue="">
-                  <option value="">No manager assigned</option>
-                  {approvedPlayers.map((member) => (
-                    <option key={member.id} value={member.id}>{member.fullName}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Interest closes at
-                <input name="interestClosesAt" type="datetime-local" />
-              </label>
-              <label>
-                Target roster size
-                <input name="targetRosterSize" type="number" min={1} step={1} placeholder="Optional" />
-              </label>
-              <label>
-                <input name="allowGuestRequests" type="checkbox" /> Allow players to request guests (disabled for DVHL)
-              </label>
-              <label>
-                <input name="requiresUsaHockeyVerified" type="checkbox" /> Require verified USA Hockey number
-              </label>
-              <label>
-                <input name="guestCostEnabled" type="checkbox" /> Guest cost applies
-              </label>
-              <input name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
-              <input name="guestCostAmountUsd" type="number" min={0} step="0.01" placeholder="Guest cost amount (USD)" />
-              <label>
-                Public details
-                <input name="publicDetails" placeholder="Public summary" required />
-              </label>
-              <label>
-                Private details
-                <input name="privateDetails" placeholder="Private logistics" />
-              </label>
-              <label>
-                Visibility
-                <select name="visibility" defaultValue="public">
-                  <option value="public">Public</option>
-                  <option value="player_only">Player only</option>
-                  <option value="internal">Internal (admin only)</option>
-                </select>
-              </label>
-              <label>
-                <input name="published" type="checkbox" defaultChecked /> Publish to public feed
-              </label>
               <button className="button" type="submit">Save Event</button>
             </form>
           </details>
@@ -1515,17 +1525,19 @@ export default async function AdminPage({
                   <form className="grid-form" action="/api/admin/events/update" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
+                    <h4>Step 1: Core Details</h4>
+                    <input name="title" defaultValue={event.title} required />
                     <label>
-                      Event type
-                      <select name="eventTypeId" defaultValue={event.eventTypeId || ""}>
-                        <option value="">Uncategorized</option>
-                        {eventTypes.map((eventType) => (
-                          <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
-                        ))}
-                      </select>
+                      Start date/time
+                      <input
+                        name="startsAt"
+                        type="datetime-local"
+                        defaultValue={new Date(event.date).toISOString().slice(0, 16)}
+                        required
+                      />
                     </label>
                     <label>
-                      Quick type preset
+                      Event category preset
                       <select name="eventTypePreset" defaultValue="">
                         <option value="">No change</option>
                         <option value="Practice">Practice</option>
@@ -1534,6 +1546,15 @@ export default async function AdminPage({
                         <option value="Tournament">Tournament</option>
                         <option value="Volunteer">Volunteer</option>
                         <option value="Off-Ice">Off-Ice</option>
+                      </select>
+                    </label>
+                    <label>
+                      Event type override
+                      <select name="eventTypeId" defaultValue={event.eventTypeId || ""}>
+                        <option value="">Use preset/default</option>
+                        {eventTypes.map((eventType) => (
+                          <option key={eventType.id} value={eventType.id}>{eventType.name}</option>
+                        ))}
                       </select>
                     </label>
                     <label>
@@ -1546,20 +1567,107 @@ export default async function AdminPage({
                         <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
                       </select>
                     </label>
-                    <input name="title" defaultValue={event.title} required />
-                    <label>
-                      Start date/time
-                      <input
-                        name="startsAt"
-                        type="datetime-local"
-                        defaultValue={new Date(event.date).toISOString().slice(0, 16)}
-                        required
-                      />
-                    </label>
                     <input name="locationPublic" defaultValue={event.locationPublic || ""} placeholder="Public location" />
-                    <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
+                    <label>
+                      Public details
+                      <input name="publicDetails" defaultValue={event.publicDetails} required />
+                    </label>
+                    <label>
+                      <input name="published" type="checkbox" defaultChecked={event.published} /> Publish to public feed
+                    </label>
+
                     <details className="event-card admin-disclosure">
-                      <summary>Location links and image media (optional)</summary>
+                      <summary>Step 2: Team + Visibility (advanced)</summary>
+                      <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
+                      <label>
+                        Game manager
+                        <select name="managerUserId" defaultValue={event.managerUserId || ""}>
+                          <option value="">No manager assigned</option>
+                          {approvedPlayers.map((member) => (
+                            <option key={member.id} value={member.id}>{member.fullName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Private details
+                        <input name="privateDetails" defaultValue={event.privateDetails} />
+                      </label>
+                      <label>
+                        Visibility
+                        <select name="visibility" defaultValue={event.visibility}>
+                          <option value="public">Public</option>
+                          <option value="player_only">Player only</option>
+                          <option value="internal">Internal (admin only)</option>
+                        </select>
+                      </label>
+                    </details>
+
+                    <details className="event-card admin-disclosure">
+                      <summary>Step 3: Interest + Guest Rules (optional)</summary>
+                      <label>
+                        Interest closes at
+                        <input
+                          name="interestClosesAt"
+                          type="datetime-local"
+                          defaultValue={
+                            signupConfigsByEvent[event.id]?.interestClosesAt
+                              ? new Date(signupConfigsByEvent[event.id]!.interestClosesAt!).toISOString().slice(0, 16)
+                              : ""
+                          }
+                        />
+                      </label>
+                      <label>
+                        Target roster size
+                        <input
+                          name="targetRosterSize"
+                          type="number"
+                          min={1}
+                          step={1}
+                          defaultValue={signupConfigsByEvent[event.id]?.targetRosterSize || ""}
+                          placeholder="Optional"
+                        />
+                      </label>
+                      <label>
+                        <input
+                          name="allowGuestRequests"
+                          type="checkbox"
+                          defaultChecked={Boolean(signupConfigsByEvent[event.id]?.allowGuestRequests)}
+                        />{" "}
+                        Allow players to request guests (disabled for DVHL)
+                      </label>
+                      <label>
+                        <input
+                          name="requiresUsaHockeyVerified"
+                          type="checkbox"
+                          defaultChecked={Boolean(signupConfigsByEvent[event.id]?.requiresUsaHockeyVerified)}
+                        />{" "}
+                        Require verified USA Hockey number
+                      </label>
+                      <label>
+                        <input
+                          name="guestCostEnabled"
+                          type="checkbox"
+                          defaultChecked={Boolean(signupConfigsByEvent[event.id]?.guestCostEnabled)}
+                        />{" "}
+                        Guest cost applies
+                      </label>
+                      <input
+                        name="guestCostLabel"
+                        placeholder="Guest cost label (e.g., hotel fee)"
+                        defaultValue={signupConfigsByEvent[event.id]?.guestCostLabel || ""}
+                      />
+                      <input
+                        name="guestCostAmountUsd"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="Guest cost amount (USD)"
+                        defaultValue={signupConfigsByEvent[event.id]?.guestCostAmountUsd ?? ""}
+                      />
+                    </details>
+
+                    <details className="event-card admin-disclosure">
+                      <summary>Step 4: Maps + Images (optional)</summary>
                       <p className="muted">
                         Map links auto-generate from entered addresses. Only fill these when you need an override.
                       </p>
@@ -1598,94 +1706,6 @@ export default async function AdminPage({
                         placeholder="Thumbnail URL (optional override)"
                       />
                     </details>
-                    <label>
-                      Interest closes at
-                      <input
-                        name="interestClosesAt"
-                        type="datetime-local"
-                        defaultValue={
-                          signupConfigsByEvent[event.id]?.interestClosesAt
-                            ? new Date(signupConfigsByEvent[event.id]!.interestClosesAt!).toISOString().slice(0, 16)
-                            : ""
-                        }
-                      />
-                    </label>
-                    <label>
-                      Target roster size
-                      <input
-                        name="targetRosterSize"
-                        type="number"
-                        min={1}
-                        step={1}
-                        defaultValue={signupConfigsByEvent[event.id]?.targetRosterSize || ""}
-                        placeholder="Optional"
-                      />
-                    </label>
-                    <label>
-                      <input
-                        name="allowGuestRequests"
-                        type="checkbox"
-                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.allowGuestRequests)}
-                      />{" "}
-                      Allow players to request guests (disabled for DVHL)
-                    </label>
-                    <label>
-                      <input
-                        name="requiresUsaHockeyVerified"
-                        type="checkbox"
-                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.requiresUsaHockeyVerified)}
-                      />{" "}
-                      Require verified USA Hockey number
-                    </label>
-                    <label>
-                      <input
-                        name="guestCostEnabled"
-                        type="checkbox"
-                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.guestCostEnabled)}
-                      />{" "}
-                      Guest cost applies
-                    </label>
-                    <input
-                      name="guestCostLabel"
-                      placeholder="Guest cost label (e.g., hotel fee)"
-                      defaultValue={signupConfigsByEvent[event.id]?.guestCostLabel || ""}
-                    />
-                    <input
-                      name="guestCostAmountUsd"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="Guest cost amount (USD)"
-                      defaultValue={signupConfigsByEvent[event.id]?.guestCostAmountUsd ?? ""}
-                    />
-                    <label>
-                      Game manager
-                      <select name="managerUserId" defaultValue={event.managerUserId || ""}>
-                        <option value="">No manager assigned</option>
-                        {approvedPlayers.map((member) => (
-                          <option key={member.id} value={member.id}>{member.fullName}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Public details
-                      <input name="publicDetails" defaultValue={event.publicDetails} required />
-                    </label>
-                    <label>
-                      Private details
-                      <input name="privateDetails" defaultValue={event.privateDetails} />
-                    </label>
-                    <label>
-                      Visibility
-                      <select name="visibility" defaultValue={event.visibility}>
-                        <option value="public">Public</option>
-                        <option value="player_only">Player only</option>
-                        <option value="internal">Internal (admin only)</option>
-                      </select>
-                    </label>
-                    <label>
-                      <input name="published" type="checkbox" defaultChecked={event.published} /> Publish to public feed
-                    </label>
                     <button className="button" type="submit">Update Event</button>
                   </form>
                   {signupConfigsByEvent[event.id]?.signupMode === "interest_gathering" ? (
