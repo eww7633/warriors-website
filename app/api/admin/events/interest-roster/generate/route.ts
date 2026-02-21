@@ -11,7 +11,11 @@ import { canEmailUserForCategory } from "@/lib/hq/notifications";
 import { readStore } from "@/lib/hq/store";
 import { getCurrentUser } from "@/lib/hq/session";
 import { sendInterestRosterFinalizedEmail } from "@/lib/email";
-import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
+import {
+  getPlayerProfileExtra,
+  isUsaHockeyValidationEnforced,
+  isUsaHockeyVerifiedForSeason
+} from "@/lib/hq/player-profiles";
 import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 function getReturnPath(raw: string) {
@@ -75,7 +79,7 @@ export async function POST(request: Request) {
       ? config.targetRosterSize
       : sorted.length;
   let selectedUserIds = sorted.slice(0, maxSelected).map((entry) => entry.userId);
-  if (config.requiresUsaHockeyVerified) {
+  if (isUsaHockeyValidationEnforced() && config.requiresUsaHockeyVerified) {
     const checked = await Promise.all(
       selectedUserIds.map(async (id) => {
         const profile = await getPlayerProfileExtra(id);

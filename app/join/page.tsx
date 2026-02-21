@@ -108,8 +108,8 @@ export default function JoinPage({
             code of conduct.
           </label>
           <p className="muted">
-            USA Hockey number is strongly recommended. Players without a current verified number cannot be rostered for
-            official on-ice competitions.
+            USA Hockey number is strongly recommended. Hockey Ops can manually verify and approve it for official on-ice
+            competitions.
           </p>
           <select name="position" required>
             <option value="">Preferred position</option>

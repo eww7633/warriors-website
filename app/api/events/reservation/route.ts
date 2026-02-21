@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
 import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
-import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
+import {
+  getPlayerProfileExtra,
+  isUsaHockeyValidationEnforced,
+  isUsaHockeyVerifiedForSeason
+} from "@/lib/hq/player-profiles";
 import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
 
 function getReturnPath(raw: string) {
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const signupConfig = await getEventSignupConfig(eventId);
-  if (user.role !== "admin" && signupConfig?.requiresUsaHockeyVerified) {
+  if (isUsaHockeyValidationEnforced() && user.role !== "admin" && signupConfig?.requiresUsaHockeyVerified) {
     const profile = await getPlayerProfileExtra(user.id);
     if (!isUsaHockeyVerifiedForSeason(profile)) {
       return NextResponse.redirect(

@@ -182,6 +182,10 @@ export function usaHockeySeasonLabel(date = new Date()) {
   return `${startYear}-${startYear + 1}`;
 }
 
+export function isUsaHockeyValidationEnforced() {
+  return process.env.ENFORCE_USA_HOCKEY_VALIDATION === "1";
+}
+
 export function isUsaHockeyVerifiedForSeason(profile: PlayerProfileExtra | null | undefined, season = usaHockeySeasonLabel()) {
   if (!profile?.usaHockeyNumber) return false;
   if (profile.usaHockeyStatus !== "verified") return false;

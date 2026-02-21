@@ -1645,7 +1645,7 @@ export default async function AdminPage({
                   </select>
                 </label>
                 <label data-onice-only="1">
-                  <input name="requiresUsaHockeyVerified" type="checkbox" /> Require verified USA Hockey number
+                  <input name="requiresUsaHockeyVerified" type="checkbox" /> Require USA Hockey number on file (manual review)
                 </label>
               </details>
 
@@ -1727,7 +1727,7 @@ export default async function AdminPage({
                           ? ` | Target: ${signupConfig.targetRosterSize}`
                           : ""}
                         {signupConfig?.signupMode === "interest_gathering" ? ` | Selected: ${selectedCount}` : ""}
-                        {signupConfig?.requiresUsaHockeyVerified ? " | USA Hockey verified required" : ""}
+                        {signupConfig?.requiresUsaHockeyVerified ? " | USA Hockey number requested (manual review)" : ""}
                       </p>
                     );
                   })()}
@@ -1850,7 +1850,7 @@ export default async function AdminPage({
                           type="checkbox"
                           defaultChecked={Boolean(signupConfigsByEvent[event.id]?.requiresUsaHockeyVerified)}
                         />{" "}
-                        Require verified USA Hockey number
+                        Require USA Hockey number on file (manual review)
                       </label>
                       <label data-guest-only="1">
                         <input

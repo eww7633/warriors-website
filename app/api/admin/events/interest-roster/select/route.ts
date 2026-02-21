@@ -6,7 +6,11 @@ import { getAllEvents } from "@/lib/hq/events";
 import { readStore } from "@/lib/hq/store";
 import { sendInterestRosterFinalizedEmail } from "@/lib/email";
 import { canEmailUserForCategory } from "@/lib/hq/notifications";
-import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
+import {
+  getPlayerProfileExtra,
+  isUsaHockeyValidationEnforced,
+  isUsaHockeyVerifiedForSeason
+} from "@/lib/hq/player-profiles";
 
 function getReturnPath(raw: string) {
   const value = raw.trim();
@@ -45,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (config.requiresUsaHockeyVerified) {
+  if (isUsaHockeyValidationEnforced() && config.requiresUsaHockeyVerified) {
     const checked = await Promise.all(
       selectedUserIds.map(async (id) => {
         const profile = await getPlayerProfileExtra(id);

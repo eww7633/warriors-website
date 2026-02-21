@@ -259,7 +259,7 @@ export async function sendUsaHockeyReminderEmail(input: {
   const text = [
     greeting,
     "",
-    "You need a current, verified USA Hockey number before Hockey Ops can roster you for official on-ice competitions.",
+    "Hockey Ops needs your current USA Hockey number on file to roster you for official on-ice competitions.",
     reasonLine,
     "Please update your USA Hockey number in Player HQ as soon as possible.",
     input.hqProfileUrl ? `Update now: ${input.hqProfileUrl}` : "",

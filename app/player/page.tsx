@@ -567,7 +567,7 @@ export default async function PlayerPage({
                     {isInterest && signupConfig?.interestClosesAt
                       ? ` | Closes ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
                       : ""}
-                    {usaRequired ? " | USA Hockey verified required" : ""}
+                    {usaRequired ? " | USA Hockey number requested (manual review)" : ""}
                   </p>
                   {isInterest ? (
                     <p className="muted">
