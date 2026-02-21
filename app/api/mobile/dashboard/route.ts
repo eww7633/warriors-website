@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUserFromRequest } from "@/lib/hq/session";
 import { readStore } from "@/lib/hq/store";
 import { getCalendarEventsForRole } from "@/lib/hq/events";
+import { listAnnouncements } from "@/lib/hq/announcements";
 
 function toPublicUser(user: {
   id: string;
@@ -42,9 +43,15 @@ export async function GET(request: Request) {
   }
 
   const approved = user.status === "approved";
-  const [store, events] = await Promise.all([
+  const [store, events, announcements] = await Promise.all([
     readStore(),
-    getCalendarEventsForRole(user.role, approved)
+    getCalendarEventsForRole(user.role, approved),
+    listAnnouncements({
+      activeOnly: true,
+      audience: user.role === "player" ? "players" : "all_users",
+      includeExpired: false,
+      limit: 5
+    })
   ]);
 
   const pendingRegistrations = store.users.filter((entry) => entry.status === "pending").length;
@@ -63,7 +70,7 @@ export async function GET(request: Request) {
       approvedPlayers,
       recentCheckIns,
       visibleEvents: events.length
-    }
+    },
+    announcements
   });
 }
-

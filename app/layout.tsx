@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <img src="/sponsors/operation-hat-trick.avif" alt="Operation Hat Trick" loading="lazy" />
                 <img src="/sponsors/ppf-grant.avif" alt="PPF Grant" loading="lazy" />
                 <img src="/sponsors/ugf-logo-horz.avif" alt="UGF" loading="lazy" />
-                <div className="footer-sponsor-placeholder">Malone Family Foundation</div>
+                <img src="/sponsors/malone-family-foundation.jpg" alt="Malone Family Foundation" loading="lazy" />
               </div>
             </div>
             <p>

@@ -50,7 +50,7 @@ export async function sendInviteEmail(input: {
     greeting,
     "",
     "You are invited to register for the Pittsburgh Warriors Hockey Club player portal.",
-    "Please register using this exact email address so we can link your existing contact record:",
+    "Use the invite link below and keep the prefilled email address exactly as provided so we can auto-link your existing contact record:",
     input.to,
     "",
     input.registerUrl,
@@ -159,6 +159,56 @@ export async function sendDonationReceiptEmail(input: {
     "",
     "Pittsburgh Warriors Hockey Ops"
   ].join("\n");
+
+  await transporter.sendMail({
+    from: smtp.from,
+    to: input.to,
+    subject,
+    text
+  });
+
+  return { sent: true as const };
+}
+
+export async function sendAnnouncementEmail(input: {
+  to: string;
+  fullName?: string | null;
+  title: string;
+  body: string;
+  hqUrl?: string;
+}) {
+  let smtp: ReturnType<typeof getSmtpConfig>;
+  try {
+    smtp = getSmtpConfig();
+  } catch {
+    return { sent: false as const, reason: "smtp_not_configured" as const };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass
+    }
+  });
+
+  const subject = `Hockey Ops Announcement: ${input.title}`;
+  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
+  const text = [
+    greeting,
+    "",
+    input.title,
+    "",
+    input.body,
+    "",
+    input.hqUrl ? `View in Warrior HQ: ${input.hqUrl}` : "",
+    "",
+    "Pittsburgh Warriors Hockey Ops"
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   await transporter.sendMail({
     from: smtp.from,

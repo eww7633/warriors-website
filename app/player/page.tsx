@@ -29,11 +29,13 @@ import {
   isDvhlEvent,
   isInterestSignupClosed
 } from "@/lib/hq/event-signups";
+import { listAnnouncements, markAnnouncementViewed } from "@/lib/hq/announcements";
 
 export const dynamic = "force-dynamic";
 
 const sections = [
   ["overview", "Overview"],
+  ["announcements", "Announcements"],
   ["onboarding", "Onboarding"],
   ["notifications", "Notifications"],
   ["profile", "Profile"],
@@ -54,6 +56,7 @@ export default async function PlayerPage({
     error?: string | string[];
     section?: string | string[];
     guest?: string | string[];
+    announcement?: string | string[];
   };
 }) {
   const query = searchParams ?? {};
@@ -62,13 +65,14 @@ export default async function PlayerPage({
   const queryError = Array.isArray(query.error) ? query.error[0] : query.error;
   const querySection = Array.isArray(query.section) ? query.section[0] : query.section;
   const queryGuest = Array.isArray(query.guest) ? query.guest[0] : query.guest;
+  const queryAnnouncement = Array.isArray(query.announcement) ? query.announcement[0] : query.announcement;
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?error=sign_in_required");
   }
 
-  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments, onboardingState, notificationPref] = await Promise.all([
+  const [store, profile, photoRequests, jerseyRequests, profileExtra, teamAssignments, onboardingState, notificationPref, playerAnnouncements, allPlayerAnnouncements] = await Promise.all([
     readStore(),
     getPlayerRosterProfile(user.id),
     listPhotoSubmissionRequestsByUser(user.id),
@@ -76,7 +80,9 @@ export default async function PlayerPage({
     getPlayerProfileExtra(user.id),
     listTeamAssignmentsByUser(user.id),
     getPlayerOnboardingState(user.id),
-    getNotificationPreference(user.id)
+    getNotificationPreference(user.id),
+    listAnnouncements({ activeOnly: true, audience: "players", includeExpired: false, limit: 20 }),
+    listAnnouncements({ audience: "players", includeExpired: true, limit: 100 })
   ]);
 
   const latestUser = store.users.find((entry) => entry.id === user.id) ?? user;
@@ -117,9 +123,49 @@ export default async function PlayerPage({
   const pendingPhoto = photoRequests.find((entry) => entry.status === "pending");
   const pendingJersey = jerseyRequests.find((entry) => entry.status === "pending");
   const equipment = latestUser.equipmentSizes ?? {};
+  const featuredAnnouncement = playerAnnouncements[0] || null;
+  const selectedAnnouncement =
+    allPlayerAnnouncements.find((entry) => entry.id === queryAnnouncement) ||
+    playerAnnouncements.find((entry) => entry.id === queryAnnouncement) ||
+    featuredAnnouncement;
+  if (queryAnnouncement && selectedAnnouncement?.id === queryAnnouncement) {
+    await markAnnouncementViewed({ announcementId: queryAnnouncement, userId: latestUser.id });
+  }
 
   return (
     <section className="stack admin-shell">
+      <article className="card">
+        <h3>Hockey Ops Announcements</h3>
+        {featuredAnnouncement ? (
+          <div className="stack">
+            <div className="event-card">
+              <strong>{featuredAnnouncement.title}</strong>
+              <p className="muted">
+                {new Date(featuredAnnouncement.publishedAt).toLocaleString()} | {featuredAnnouncement.category.toUpperCase()}
+              </p>
+              <p>{featuredAnnouncement.body.length > 220 ? `${featuredAnnouncement.body.slice(0, 220)}...` : featuredAnnouncement.body}</p>
+              <Link className="button ghost" href={`/player?section=announcements&announcement=${featuredAnnouncement.id}`}>
+                Open Announcement
+              </Link>
+            </div>
+            {playerAnnouncements.length > 1 ? (
+              <div className="event-card">
+                <strong>Older announcements</strong>
+                <ul>
+                  {playerAnnouncements.slice(1, 6).map((entry) => (
+                    <li key={entry.id}>
+                      <Link href={`/player?section=announcements&announcement=${entry.id}`}>{entry.title}</Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <p className="muted">No active announcements right now.</p>
+        )}
+      </article>
+
       <article className="card">
         <h2>Warrior HQ Player Hub</h2>
         <p>
@@ -281,6 +327,36 @@ export default async function PlayerPage({
             </form>
           </>
         )}
+      </article>
+      )}
+
+      {section === "announcements" && (
+      <article className="card">
+        <h3>Announcements Archive</h3>
+        {selectedAnnouncement ? (
+          <div className="event-card">
+            <strong>{selectedAnnouncement.title}</strong>
+            <p className="muted">
+              {new Date(selectedAnnouncement.publishedAt).toLocaleString()} | {selectedAnnouncement.category.toUpperCase()}
+            </p>
+            <p style={{ whiteSpace: "pre-wrap" }}>{selectedAnnouncement.body}</p>
+          </div>
+        ) : (
+          <p className="muted">No announcement selected.</p>
+        )}
+        <div className="stack">
+          {allPlayerAnnouncements.map((entry) => (
+            <div key={entry.id} className="event-card">
+              <p>
+                <Link href={`/player?section=announcements&announcement=${entry.id}`}>{entry.title}</Link>
+              </p>
+              <p className="muted">
+                {new Date(entry.publishedAt).toLocaleString()} | {entry.isActive ? "Active" : "Inactive"}
+              </p>
+            </div>
+          ))}
+          {allPlayerAnnouncements.length === 0 ? <p className="muted">No announcements found.</p> : null}
+        </div>
       </article>
       )}
 

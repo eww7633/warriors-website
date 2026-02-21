@@ -39,6 +39,11 @@ import {
   listDonationPayments
 } from "@/lib/hq/donations";
 import { listLocalShowcasePhotos } from "@/lib/showcase-photos";
+import {
+  listAnnouncementDeliveriesByAnnouncement,
+  listAnnouncements,
+  listAnnouncementViewsByAnnouncement
+} from "@/lib/hq/announcements";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +54,7 @@ const sectionDefs = [
   { key: "office", label: "Off-Ice Events", permission: "manage_events" },
   { key: "contacts", label: "People & Onboarding", permission: "manage_site_users" },
   { key: "usermanagement", label: "User Management", permission: "manage_site_users" },
+  { key: "announcements", label: "Announcements", permission: "manage_site_users" },
   { key: "players", label: "Roster & Roles", permission: "manage_players" },
   { key: "news", label: "News", permission: "manage_news" },
   { key: "media", label: "Media", permission: "manage_media" },
@@ -129,6 +135,10 @@ export default async function AdminPage({
     usersSkipped?: string;
     generated?: string;
     contactSearch?: string;
+    announcement?: string;
+    sent?: string;
+    failed?: string;
+    queued?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -163,7 +173,7 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, announcements] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
@@ -174,7 +184,8 @@ export default async function AdminPage({
     summarizeAttendanceInsights(),
     listRosterReservations(),
     listAllNewsPosts(),
-    listLocalShowcasePhotos()
+    listLocalShowcasePhotos(),
+    listAnnouncements({ includeExpired: true, limit: 100 })
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
   const roleDefinitions = listOpsRoleDefinitions();
@@ -316,7 +327,13 @@ export default async function AdminPage({
     query.media === "deleted" ? "Showcase media deleted." : null,
     query.news === "saved" ? "News post created." : null,
     query.news === "updated" ? "News post updated." : null,
-    query.news === "deleted" ? "News post deleted." : null
+    query.news === "deleted" ? "News post deleted." : null,
+    query.announcement === "created" ? "Announcement created." : null,
+    query.announcement === "updated" ? "Announcement updated." : null,
+    query.announcement === "deleted" ? "Announcement deleted." : null,
+    query.announcement === "sent"
+      ? `Announcement delivery processed: sent ${query.sent || "0"}, queued ${query.queued || "0"}, failed ${query.failed || "0"}.`
+      : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -330,6 +347,21 @@ export default async function AdminPage({
   const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
   const scopedEvents = section === "onice" ? onIceEvents : section === "office" ? offIceEvents : allEvents;
   const inviteFromEmail = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
+  const announcementDeliveryCounts = new Map<string, { sent: number; failed: number; queued: number }>();
+  const announcementViewsById = new Map<string, string[]>();
+  for (const item of announcements) {
+    const deliveries = await listAnnouncementDeliveriesByAnnouncement(item.id);
+    const views = await listAnnouncementViewsByAnnouncement(item.id);
+    announcementDeliveryCounts.set(item.id, {
+      sent: deliveries.filter((entry) => entry.status === "sent").length,
+      failed: deliveries.filter((entry) => entry.status === "failed").length,
+      queued: deliveries.filter((entry) => entry.status === "queued").length
+    });
+    announcementViewsById.set(
+      item.id,
+      views.map((entry) => entry.userId)
+    );
+  }
 
   return (
     <section className="stack admin-shell">
@@ -1233,6 +1265,150 @@ export default async function AdminPage({
                 ))}
               </div>
             )}
+          </article>
+        </div>
+      )}
+
+      {section === "announcements" && (
+        <div className="stack">
+          <article className="card">
+            <h3>Create Announcement</h3>
+            <p className="muted">
+              Announcements appear at the top of Player HQ and can also send email/SMS/push by each player's notification preferences.
+            </p>
+            <form className="grid-form" action="/api/admin/announcements/create" method="post">
+              <input type="hidden" name="returnTo" value="/admin?section=announcements" />
+              <input name="title" placeholder="Announcement title" required />
+              <textarea name="body" rows={6} placeholder="Announcement details" required />
+              <label>
+                Category
+                <select name="category" defaultValue="general">
+                  <option value="general">General</option>
+                  <option value="events">Events</option>
+                  <option value="dvhl">DVHL</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </label>
+              <label>
+                Audience
+                <select name="audience" defaultValue="players">
+                  <option value="players">Players</option>
+                  <option value="all_users">All approved users</option>
+                </select>
+              </label>
+              <label>
+                Expires at (optional)
+                <input name="expiresAt" type="datetime-local" />
+              </label>
+              <label>
+                <input name="pinned" type="checkbox" /> Pin to top
+              </label>
+              <label>
+                <input name="sendNow" type="checkbox" defaultChecked /> Send now using user notification preferences
+              </label>
+              <button className="button" type="submit">Create Announcement</button>
+            </form>
+          </article>
+
+          <article className="card">
+            <h3>Manage Announcements</h3>
+            <div className="stack">
+              {announcements.length === 0 ? (
+                <p className="muted">No announcements created yet.</p>
+              ) : (
+                announcements.map((announcement) => {
+                  const delivery = announcementDeliveryCounts.get(announcement.id) || {
+                    sent: 0,
+                    failed: 0,
+                    queued: 0
+                  };
+                  const viewedUserIds = new Set(announcementViewsById.get(announcement.id) || []);
+                  const recipients = store.users.filter((entry) =>
+                    announcement.audience === "all_users"
+                      ? entry.status === "approved"
+                      : entry.role === "player" && entry.status === "approved"
+                  );
+                  const viewedCount = recipients.filter((entry) => viewedUserIds.has(entry.id)).length;
+                  const notViewed = recipients.filter((entry) => !viewedUserIds.has(entry.id));
+                  return (
+                    <details key={announcement.id} className="event-card admin-disclosure" open={announcement.pinned}>
+                      <summary>
+                        {announcement.title} | {announcement.category.toUpperCase()} | {announcement.isActive ? "Active" : "Inactive"}
+                      </summary>
+                      <form className="grid-form" action="/api/admin/announcements/update" method="post">
+                        <input type="hidden" name="announcementId" value={announcement.id} />
+                        <input type="hidden" name="returnTo" value="/admin?section=announcements" />
+                        <input name="title" defaultValue={announcement.title} required />
+                        <textarea name="body" rows={6} defaultValue={announcement.body} required />
+                        <label>
+                          Category
+                          <select name="category" defaultValue={announcement.category}>
+                            <option value="general">General</option>
+                            <option value="events">Events</option>
+                            <option value="dvhl">DVHL</option>
+                            <option value="urgent">Urgent</option>
+                          </select>
+                        </label>
+                        <label>
+                          Audience
+                          <select name="audience" defaultValue={announcement.audience}>
+                            <option value="players">Players</option>
+                            <option value="all_users">All approved users</option>
+                          </select>
+                        </label>
+                        <label>
+                          Expires at (optional)
+                          <input
+                            name="expiresAt"
+                            type="datetime-local"
+                            defaultValue={announcement.expiresAt ? announcement.expiresAt.slice(0, 16) : ""}
+                          />
+                        </label>
+                        <label>
+                          <input name="isActive" type="checkbox" defaultChecked={announcement.isActive} /> Active
+                        </label>
+                        <label>
+                          <input name="pinned" type="checkbox" defaultChecked={announcement.pinned} /> Pinned
+                        </label>
+                        <p className="muted">
+                          Deliveries: sent {delivery.sent} | queued {delivery.queued} | failed {delivery.failed}
+                        </p>
+                        <p className="muted">
+                          Opened in HQ: {viewedCount}/{recipients.length}
+                        </p>
+                        {notViewed.length > 0 ? (
+                          <details className="event-card admin-disclosure">
+                            <summary>Not opened yet ({notViewed.length})</summary>
+                            <ul>
+                              {notViewed.slice(0, 50).map((member) => (
+                                <li key={member.id}>
+                                  {member.fullName} ({member.email})
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
+                        <div className="cta-row">
+                          <button className="button ghost" type="submit">Save Changes</button>
+                          <button className="button" type="submit" formAction="/api/admin/announcements/send">
+                            Send Again
+                          </button>
+                          <button
+                            className="button alt"
+                            type="submit"
+                            formAction="/api/admin/announcements/delete"
+                            name="announcementId"
+                            value={announcement.id}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </form>
+                    </details>
+                  );
+                })
+              )}
+            </div>
           </article>
         </div>
       )}

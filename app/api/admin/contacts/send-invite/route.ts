@@ -31,7 +31,12 @@ export async function POST(request: Request) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
-    const registerUrl = `${baseUrl.replace(/\/+$/, "")}/join`;
+    const params = new URLSearchParams({
+      mode: "player",
+      email: lead.email,
+      invite: "1"
+    });
+    const registerUrl = `${baseUrl.replace(/\/+$/, "")}/join?${params.toString()}`;
 
     await sendInviteEmail({
       to: lead.email,
