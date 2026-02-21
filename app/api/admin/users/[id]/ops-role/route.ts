@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       );
     }
 
-    if (clearRoles || !roleKey) {
+    if (clearRoles) {
       if (!canAssignOpsRoles) {
         const targetAssignments = await getUserOpsAssignments(params.id);
         if (targetAssignments.some((entry) => entry.roleKey === "super_admin")) {
@@ -45,6 +45,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
       await clearUserOpsRoles({ actorUserId: actor.id, targetUserId: params.id });
     } else {
+      if (!roleKey) {
+        return NextResponse.redirect(
+          new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=ops_role_required`, request.url),
+          303
+        );
+      }
       await upsertUserOpsRole({
         actorUserId: actor.id,
         targetUserId: params.id,
@@ -65,7 +71,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}opsrole=updated`, request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=ops_role_update_failed`, request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "ops_role_update_failed");
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=ops_role_update_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }

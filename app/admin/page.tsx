@@ -143,6 +143,8 @@ export default async function AdminPage({
     generated?: string;
     contactSearch?: string;
     userSearch?: string;
+    userType?: string;
+    userSort?: string;
     eventSearch?: string;
     announcement?: string;
     sent?: string;
@@ -349,6 +351,24 @@ export default async function AdminPage({
       .join(" ")
       .toLowerCase()
       .includes(userSearch);
+  });
+  const userTypeFilter = String(query.userType || "all");
+  const userSort = String(query.userSort || "updated_desc");
+  const managementUsers = filteredAllUsers.filter((member) => {
+    if (userTypeFilter === "all") return true;
+    if (userTypeFilter === "player") return member.role === "player";
+    if (userTypeFilter === "non_player") return member.role !== "player";
+    if (userTypeFilter === "pending") return member.status === "pending";
+    if (userTypeFilter === "approved") return member.status === "approved";
+    if (userTypeFilter === "admin") return member.role === "admin";
+    if (userTypeFilter === "ops") return (roleAssignmentsByUserId.get(member.id) || []).length > 0;
+    return true;
+  });
+  const sortedManagementUsers = [...managementUsers].sort((a, b) => {
+    if (userSort === "name_asc") return a.fullName.localeCompare(b.fullName);
+    if (userSort === "name_desc") return b.fullName.localeCompare(a.fullName);
+    if (userSort === "created_desc") return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
   const filteredPendingUsers = pendingUsers.filter((member) => {
     if (!userSearch) return true;
@@ -2007,144 +2027,102 @@ export default async function AdminPage({
       {section === "usermanagement" && (
         <div className="stack">
           <article className="card">
-            <h3>Non-Player User Management</h3>
+            <h3>User Management</h3>
             <p className="muted">
-              Manage users who are not players, plus role-based access to Hockey Ops tools.
+              Search, sort, and manage user access + Hockey Ops roles in one place.
             </p>
             <p className="muted">
-              To make someone both player + admin, keep account role as <strong>player</strong> and assign Ops role(s)
-              below. They will keep Player Hub and also gain Hockey Ops access.
+              For player + admin access: keep base role as <strong>player</strong> and assign Ops roles.
             </p>
             <form className="grid-form" action="/admin" method="get">
               <input type="hidden" name="section" value="usermanagement" />
               <input name="userSearch" placeholder="Search users by name, email, role, ops title" defaultValue={String(query.userSearch || "")} />
+              <label>
+                Filter
+                <select name="userType" defaultValue={userTypeFilter}>
+                  <option value="all">All users</option>
+                  <option value="ops">Ops roles assigned</option>
+                  <option value="player">Players</option>
+                  <option value="non_player">Non-players</option>
+                  <option value="admin">Admins</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                </select>
+              </label>
+              <label>
+                Sort
+                <select name="userSort" defaultValue={userSort}>
+                  <option value="updated_desc">Recently updated</option>
+                  <option value="created_desc">Recently created</option>
+                  <option value="name_asc">Name A-Z</option>
+                  <option value="name_desc">Name Z-A</option>
+                </select>
+              </label>
               <button className="button" type="submit">Filter User Lists</button>
             </form>
+            <p className="badge">Showing {sortedManagementUsers.length} users</p>
           </article>
 
           <details className="card admin-disclosure" open>
-            <summary>Access Controls (Non-Players)</summary>
+            <summary>User Directory (collapsible)</summary>
             <div className="stack">
-              {filteredNonPlayerUsers.map((member) => (
-                <form
-                  key={member.id}
-                  className="event-card grid-form"
-                  action={`/api/admin/users/${member.id}/access`}
-                  method="post"
-                >
-                  <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
-                  <strong>{member.fullName}</strong>
-                  <p>{member.email}</p>
-                  <p>Current role: {member.role} | Status: {member.status}</p>
-                  <p>
-                    Ops roles: {(roleAssignmentsByUserId.get(member.id) || []).length > 0
-                      ? roleAssignmentsByUserId.get(member.id)!.map((entry) => entry.titleLabel).join(", ")
-                      : "None"}
-                  </p>
-                  <label>
-                    Set role
-                    <select name="role" defaultValue={member.role}>
-                      <option value="public">Public</option>
-                      <option value="player">Player</option>
-                      <option value="admin">Admin</option>
-                    </select>
-                  </label>
-                  <button className="button ghost" type="submit">Update Access</button>
-                </form>
-              ))}
-              {filteredNonPlayerUsers.length === 0 ? <p className="muted">No non-player users match current filter.</p> : null}
+              {sortedManagementUsers.map((member) => {
+                const opsAssignments = roleAssignmentsByUserId.get(member.id) || [];
+                return (
+                  <details key={`${member.id}-mgmt`} className="event-card admin-disclosure">
+                    <summary>
+                      {member.fullName} | {member.email} | {member.role}/{member.status} | Ops: {opsAssignments.length}
+                    </summary>
+                    <div className="stack">
+                      <form className="grid-form" action={`/api/admin/users/${member.id}/access`} method="post">
+                        <input type="hidden" name="returnTo" value={`/admin?section=usermanagement&userSearch=${encodeURIComponent(String(query.userSearch || ""))}&userType=${encodeURIComponent(userTypeFilter)}&userSort=${encodeURIComponent(userSort)}`} />
+                        <label>
+                          Base role
+                          <select name="role" defaultValue={member.role}>
+                            <option value="public">Public</option>
+                            <option value="player">Player</option>
+                            <option value="admin">Admin</option>
+                          </select>
+                        </label>
+                        <button className="button ghost" type="submit">Save Access</button>
+                      </form>
+
+                      {actorIsSuperAdmin ? (
+                        <form className="grid-form" action={`/api/admin/users/${member.id}/ops-role`} method="post">
+                          <input type="hidden" name="returnTo" value={`/admin?section=usermanagement&userSearch=${encodeURIComponent(String(query.userSearch || ""))}&userType=${encodeURIComponent(userTypeFilter)}&userSort=${encodeURIComponent(userSort)}`} />
+                          <label>
+                            Add / update ops role
+                            <select name="roleKey" defaultValue="">
+                              <option value="">Select role</option>
+                              {roleDefinitions
+                                .filter((entry) => actorIsSuperAdmin || entry.key !== "super_admin")
+                                .map((entry) => (
+                                <option key={entry.key} value={entry.key}>
+                                  {entry.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <input name="titleLabel" placeholder="Title label override (optional)" />
+                          <input name="officialEmail" placeholder="Official team email (optional)" />
+                          <input name="badgeLabel" placeholder="Badge label (optional)" />
+                          <label>
+                            <input name="clearRoles" type="checkbox" /> Clear all ops roles for this user
+                          </label>
+                          <button className="button ghost" type="submit">Save Ops Roles</button>
+                        </form>
+                      ) : null}
+
+                      <p>
+                        Current ops roles: {opsAssignments.length > 0 ? opsAssignments.map((entry) => entry.titleLabel).join(", ") : "None"}
+                      </p>
+                    </div>
+                  </details>
+                );
+              })}
+              {sortedManagementUsers.length === 0 ? <p className="muted">No users match current filter.</p> : null}
             </div>
           </details>
-
-          {actorIsSuperAdmin ? (
-            <details className="card admin-disclosure" open>
-              <summary>Player + Admin Access</summary>
-              <p className="muted">
-                Keep player role as <strong>player</strong>. Assign one or more Ops roles below to grant Hockey Ops HQ access
-                while preserving Player HQ access.
-              </p>
-              <div className="stack">
-                {filteredApprovedPlayers.map((member) => (
-                  <form
-                    key={`${member.id}-player-ops-role`}
-                    className="event-card grid-form"
-                    action={`/api/admin/users/${member.id}/ops-role`}
-                    method="post"
-                  >
-                    <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
-                    <strong>{member.fullName}</strong>
-                    <p>{member.email}</p>
-                    <p>
-                      Base role: {member.role} | Current Ops roles: {(roleAssignmentsByUserId.get(member.id) || []).length > 0
-                        ? roleAssignmentsByUserId.get(member.id)!.map((entry) => entry.titleLabel).join(", ")
-                        : "None"}
-                    </p>
-                    <label>
-                      Assign Ops role
-                      <select name="roleKey" defaultValue="">
-                        <option value="">Select role</option>
-                        {roleDefinitions
-                          .filter((entry) => actorIsSuperAdmin || entry.key !== "super_admin")
-                          .map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <input name="titleLabel" placeholder="Title label override (optional)" />
-                    <input name="officialEmail" placeholder="Official team email (optional)" />
-                    <input name="badgeLabel" placeholder="Badge label (optional)" />
-                    <label>
-                      <input name="clearRoles" type="checkbox" /> Clear all ops roles for this player
-                    </label>
-                    <button className="button ghost" type="submit">Save Player Ops Role</button>
-                  </form>
-                ))}
-                {filteredApprovedPlayers.length === 0 ? <p className="muted">No approved players match current filter.</p> : null}
-              </div>
-            </details>
-          ) : null}
-
-          {actorIsSuperAdmin ? (
-            <details className="card admin-disclosure" open>
-              <summary>Ops Role Assignments</summary>
-              <div className="stack">
-                {filteredAllUsers.map((member) => (
-                  <form
-                    key={`${member.id}-ops-role-usermanagement`}
-                    className="event-card grid-form"
-                    action={`/api/admin/users/${member.id}/ops-role`}
-                    method="post"
-                  >
-                    <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
-                    <strong>{member.fullName}</strong>
-                    <p>{member.email}</p>
-                    <label>
-                      Role
-                      <select name="roleKey" defaultValue="">
-                        <option value="">Select role</option>
-                        {roleDefinitions
-                          .filter((entry) => actorIsSuperAdmin || entry.key !== "super_admin")
-                          .map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {entry.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <input name="titleLabel" placeholder="Title label override (optional)" />
-                    <input name="officialEmail" placeholder="Official team email (optional)" />
-                    <input name="badgeLabel" placeholder="Badge label (optional)" />
-                    <label>
-                      <input name="clearRoles" type="checkbox" /> Clear all ops roles for this user
-                    </label>
-                    <button className="button ghost" type="submit">Save Ops Roles</button>
-                  </form>
-                ))}
-              </div>
-            </details>
-          ) : null}
         </div>
       )}
 

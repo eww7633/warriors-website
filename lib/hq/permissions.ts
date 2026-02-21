@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { MemberUser } from "@/lib/types";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
 
 export type OpsRoleKey =
   | "super_admin"
@@ -179,11 +181,71 @@ export function listOpsRoleDefinitions() {
 }
 
 export async function listOpsRoleAssignments() {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { id: true, equipmentSizes: true }
+    });
+    const assignments: OpsRoleAssignment[] = [];
+    for (const user of users) {
+      const rawRoot =
+        user.equipmentSizes && typeof user.equipmentSizes === "object"
+          ? (user.equipmentSizes as Record<string, unknown>)
+          : {};
+      const rawList = Array.isArray(rawRoot.__opsRoles) ? rawRoot.__opsRoles : [];
+      for (const entry of rawList) {
+        if (!entry || typeof entry !== "object") continue;
+        const parsed = entry as Record<string, unknown>;
+        const roleKey = String(parsed.roleKey || "").trim() as OpsRoleKey;
+        if (!Object.keys(ROLE_DEFS).includes(roleKey)) continue;
+        assignments.push({
+          userId: user.id,
+          roleKey,
+          titleLabel: normalizeText(String(parsed.titleLabel || "")) || ROLE_DEFS[roleKey].label,
+          officialEmail: normalizeText(String(parsed.officialEmail || "")),
+          badgeLabel: normalizeText(String(parsed.badgeLabel || "")) || ROLE_DEFS[roleKey].badge,
+          updatedAt: normalizeText(String(parsed.updatedAt || "")) || nowIso(),
+          updatedByUserId: normalizeText(String(parsed.updatedByUserId || ""))
+        });
+      }
+    }
+    return assignments;
+  }
+
   const store = await readStore();
   return [...store.assignments];
 }
 
 export async function getUserOpsAssignments(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) return [];
+    const rawRoot =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? (user.equipmentSizes as Record<string, unknown>)
+        : {};
+    const rawList = Array.isArray(rawRoot.__opsRoles) ? rawRoot.__opsRoles : [];
+    const assignments: OpsRoleAssignment[] = [];
+    for (const entry of rawList) {
+      if (!entry || typeof entry !== "object") continue;
+      const parsed = entry as Record<string, unknown>;
+      const roleKey = String(parsed.roleKey || "").trim() as OpsRoleKey;
+      if (!Object.keys(ROLE_DEFS).includes(roleKey)) continue;
+      assignments.push({
+        userId: user.id,
+        roleKey,
+        titleLabel: normalizeText(String(parsed.titleLabel || "")) || ROLE_DEFS[roleKey].label,
+        officialEmail: normalizeText(String(parsed.officialEmail || "")),
+        badgeLabel: normalizeText(String(parsed.badgeLabel || "")) || ROLE_DEFS[roleKey].badge,
+        updatedAt: normalizeText(String(parsed.updatedAt || "")) || nowIso(),
+        updatedByUserId: normalizeText(String(parsed.updatedByUserId || ""))
+      });
+    }
+    return assignments;
+  }
+
   const store = await readStore();
   return store.assignments.filter((entry) => entry.userId === userId);
 }
@@ -196,6 +258,49 @@ export async function upsertUserOpsRole(input: {
   officialEmail?: string;
   badgeLabel?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.targetUserId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+
+    const roleDef = ROLE_DEFS[input.roleKey];
+    const next: OpsRoleAssignment = {
+      userId: input.targetUserId,
+      roleKey: input.roleKey,
+      titleLabel: normalizeText(input.titleLabel) || roleDef.label,
+      officialEmail: normalizeText(input.officialEmail),
+      badgeLabel: normalizeText(input.badgeLabel) || roleDef.badge,
+      updatedAt: nowIso(),
+      updatedByUserId: input.actorUserId
+    };
+
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? ({ ...(user.equipmentSizes as Record<string, unknown>) })
+        : {};
+    const rawList = Array.isArray(root.__opsRoles) ? [...root.__opsRoles] : [];
+    const idx = rawList.findIndex((entry) => {
+      if (!entry || typeof entry !== "object") return false;
+      return String((entry as Record<string, unknown>).roleKey || "").trim() === input.roleKey;
+    });
+    if (idx >= 0) {
+      rawList[idx] = next;
+    } else {
+      rawList.push(next);
+    }
+    root.__opsRoles = rawList;
+
+    await getPrismaClient().user.update({
+      where: { id: input.targetUserId },
+      data: { equipmentSizes: root }
+    });
+    return next;
+  }
+
   const store = await readStore();
   const roleDef = ROLE_DEFS[input.roleKey];
 
@@ -221,6 +326,27 @@ export async function upsertUserOpsRole(input: {
 }
 
 export async function clearUserOpsRoles(input: { actorUserId: string; targetUserId: string }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.targetUserId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? ({ ...(user.equipmentSizes as Record<string, unknown>) })
+        : {};
+    const before = Array.isArray(root.__opsRoles) ? root.__opsRoles.length : 0;
+    root.__opsRoles = [];
+    await getPrismaClient().user.update({
+      where: { id: input.targetUserId },
+      data: { equipmentSizes: root }
+    });
+    return { removed: before };
+  }
+
   const store = await readStore();
   const before = store.assignments.length;
   store.assignments = store.assignments.filter((entry) => entry.userId !== input.targetUserId);
