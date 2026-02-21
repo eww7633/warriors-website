@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
 
 export type PlayerOnboardingState = {
   userId: string;
@@ -59,6 +61,29 @@ async function writeStore(store: OnboardingStore) {
 }
 
 export async function getPlayerOnboardingState(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { equipmentSizes: true }
+    });
+    const root = user?.equipmentSizes && typeof user.equipmentSizes === "object"
+      ? (user.equipmentSizes as Record<string, unknown>)
+      : {};
+    const raw = root.__playerOnboarding && typeof root.__playerOnboarding === "object"
+      ? (root.__playerOnboarding as Record<string, unknown>)
+      : null;
+    if (!raw) return null;
+    return {
+      userId,
+      profileCompletedAt: typeof raw.profileCompletedAt === "string" ? raw.profileCompletedAt : undefined,
+      equipmentCompletedAt: typeof raw.equipmentCompletedAt === "string" ? raw.equipmentCompletedAt : undefined,
+      acknowledgementsCompletedAt:
+        typeof raw.acknowledgementsCompletedAt === "string" ? raw.acknowledgementsCompletedAt : undefined,
+      completedAt: typeof raw.completedAt === "string" ? raw.completedAt : undefined,
+      updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : nowIso()
+    } satisfies PlayerOnboardingState;
+  }
+
   const store = await readStore();
   return store.states.find((entry) => entry.userId === userId) || null;
 }
@@ -73,6 +98,45 @@ export async function upsertPlayerOnboardingState(input: {
   equipmentCompleted?: boolean;
   acknowledgementsCompleted?: boolean;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    const now = nowIso();
+    const current = (await getPlayerOnboardingState(input.userId)) || {
+      userId: input.userId,
+      updatedAt: now
+    };
+    if (input.profileCompleted) {
+      current.profileCompletedAt = current.profileCompletedAt || now;
+    }
+    if (input.equipmentCompleted) {
+      current.equipmentCompletedAt = current.equipmentCompletedAt || now;
+    }
+    if (input.acknowledgementsCompleted) {
+      current.acknowledgementsCompletedAt = current.acknowledgementsCompletedAt || now;
+    }
+    if (isPlayerOnboardingComplete(current)) {
+      current.completedAt = current.completedAt || now;
+    }
+    current.updatedAt = now;
+
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? { ...(user.equipmentSizes as Record<string, unknown>) }
+        : {};
+    root.__playerOnboarding = current;
+    await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: { equipmentSizes: root }
+    });
+    return current;
+  }
+
   const store = await readStore();
   const now = nowIso();
   const idx = store.states.findIndex((entry) => entry.userId === input.userId);

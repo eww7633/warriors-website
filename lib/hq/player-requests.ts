@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
 
 export type RequestStatus = "pending" | "approved" | "rejected";
 
@@ -89,7 +91,29 @@ async function writeStore(store: PlayerRequestStore) {
   await fs.writeFile(requestStorePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 
+function parsePhotoRequestsFromEquipmentSizes(raw: unknown) {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const list = Array.isArray(root.__photoRequests) ? root.__photoRequests : [];
+  return list.filter((entry) => entry && typeof entry === "object") as PhotoSubmissionRequest[];
+}
+
+function parseJerseyRequestsFromEquipmentSizes(raw: unknown) {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const list = Array.isArray(root.__jerseyRequests) ? root.__jerseyRequests : [];
+  return list.filter((entry) => entry && typeof entry === "object") as JerseyNumberRequest[];
+}
+
 export async function listPhotoSubmissionRequestsByUser(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { equipmentSizes: true }
+    });
+    return parsePhotoRequestsFromEquipmentSizes(user?.equipmentSizes)
+      .filter((entry) => entry.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
   const store = await readStore();
   return store.photoSubmissions
     .filter((entry) => entry.userId === userId)
@@ -97,6 +121,16 @@ export async function listPhotoSubmissionRequestsByUser(userId: string) {
 }
 
 export async function listJerseyNumberRequestsByUser(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { equipmentSizes: true }
+    });
+    return parseJerseyRequestsFromEquipmentSizes(user?.equipmentSizes)
+      .filter((entry) => entry.userId === userId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
   const store = await readStore();
   return store.jerseyNumberRequests
     .filter((entry) => entry.userId === userId)
@@ -108,6 +142,43 @@ export async function createPhotoSubmissionRequest(input: {
   imageUrl: string;
   caption?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    const imageUrl = input.imageUrl.trim();
+    if (!imageUrl) {
+      throw new Error("image_url_required");
+    }
+    const requests = parsePhotoRequestsFromEquipmentSizes(user.equipmentSizes);
+    const openRequest = requests.find((entry) => entry.userId === input.userId && entry.status === "pending");
+    if (openRequest) {
+      throw new Error("photo_request_already_pending");
+    }
+    const created: PhotoSubmissionRequest = {
+      id: crypto.randomUUID(),
+      userId: input.userId,
+      imageUrl,
+      caption: input.caption?.trim() || undefined,
+      status: "pending",
+      createdAt: nowIso()
+    };
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? { ...(user.equipmentSizes as Record<string, unknown>) }
+        : {};
+    root.__photoRequests = [...requests, created];
+    await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: { equipmentSizes: root }
+    });
+    return created;
+  }
+
   const store = await readStore();
   const imageUrl = input.imageUrl.trim();
   if (!imageUrl) {
@@ -144,6 +215,49 @@ export async function createJerseyNumberRequest(input: {
   requestedJerseyNumber: number;
   currentJerseyNumber?: number;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    if (!input.rosterId.trim()) {
+      throw new Error("roster_required");
+    }
+    if (!Number.isInteger(input.requestedJerseyNumber) || input.requestedJerseyNumber < 1 || input.requestedJerseyNumber > 99) {
+      throw new Error("invalid_jersey_number");
+    }
+    const requests = parseJerseyRequestsFromEquipmentSizes(user.equipmentSizes);
+    const openRequest = requests.find((entry) => entry.userId === input.userId && entry.status === "pending");
+    if (openRequest) {
+      throw new Error("jersey_request_already_pending");
+    }
+    const created: JerseyNumberRequest = {
+      id: crypto.randomUUID(),
+      userId: input.userId,
+      rosterId: input.rosterId.trim(),
+      primarySubRoster: input.primarySubRoster?.trim() || undefined,
+      requiresApproval: input.requiresApproval ?? true,
+      approvalReason: input.approvalReason?.trim() || undefined,
+      currentJerseyNumber: input.currentJerseyNumber,
+      requestedJerseyNumber: input.requestedJerseyNumber,
+      status: "pending",
+      createdAt: nowIso()
+    };
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? { ...(user.equipmentSizes as Record<string, unknown>) }
+        : {};
+    root.__jerseyRequests = [...requests, created];
+    await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: { equipmentSizes: root }
+    });
+    return created;
+  }
+
   const store = await readStore();
 
   if (!input.rosterId.trim()) {
@@ -180,6 +294,16 @@ export async function createJerseyNumberRequest(input: {
 }
 
 export async function listPendingPhotoSubmissionRequests() {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { equipmentSizes: true }
+    });
+    return users
+      .flatMap((user) => parsePhotoRequestsFromEquipmentSizes(user.equipmentSizes))
+      .filter((entry) => entry.status === "pending")
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
   const store = await readStore();
   return store.photoSubmissions
     .filter((entry) => entry.status === "pending")
@@ -187,6 +311,16 @@ export async function listPendingPhotoSubmissionRequests() {
 }
 
 export async function listPendingJerseyNumberRequests() {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { equipmentSizes: true }
+    });
+    return users
+      .flatMap((user) => parseJerseyRequestsFromEquipmentSizes(user.equipmentSizes))
+      .filter((entry) => entry.status === "pending")
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
   const store = await readStore();
   return store.jerseyNumberRequests
     .filter((entry) => entry.status === "pending")
@@ -200,6 +334,37 @@ export async function reviewPhotoSubmissionRequest(input: {
   reviewNotes?: string;
   approvedPhotoId?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { id: true, equipmentSizes: true }
+    });
+    for (const user of users) {
+      const requests = parsePhotoRequestsFromEquipmentSizes(user.equipmentSizes);
+      const idx = requests.findIndex((entry) => entry.id === input.requestId);
+      if (idx === -1) continue;
+      const request = requests[idx];
+      if (request.status !== "pending") {
+        throw new Error("photo_request_not_pending");
+      }
+      request.status = input.decision;
+      request.reviewedAt = nowIso();
+      request.reviewedByUserId = input.reviewedByUserId;
+      request.reviewNotes = input.reviewNotes?.trim() || undefined;
+      request.approvedPhotoId = input.approvedPhotoId;
+      const root =
+        user.equipmentSizes && typeof user.equipmentSizes === "object"
+          ? { ...(user.equipmentSizes as Record<string, unknown>) }
+          : {};
+      root.__photoRequests = requests;
+      await getPrismaClient().user.update({
+        where: { id: user.id },
+        data: { equipmentSizes: root }
+      });
+      return request;
+    }
+    throw new Error("photo_request_not_found");
+  }
+
   const store = await readStore();
   const request = store.photoSubmissions.find((entry) => entry.id === input.requestId);
   if (!request) {
@@ -224,6 +389,36 @@ export async function reviewJerseyNumberRequest(input: {
   decision: "approved" | "rejected";
   reviewNotes?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { id: true, equipmentSizes: true }
+    });
+    for (const user of users) {
+      const requests = parseJerseyRequestsFromEquipmentSizes(user.equipmentSizes);
+      const idx = requests.findIndex((entry) => entry.id === input.requestId);
+      if (idx === -1) continue;
+      const request = requests[idx];
+      if (request.status !== "pending") {
+        throw new Error("jersey_request_not_pending");
+      }
+      request.status = input.decision;
+      request.reviewedAt = nowIso();
+      request.reviewedByUserId = input.reviewedByUserId;
+      request.reviewNotes = input.reviewNotes?.trim() || undefined;
+      const root =
+        user.equipmentSizes && typeof user.equipmentSizes === "object"
+          ? { ...(user.equipmentSizes as Record<string, unknown>) }
+          : {};
+      root.__jerseyRequests = requests;
+      await getPrismaClient().user.update({
+        where: { id: user.id },
+        data: { equipmentSizes: root }
+      });
+      return request;
+    }
+    throw new Error("jersey_request_not_found");
+  }
+
   const store = await readStore();
   const request = store.jerseyNumberRequests.find((entry) => entry.id === input.requestId);
   if (!request) {

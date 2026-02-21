@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
 
 export type NotificationChannel = "email" | "sms" | "push";
 export type NotificationFrequency = "immediate" | "daily" | "weekly" | "off";
@@ -103,6 +105,20 @@ function normalizePreference(pref: Partial<NotificationPreference> & { userId: s
 }
 
 export async function getNotificationPreference(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { equipmentSizes: true }
+    });
+    const root = user?.equipmentSizes && typeof user.equipmentSizes === "object"
+      ? (user.equipmentSizes as Record<string, unknown>)
+      : {};
+    const pref = root.__notificationPreference && typeof root.__notificationPreference === "object"
+      ? (root.__notificationPreference as Partial<NotificationPreference>)
+      : undefined;
+    return normalizePreference({ ...(pref || {}), userId });
+  }
+
   const store = await readStore();
   const existing = store.preferences.find((entry) => entry.userId === userId);
   if (!existing) {
@@ -117,6 +133,41 @@ export async function upsertNotificationPreference(input: {
   frequency?: NotificationFrequency;
   categories?: Partial<Record<NotificationCategory, boolean>>;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    const current = await getNotificationPreference(input.userId);
+    const next = normalizePreference({
+      ...current,
+      userId: input.userId,
+      channels: {
+        ...current.channels,
+        ...(input.channels || {})
+      },
+      frequency: input.frequency || current.frequency,
+      categories: {
+        ...current.categories,
+        ...(input.categories || {})
+      },
+      updatedAt: nowIso()
+    });
+    const root =
+      user.equipmentSizes && typeof user.equipmentSizes === "object"
+        ? { ...(user.equipmentSizes as Record<string, unknown>) }
+        : {};
+    root.__notificationPreference = next;
+    await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: { equipmentSizes: root }
+    });
+    return next;
+  }
+
   const store = await readStore();
   const current = normalizePreference(store.preferences.find((entry) => entry.userId === input.userId) || { userId: input.userId });
 
