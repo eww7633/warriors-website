@@ -3,9 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
-import { listSportsData } from "@/lib/hq/ops-data";
 import { listCompetitions } from "@/lib/hq/competitions";
-import { listRosterReservations } from "@/lib/hq/roster-reservations";
 import {
   listPendingJerseyNumberRequests,
   listPendingPhotoSubmissionRequests
@@ -77,15 +75,13 @@ export default async function CentralRosterPage({
     ? (query.activity as ActivityFilter)
     : "all";
 
-  const [players, pendingPhotoRequests, pendingJerseyRequests, teamAssignments, profileExtras, renewalCandidates, sportsData, rosterReservations, competitions] = await Promise.all([
+  const [players, pendingPhotoRequests, pendingJerseyRequests, teamAssignments, profileExtras, renewalCandidates, competitions] = await Promise.all([
     listCentralRosterPlayers(),
     listPendingPhotoSubmissionRequests(),
     listPendingJerseyNumberRequests(),
     listAllTeamAssignments(),
     listPlayerProfileExtras(),
     listUsaHockeyRenewalCandidates(),
-    listSportsData(),
-    listRosterReservations(),
     listCompetitions()
   ]);
   const playersById = new Map(players.map((entry) => [entry.id, entry]));
@@ -98,16 +94,6 @@ export default async function CentralRosterPage({
     acc.set(assignment.userId, list);
     return acc;
   }, new Map<string, typeof teamAssignments>());
-  const reservedEmails = new Set(
-    rosterReservations
-      .map((entry) => (entry.email || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
-  const rosterReadyContacts = sportsData.contactLeads.filter((lead) => {
-    const email = (lead.email || "").trim().toLowerCase();
-    if (!email) return false;
-    return !reservedEmails.has(email);
-  });
   const competitionTeamOptions = competitions.flatMap((competition) =>
     competition.teams.map((team) => ({
       competitionId: competition.id,
@@ -274,85 +260,12 @@ export default async function CentralRosterPage({
         </ol>
         <div className="cta-row">
           <Link className="button ghost" href="/admin?section=contacts">
-            Open Contacts Queue Wizard
+            Open Users & Applications
           </Link>
           <Link className="button ghost" href="/admin?section=players">
             Open Players Hub
           </Link>
         </div>
-      </article>
-
-      <article className="card">
-        <h3>Add Imported Contact To Main Roster</h3>
-        <p className="muted">
-          Select an imported contact, choose sub-roster, and lock jersey number now. No manual typing required.
-        </p>
-        <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
-          <input type="hidden" name="returnTo" value={rosterReturnTo} />
-          <label>
-            Imported contact
-            <select name="contactLeadId" defaultValue="" required>
-              <option value="" disabled>Select contact</option>
-              {rosterReadyContacts.map((lead) => (
-                <option key={lead.id} value={lead.id}>
-                  {(lead.fullName || lead.email || lead.id)}{lead.email ? ` (${lead.email})` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Primary sub-roster
-            <select name="primarySubRoster" defaultValue="" required>
-              <option value="" disabled>Select color roster</option>
-              {PRIMARY_SUB_ROSTER_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Jersey number (optional)
-            <input name="jerseyNumber" type="number" min="1" max="99" placeholder="Auto-assigned if blank" />
-          </label>
-          <button className="button" type="submit">Add Contact To Main Roster</button>
-        </form>
-        <details className="event-card admin-disclosure">
-          <summary>One-Click Invite + Link + Promote + Roster</summary>
-          <p className="muted">
-            This sends invite, links account, promotes to player, and adds to main roster in one action.
-          </p>
-          <form className="grid-form" action="/api/admin/contacts/queue-progress" method="post">
-            <input type="hidden" name="returnTo" value="/admin/roster" />
-            <input type="hidden" name="action" value="full" />
-            <label>
-              Imported contact
-              <select name="contactLeadIds" defaultValue="" required>
-                <option value="" disabled>Select contact</option>
-                {rosterReadyContacts.map((lead) => (
-                  <option key={`${lead.id}-full`} value={lead.id}>
-                    {(lead.fullName || lead.email || lead.id)}{lead.email ? ` (${lead.email})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Primary sub-roster
-              <select name="primarySubRoster" defaultValue="" required>
-                <option value="" disabled>Select color roster</option>
-                {PRIMARY_SUB_ROSTER_OPTIONS.map((option) => (
-                  <option key={`${option}-full`} value={option}>
-                    {option.toUpperCase()}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button className="button" type="submit">Run Full Player Onboarding Pipeline</button>
-          </form>
-        </details>
-        {rosterReadyContacts.length === 0 ? (
-          <p className="muted">No imported contacts pending roster lock.</p>
-        ) : null}
       </article>
 
       <article className="card">

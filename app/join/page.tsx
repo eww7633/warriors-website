@@ -92,9 +92,23 @@ export default function JoinPage({
           <input name="password" type="password" placeholder="Create password" minLength={8} required />
           <input name="phone" placeholder="Phone" />
           <input name="usaHockeyNumber" placeholder="USA Hockey number (if you have one)" />
+          <textarea
+            name="playerExperienceSummary"
+            rows={4}
+            placeholder="Tell Hockey Ops about your playing experience, current level, and goals."
+            required
+          />
           <label>
             <input name="needsEquipment" type="checkbox" /> I need help with equipment
           </label>
+          <label>
+            <input name="acceptCodeOfConduct" type="checkbox" required /> I agree to the Pittsburgh Warriors player
+            code of conduct.
+          </label>
+          <p className="muted">
+            USA Hockey number is strongly recommended. Players without a current verified number cannot be rostered for
+            official on-ice competitions.
+          </p>
           <select name="position" required>
             <option value="">Preferred position</option>
             <option value="F">Forward</option>

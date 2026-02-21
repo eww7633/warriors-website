@@ -24,10 +24,7 @@ import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
 import { listRosterReservations } from "@/lib/hq/roster-reservations";
 import { listReservationBoards } from "@/lib/hq/reservations";
 import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
-import {
-  listOnboardingChecklistByUserIds,
-  listOnboardingChecklistTemplate
-} from "@/lib/hq/onboarding";
+import { listOnboardingChecklistTemplate } from "@/lib/hq/onboarding";
 import {
   listOpsRoleAssignments,
   listOpsRoleDefinitions,
@@ -44,6 +41,7 @@ import {
   listAnnouncements,
   listAnnouncementViewsByAnnouncement
 } from "@/lib/hq/announcements";
+import { listPlayerProfileExtras } from "@/lib/hq/player-profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +50,7 @@ const sectionDefs = [
   { key: "dvhl", label: "DVHL", permission: "manage_dvhl" },
   { key: "onice", label: "On-Ice Events", permission: "manage_events" },
   { key: "office", label: "Off-Ice Events", permission: "manage_events" },
-  { key: "contacts", label: "People & Onboarding", permission: "manage_site_users" },
+  { key: "contacts", label: "Users & Applications", permission: "manage_site_users" },
   { key: "usermanagement", label: "User Management", permission: "manage_site_users" },
   { key: "announcements", label: "Announcements", permission: "manage_site_users" },
   { key: "players", label: "Roster & Roles", permission: "manage_players" },
@@ -173,7 +171,7 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, showcaseGalleries, announcements] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, showcaseGalleries, announcements, playerProfileExtras] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
@@ -186,7 +184,8 @@ export default async function AdminPage({
     listAllNewsPosts(),
     listLocalShowcasePhotos(),
     listLocalShowcaseGalleries(),
-    listAnnouncements({ includeExpired: true, limit: 100 })
+    listAnnouncements({ includeExpired: true, limit: 100 }),
+    listPlayerProfileExtras()
   ]);
   const onboardingTemplate = await listOnboardingChecklistTemplate();
   const roleDefinitions = listOpsRoleDefinitions();
@@ -195,11 +194,6 @@ export default async function AdminPage({
   const donationPayments = await listDonationPayments();
   const donationLedgerSummary = await getDonationLedgerSummary();
   const actorIsSuperAdmin = await userHasPermission(user, "assign_ops_roles");
-  const onboardingByLinkedUsers = await listOnboardingChecklistByUserIds(
-    sportsData.contactLeads
-      .map((lead) => lead.linkedUserId || "")
-      .filter(Boolean)
-  );
   const dvhlTeamControlByTeamId = await getDvhlTeamControlMap(
     competitions
       .filter((competition) => competition.type === "DVHL")
@@ -218,47 +212,13 @@ export default async function AdminPage({
   );
   const nonPlayerUsers = store.users.filter((entry) => entry.role !== "player");
   const rejectedUsers = store.users.filter((entry) => entry.status === "rejected");
-  const usersByEmail = new Map(
-    store.users
-      .filter((entry) => entry.email)
-      .map((entry) => [entry.email.trim().toLowerCase(), entry])
-  );
   const roleAssignmentsByUserId = roleAssignments.reduce((acc, assignment) => {
     const list = acc.get(assignment.userId) ?? [];
     list.push(assignment);
     acc.set(assignment.userId, list);
     return acc;
   }, new Map<string, typeof roleAssignments>());
-  const reservedEmails = new Set(
-    rosterReservations
-      .map((entry) => (entry.email || "").trim().toLowerCase())
-      .filter(Boolean)
-  );
-  const contactBulkRosterCandidates = sportsData.contactLeads.filter((lead) => {
-    const email = (lead.email || "").trim().toLowerCase();
-    if (email && reservedEmails.has(email)) {
-      return false;
-    }
-    return true;
-  });
-  const queryContactSearch = String(query.contactSearch || "").trim().toLowerCase();
-  const filteredContactLeads = sportsData.contactLeads.filter((lead) => {
-    if (!queryContactSearch) return true;
-    const haystack = [
-      lead.fullName || "",
-      lead.email || "",
-      lead.phone || "",
-      lead.tags || "",
-      lead.onboardingStatus || "",
-      lead.linkedUser?.fullName || ""
-    ]
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(queryContactSearch);
-  });
-  const queueReadyContactLeads = sportsData.contactLeads.filter(
-    (lead) => lead.onboardingStatus !== "linked" || !lead.linkedUserId
-  );
+  const profileExtraByUserId = new Map(playerProfileExtras.map((entry) => [entry.userId, entry]));
 
   const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
@@ -445,7 +405,7 @@ export default async function AdminPage({
             <h3>Operations Playbook</h3>
             <p className="muted">Recommended daily workflow for any Hockey Ops admin.</p>
             <ol>
-              <li><Link href="/admin?section=contacts">People & Onboarding: review imports, send invites, and lock roster spots.</Link></li>
+              <li><Link href="/admin?section=contacts">Users & Applications: review player applications and manage supporter accounts.</Link></li>
               <li><Link href="/admin?section=onice">On-Ice Events: manage tournaments, games, scrimmages, and practices.</Link></li>
               <li><Link href="/admin?section=office">Off-Ice Events: manage family events, parties, and volunteer opportunities.</Link></li>
               <li><Link href="/admin/dvhl">DVHL: manage seasons, teams, schedule, and sub pools.</Link></li>
@@ -617,13 +577,14 @@ export default async function AdminPage({
                 </p>
               </div>
               <div className="event-card">
-                <strong>Imported Contact Leads ({sportsData.contactLeads.length})</strong>
+                <strong>Website Users ({store.users.length})</strong>
                 <p>
-                  {sportsData.contactLeads.length > 0
-                    ? sportsData.contactLeads
-                        .map((lead) => lead.fullName || lead.email || lead.phone || "Unnamed contact")
+                  {store.users.length > 0
+                    ? store.users
+                        .slice(0, 12)
+                        .map((member) => `${member.fullName} (${member.role})`)
                         .join(", ")
-                    : "No imported contacts yet"}
+                    : "No users yet"}
                 </p>
               </div>
             </div>
@@ -899,226 +860,40 @@ export default async function AdminPage({
       {section === "contacts" && (
         <div className="stack">
           <article className="card">
-            <h3>Contact Onboarding Pipeline</h3>
+            <h3>Users And Player Applications</h3>
             <p className="muted">
-              Imported contacts are stored in DB and can be moved through invited to linked.
-              When someone registers with the same email, they link automatically.
-            </p>
-            <p className="muted">
-              Workflow: send invite email, mark invited, wait for registration, then use Link Existing
-              Account by Email when a matching account appears.
+              Legacy contact import tools have been retired. This area now manages real website users, player
+              applications, and onboarding.
             </p>
             <div className="admin-kpi-grid">
               <div className="admin-kpi">
-                <span className="muted">Total contacts</span>
-                <strong>{sportsData.contactLeadStats.total}</strong>
+                <span className="muted">Total users</span>
+                <strong>{store.users.length}</strong>
               </div>
               <div className="admin-kpi">
-                <span className="muted">Imported</span>
-                <strong>{sportsData.contactLeadStats.imported}</strong>
+                <span className="muted">Supporters</span>
+                <strong>{store.users.filter((entry) => entry.role === "public" && entry.status === "approved").length}</strong>
               </div>
               <div className="admin-kpi">
-                <span className="muted">Invited</span>
-                <strong>{sportsData.contactLeadStats.invited}</strong>
+                <span className="muted">Pending player apps</span>
+                <strong>{pendingUsers.length}</strong>
               </div>
               <div className="admin-kpi">
-                <span className="muted">Linked</span>
-                <strong>{sportsData.contactLeadStats.linked}</strong>
+                <span className="muted">Approved players</span>
+                <strong>{approvedPlayers.length}</strong>
               </div>
             </div>
-            <p>
-              Invite link to share:{" "}
-              <code>https://pghwarriorhockey.us/join</code>
+            <p className="muted">
+              Public signup URL: <code>https://pghwarriorhockey.us/join</code>
             </p>
-            <details className="event-card admin-disclosure" open>
-              <summary>Import Wix Contacts</summary>
-              <p className="muted">
-                Paste CSV lines in the format:
-                <code> fullName,email,phone,tags,notes</code>. Header row optional.
-              </p>
-              <form className="grid-form" action="/api/admin/contacts/import" method="post" encType="multipart/form-data">
-                <label>
-                  Source
-                  <select name="source" defaultValue="wix">
-                    <option value="wix">Wix</option>
-                    <option value="manual">Manual</option>
-                    <option value="other">Other</option>
-                  </select>
-                </label>
-                <label>
-                  Upload CSV (optional)
-                  <input name="csvFile" type="file" accept=".csv,text/csv,text/plain" />
-                </label>
-                <textarea
-                  name="rows"
-                  rows={8}
-                  placeholder={`fullName,email,phone,tags,notes\nEvan Wawrykow,eww7633@yahoo.com,555-555-1212,player,veteran roster import`}
-                  required
-                />
-                <button className="button" type="submit">Import Contacts</button>
-              </form>
-            </details>
-            <details className="event-card admin-disclosure" open>
-              <summary>Provision All Contacts As Supporter Users</summary>
-              <p className="muted">
-                Bootstrap mode: create user accounts for all imported contacts (supporter role) and link them now.
-              </p>
-              <form className="grid-form" action="/api/admin/contacts/provision-supporters" method="post">
-                <input
-                  type="hidden"
-                  name="returnTo"
-                  value={`/admin?section=contacts${queryContactSearch ? `&contactSearch=${encodeURIComponent(queryContactSearch)}` : ""}`}
-                />
-                <button className="button" type="submit">
-                  Create / Link Supporter Users For All Contacts
-                </button>
-              </form>
-              <p className="muted">
-                Then use the queue below with <strong>Run Full Pipeline</strong> to invite, promote to player, and add to main roster.
-              </p>
-            </details>
-            <details className="event-card admin-disclosure" open>
-              <summary>Imported Contacts Queue (Invite → Link → Promote → Roster)</summary>
-              <p className="muted">
-                One-click queue workflow for selected contacts. Use full pipeline for contacts ready to become players.
-              </p>
-              <form className="grid-form" method="get" action="/admin">
-                <input type="hidden" name="section" value="contacts" />
-                <label>
-                  Search contacts
-                  <input
-                    name="contactSearch"
-                    placeholder="Name, email, phone, tag, status"
-                    defaultValue={queryContactSearch}
-                  />
-                </label>
-                <button className="button ghost" type="submit">Apply Filter</button>
-              </form>
-              <form className="grid-form" action="/api/admin/contacts/queue-progress" method="post">
-                <input type="hidden" name="returnTo" value={`/admin?section=contacts${queryContactSearch ? `&contactSearch=${encodeURIComponent(queryContactSearch)}` : ""}`} />
-                <label>
-                  Queue contacts
-                  <select
-                    name="contactLeadIds"
-                    multiple
-                    size={Math.min(12, Math.max(4, filteredContactLeads.length))}
-                    required
-                  >
-                    {filteredContactLeads.map((lead) => (
-                      <option key={lead.id} value={lead.id}>
-                        {lead.fullName || lead.email || lead.id}
-                        {lead.email ? ` (${lead.email})` : ""}
-                        {lead.onboardingStatus ? ` | ${lead.onboardingStatus}` : ""}
-                        {lead.linkedUserId ? " | linked" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Primary sub-roster (for promote/roster)
-                  <select name="primarySubRoster" defaultValue="">
-                    <option value="">Not used for invite/link only</option>
-                    <option value="gold">Gold</option>
-                    <option value="white">White</option>
-                    <option value="black">Black</option>
-                  </select>
-                </label>
-                <div className="cta-row">
-                  <button className="button ghost" type="submit" name="action" value="invite_link">
-                    Invite + Link Selected
-                  </button>
-                  <button className="button alt" type="submit" name="action" value="promote_roster">
-                    Promote + Roster Selected
-                  </button>
-                  <button className="button" type="submit" name="action" value="full">
-                    Run Full Pipeline
-                  </button>
-                </div>
-              </form>
-              {queueReadyContactLeads.length === 0 ? (
-                <p className="muted">All contacts are linked. Use Promote + Roster for player conversion.</p>
-              ) : null}
-            </details>
-            <details className="event-card admin-disclosure" open>
-              <summary>Bulk Add Imported Contacts to Main Roster</summary>
-              <p className="muted">
-                No typing flow: select contacts, choose sub-roster once, and lock all with auto jersey numbers.
-              </p>
-              <form className="grid-form" action="/api/admin/contacts/bulk-roster" method="post">
-                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
-                <label>
-                  Imported contacts
-                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, contactBulkRosterCandidates.length))} required>
-                    {contactBulkRosterCandidates.map((lead) => (
-                      <option key={lead.id} value={lead.id}>
-                        {lead.fullName || lead.email || lead.id}
-                        {lead.email ? ` (${lead.email})` : ""}
-                        {lead.linkedUserId ? " | linked" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Primary sub-roster
-                  <select name="primarySubRoster" defaultValue="" required>
-                    <option value="" disabled>Select sub-roster</option>
-                    <option value="gold">Gold</option>
-                    <option value="white">White</option>
-                    <option value="black">Black</option>
-                  </select>
-                </label>
-                <label>
-                  Optional ops role for linked users
-                  <select name="roleKey" defaultValue="">
-                    <option value="">No role assignment</option>
-                    {roleDefinitions
-                      .filter((definition) => actorIsSuperAdmin || definition.key !== "super_admin")
-                      .map((definition) => (
-                        <option key={definition.key} value={definition.key}>
-                          {definition.label}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <button className="button" type="submit">Bulk Add To Main Roster</button>
-              </form>
-              {contactBulkRosterCandidates.length === 0 ? (
-                <p className="muted">No imported contacts available for bulk roster lock.</p>
-              ) : null}
-            </details>
-            <details className="event-card admin-disclosure">
-              <summary>Bulk Send Invite Emails</summary>
-              <p className="muted">
-                Select contacts and send onboarding invites in one pass.
-              </p>
-              <form className="grid-form" action="/api/admin/contacts/bulk-invite" method="post">
-                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
-                <label>
-                  Contacts with email
-                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, filteredContactLeads.length))} required>
-                    {filteredContactLeads
-                      .filter((lead) => Boolean(lead.email))
-                      .map((lead) => (
-                        <option key={lead.id} value={lead.id}>
-                          {lead.fullName || lead.email || lead.id} ({lead.email})
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <button className="button ghost" type="submit">Send Bulk Invites</button>
-              </form>
-            </details>
           </article>
 
           <article className="card">
-            <h3>Imported Contacts</h3>
-            <p className="muted">
-              Showing {filteredContactLeads.length} of {sportsData.contactLeads.length} contacts.
-            </p>
+            <h3>Pending Player Applications</h3>
             <details className="event-card admin-disclosure" open>
               <summary>Onboarding Checklist Template</summary>
               <p className="muted">
-                One checklist item per line. This template is used for all linked player onboarding tracking.
+                One checklist item per line. This template is used for all player onboarding tracking.
               </p>
               <form className="grid-form" action="/api/admin/onboarding/template" method="post">
                 <textarea
@@ -1129,146 +904,90 @@ export default async function AdminPage({
                 <button className="button" type="submit">Save Onboarding Template</button>
               </form>
             </details>
-            {filteredContactLeads.length === 0 ? (
-              <p className="muted">
-                {sportsData.contactLeads.length === 0 ? "No contacts imported yet." : "No contacts match this filter."}
-              </p>
+            {pendingUsers.length === 0 ? (
+              <p className="muted">No pending player applications.</p>
             ) : (
               <div className="stack">
-                {filteredContactLeads.map((lead) => (
-                  <div key={lead.id} className="event-card stack">
-                    {(() => {
-                      const matchingUser = lead.email
-                        ? usersByEmail.get(lead.email.trim().toLowerCase())
-                        : undefined;
-                      return (
-                        <>
-                    <strong>{lead.fullName || "Unnamed contact"}</strong>
-                    <p>{lead.email || "No email"} {lead.phone ? `| ${lead.phone}` : ""}</p>
-                    <p>Status: {lead.onboardingStatus}</p>
+                {pendingUsers.map((candidate) => {
+                  const extra = profileExtraByUserId.get(candidate.id);
+                  return (
+                    <div key={candidate.id} className="event-card stack">
+                      <strong>{candidate.fullName}</strong>
+                      <p>{candidate.email}</p>
+                      <p>Phone: {candidate.phone || "Not provided"}</p>
+                      <p>Preferred position: {candidate.requestedPosition || "Not provided"}</p>
+                      <p>Experience: {extra?.playerExperienceSummary || "Not provided"}</p>
+                      <p>
+                        USA Hockey #: {extra?.usaHockeyNumber || "Missing"} | Status: {extra?.usaHockeyStatus || "unverified"}
+                      </p>
+                      <p>
+                        Needs equipment: {extra?.needsEquipment ? "Yes" : "No"} | Code of conduct accepted:{" "}
+                        {extra?.codeOfConductAcceptedAt ? new Date(extra.codeOfConductAcceptedAt).toLocaleString() : "No"}
+                      </p>
+                      <form
+                        className="grid-form"
+                        action={`/api/admin/users/${candidate.id}/approve`}
+                        method="post"
+                      >
+                        <label>
+                          Main roster
+                          <select name="rosterId" defaultValue="main-player-roster">
+                            <option value="main-player-roster">Main Player Roster</option>
+                          </select>
+                        </label>
+                        <label>
+                          Primary sub-roster
+                          <select name="primarySubRoster" defaultValue="" required>
+                            <option value="" disabled>Select color roster</option>
+                            <option value="gold">Gold</option>
+                            <option value="white">White</option>
+                            <option value="black">Black</option>
+                          </select>
+                        </label>
+                        <label>
+                          Jersey number (optional)
+                          <input name="jerseyNumber" type="number" min="1" max="99" />
+                        </label>
+                        <label>
+                          <input type="checkbox" name="allowCrossColorJerseyOverlap" /> Allow cross-color overlap
+                        </label>
+                        <button className="button" type="submit">Approve Player Application</button>
+                      </form>
+                      <form action={`/api/admin/users/${candidate.id}/reject`} method="post">
+                        <button className="button alt" type="submit">Reject Application</button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </article>
+
+          <article className="card">
+            <h3>Existing Website Users</h3>
+            {nonPlayerUsers.length === 0 ? (
+              <p className="muted">No non-player website users.</p>
+            ) : (
+              <div className="stack">
+                {nonPlayerUsers.map((member) => (
+                  <div key={member.id} className="event-card stack">
+                    <strong>{member.fullName}</strong>
+                    <p>{member.email}</p>
                     <p>
-                      Linked user: {lead.linkedUser
-                        ? `${lead.linkedUser.fullName} (${lead.linkedUser.email})`
-                        : "Not linked yet"}
+                      Role: {member.role} | Status: {member.status}
                     </p>
-                    <p>
-                      Match check: {matchingUser
-                        ? `Found account ${matchingUser.fullName} (${matchingUser.email})`
-                        : "No matching account yet. Ask them to register first with this exact email."}
-                    </p>
-                    <p className="muted">Invite sender account: {inviteFromEmail}</p>
-                    <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
-                      <input type="hidden" name="contactLeadId" value={lead.id} />
+                    <form className="grid-form" action={`/api/admin/users/${member.id}/access`} method="post">
                       <input type="hidden" name="returnTo" value="/admin?section=contacts" />
                       <label>
-                        Jersey number (optional)
-                        <input name="jerseyNumber" type="number" min={1} max={99} placeholder="Leave blank for auto-assign" />
-                      </label>
-                      <label>
-                        Primary sub-roster
-                        <select name="primarySubRoster" defaultValue="" required>
-                          <option value="" disabled>Select sub-roster</option>
-                          <option value="gold">Gold</option>
-                          <option value="white">White</option>
-                          <option value="black">Black</option>
+                        Set role
+                        <select name="role" defaultValue={member.role}>
+                          <option value="public">Public</option>
+                          <option value="player">Player</option>
+                          <option value="admin">Admin</option>
                         </select>
                       </label>
-                      <button className="button ghost" type="submit">Add To Main Roster Queue</button>
+                      <button className="button ghost" type="submit">Save User Access</button>
                     </form>
-                    {lead.linkedUserId ? (
-                      <details className="event-card admin-disclosure">
-                        <summary>Linked user onboarding checklist</summary>
-                        <div className="stack">
-                          {onboardingByLinkedUsers.template.map((item) => {
-                            const completion = onboardingByLinkedUsers.completionMap[lead.linkedUserId!]?.[item.id];
-                            return (
-                              <form key={`${lead.id}-${item.id}`} className="grid-form" action="/api/admin/onboarding/check-item" method="post">
-                                <input type="hidden" name="userId" value={lead.linkedUserId!} />
-                                <input type="hidden" name="checklistItemId" value={item.id} />
-                                <input type="hidden" name="completed" value={completion?.completed ? "0" : "1"} />
-                                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
-                                <p>
-                                  <strong>{item.label}</strong>
-                                </p>
-                                <p className="muted">
-                                  Status: {completion?.completed ? "Completed" : "Not completed"}
-                                  {completion?.updatedAt ? ` | ${new Date(completion.updatedAt).toLocaleString()}` : ""}
-                                </p>
-                                <input name="note" placeholder="Optional note" defaultValue={completion?.note || ""} />
-                                <button className="button ghost" type="submit">
-                                  {completion?.completed ? "Mark Incomplete" : "Mark Complete"}
-                                </button>
-                              </form>
-                            );
-                          })}
-                        </div>
-                      </details>
-                    ) : null}
-                    <div className="cta-row">
-                      {lead.email && (
-                        <form action="/api/admin/contacts/send-invite" method="post">
-                          <input type="hidden" name="contactLeadId" value={lead.id} />
-                          <button className="button" type="submit">Send Invite Email</button>
-                        </form>
-                      )}
-                      {!lead.linkedUser && (
-                        <form action="/api/admin/contacts/mark-invited" method="post">
-                          <input type="hidden" name="contactLeadId" value={lead.id} />
-                          <button className="button alt" type="submit">Mark Invited</button>
-                        </form>
-                      )}
-                      {!lead.linkedUser && lead.email && (
-                        <form action="/api/admin/contacts/link-by-email" method="post">
-                          <input type="hidden" name="contactLeadId" value={lead.id} />
-                          <button
-                            className="button ghost"
-                            type="submit"
-                            disabled={!matchingUser}
-                            title={
-                              matchingUser
-                                ? "Link this contact to the matching account."
-                                : "No account with this email exists yet."
-                            }
-                          >
-                            Link Existing Account by Email
-                          </button>
-                        </form>
-                      )}
-                    </div>
-                    {lead.linkedUserId ? (
-                      <details className="event-card admin-disclosure">
-                        <summary>Assign Hockey Ops role</summary>
-                        <form
-                          className="grid-form"
-                          action={`/api/admin/users/${lead.linkedUserId}/ops-role`}
-                          method="post"
-                        >
-                          <input type="hidden" name="returnTo" value="/admin?section=contacts" />
-                          <label>
-                            Ops role
-                            <select name="roleKey" defaultValue="">
-                              <option value="" disabled>Select role</option>
-                              {roleDefinitions
-                                .filter((definition) => actorIsSuperAdmin || definition.key !== "super_admin")
-                                .map((definition) => (
-                                  <option key={definition.key} value={definition.key}>{definition.label}</option>
-                                ))}
-                            </select>
-                          </label>
-                          <input name="titleLabel" placeholder="Title label (optional)" />
-                          <input name="officialEmail" type="email" placeholder="Official email (optional)" />
-                          <input name="badgeLabel" placeholder="Badge label (optional)" />
-                          <button className="button ghost" type="submit">Assign Role</button>
-                        </form>
-                        <p className="muted">
-                          Current roles: {(roleAssignmentsByUserId.get(lead.linkedUserId) || []).map((entry) => entry.titleLabel).join(", ") || "None"}
-                        </p>
-                      </details>
-                    ) : null}
-                    {lead.tags && <p className="muted">Tags: {lead.tags}</p>}
-                        </>
-                      );
-                    })()}
                   </div>
                 ))}
               </div>
@@ -2227,8 +1946,8 @@ export default async function AdminPage({
           <article className="card">
             <h3>Import Roster Number Locks</h3>
             <p className="muted">
-              Advanced tool. Most admins should use <strong>People & Onboarding</strong> to add contacts to roster
-              queue with auto-assigned numbers.
+              Advanced tool. Most admins should use <strong>Users & Applications</strong> and{" "}
+              <strong>Central Roster Manager</strong> to approve players and assign numbers.
             </p>
             <p className="muted">
               Use this only for large legacy imports to reserve existing players and jersey numbers before they register.
@@ -2333,7 +2052,7 @@ export default async function AdminPage({
               <div className="stack">
                 <h4>Assign Ops Leadership Roles</h4>
                 <form className="grid-form event-card" action="/api/admin/ops-roles/import" method="post">
-                  <strong>Bulk import ops roles (for Wix imports)</strong>
+                  <strong>Bulk import ops roles</strong>
                   <textarea
                     name="rows"
                     rows={6}

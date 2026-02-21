@@ -385,6 +385,57 @@ export async function createSupporterUser(input: {
   return user;
 }
 
+export async function submitPlayerApplication(input: {
+  userId: string;
+  requestedPosition: string;
+}) {
+  const requestedPosition = input.requestedPosition.trim();
+  if (!requestedPosition) {
+    throw new Error("requested_position_required");
+  }
+
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+    const user = await getPrismaClient().user.findUnique({ where: { id: input.userId } });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+    if (user.role === "player") {
+      throw new Error("already_player");
+    }
+    if (user.status === "pending") {
+      return mapUser(user);
+    }
+
+    const updated = await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: {
+        requestedPosition,
+        status: "pending"
+      }
+    });
+    return mapUser(updated);
+  }
+
+  const store = await readStore();
+  const user = store.users.find((entry) => entry.id === input.userId);
+  if (!user) {
+    throw new Error("user_not_found");
+  }
+  if (user.role === "player") {
+    throw new Error("already_player");
+  }
+  if (user.status === "pending") {
+    return user;
+  }
+
+  user.requestedPosition = requestedPosition;
+  user.status = "pending";
+  user.updatedAt = nowIso();
+  await writeStore(store);
+  return user;
+}
+
 export async function approvePlayer(userId: string, rosterId: string, jerseyNumber?: number) {
   if (useDatabaseBackend()) {
     await ensureAdminSeedDb();

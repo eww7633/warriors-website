@@ -11,6 +11,8 @@ export async function POST(request: Request) {
   const password = String(formData.get("password") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const requestedPosition = String(formData.get("position") ?? "").trim();
+  const playerExperienceSummary = String(formData.get("playerExperienceSummary") ?? "").trim();
+  const acceptCodeOfConduct = String(formData.get("acceptCodeOfConduct") ?? "").trim() === "on";
   const addressLine1 = String(formData.get("addressLine1") ?? "").trim();
   const addressLine2 = String(formData.get("addressLine2") ?? "").trim();
   const city = String(formData.get("city") ?? "").trim();
@@ -26,6 +28,9 @@ export async function POST(request: Request) {
 
   if (password.length < 8) {
     return NextResponse.redirect(new URL("/join?error=password_too_short", request.url), 303);
+  }
+  if (!requestedPosition || !playerExperienceSummary || !acceptCodeOfConduct) {
+    return NextResponse.redirect(new URL("/join?error=player_application_incomplete", request.url), 303);
   }
 
   try {
@@ -50,7 +55,9 @@ export async function POST(request: Request) {
       usaHockeyNumber: usaHockeyNumber || undefined,
       usaHockeySeason: usaHockeyNumber ? usaHockeySeasonLabel() : undefined,
       usaHockeyStatus: usaHockeyNumber ? "unverified" : "pending_renewal",
-      usaHockeySource: "player"
+      usaHockeySource: "player",
+      playerExperienceSummary,
+      codeOfConductAcceptedAt: new Date().toISOString()
     });
     return NextResponse.redirect(new URL("/login?registered=1", request.url), 303);
   } catch (error) {

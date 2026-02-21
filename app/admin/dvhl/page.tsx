@@ -392,13 +392,13 @@ export default async function AdminDvhlPage({
           {tab === "teams" && (
             <div className="stack">
               <article className="card">
-                <h3>Roster Import Shortcuts</h3>
+                <h3>Roster Management Shortcuts</h3>
                 <p className="muted">
-                  Use this first if playoff players are missing. Bulk-import contacts, then place them onto DVHL teams.
+                  If playoff players are missing, create/support their website accounts first, then approve player applications and place them onto DVHL teams.
                 </p>
                 <div className="cta-row">
                   <Link className="button" href="/admin?section=contacts">
-                    Open Contacts Queue
+                    Open Users & Applications
                   </Link>
                   <Link className="button ghost" href="/admin/roster">
                     Open Central Player Manager

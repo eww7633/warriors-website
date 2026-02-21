@@ -52,6 +52,8 @@ export type PlayerProfileExtra = {
   usaHockeySource?: "manual" | "sportsengine" | "player";
   usaHockeyVerifiedAt?: string;
   usaHockeyExpiresAt?: string;
+  playerExperienceSummary?: string;
+  codeOfConductAcceptedAt?: string;
   updatedAt: string;
 };
 
@@ -227,6 +229,8 @@ export async function upsertPlayerContactProfile(input: {
   usaHockeyStatus?: UsaHockeyStatus;
   usaHockeySource?: "manual" | "sportsengine" | "player";
   usaHockeyExpiresAt?: string;
+  playerExperienceSummary?: string;
+  codeOfConductAcceptedAt?: string;
 }) {
   const store = await readStore();
   const profile = ensureProfile(store, input.userId);
@@ -255,6 +259,12 @@ export async function upsertPlayerContactProfile(input: {
   }
   if (typeof input.usaHockeyExpiresAt !== "undefined") {
     profile.usaHockeyExpiresAt = normalizeOptionalText(input.usaHockeyExpiresAt);
+  }
+  if (typeof input.playerExperienceSummary !== "undefined") {
+    profile.playerExperienceSummary = normalizeOptionalText(input.playerExperienceSummary);
+  }
+  if (typeof input.codeOfConductAcceptedAt !== "undefined") {
+    profile.codeOfConductAcceptedAt = normalizeOptionalText(input.codeOfConductAcceptedAt);
   }
   profile.updatedAt = nowIso();
   await writeStore(store);
