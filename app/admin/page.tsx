@@ -117,6 +117,7 @@ export default async function AdminPage({
     bulkLocked?: string;
     bulkSkipped?: string;
     bulkRoles?: string;
+    bulkInvited?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -252,6 +253,9 @@ export default async function AdminPage({
     query.contact === "roster_locked" ? "Contact added to main roster queue with jersey lock." : null,
     query.contact === "bulk_roster_locked"
       ? `Bulk roster lock complete: ${query.bulkLocked || "0"} locked, ${query.bulkSkipped || "0"} skipped, ${query.bulkRoles || "0"} role assignments.`
+      : null,
+    query.contact === "bulk_invited"
+      ? `Bulk invite complete: ${query.bulkInvited || "0"} invited, ${query.bulkSkipped || "0"} skipped.`
       : null,
     query.contact === "imported" ? `Contacts import complete: ${query.imported || "0"} added, ${query.updated || "0"} updated, ${query.skipped || "0"} skipped.` : null,
     query.userrole === "updated" ? "User role updated." : null,
@@ -920,6 +924,28 @@ export default async function AdminPage({
               {contactBulkRosterCandidates.length === 0 ? (
                 <p className="muted">No imported contacts available for bulk roster lock.</p>
               ) : null}
+            </details>
+            <details className="event-card admin-disclosure">
+              <summary>Bulk Send Invite Emails</summary>
+              <p className="muted">
+                Select contacts and send onboarding invites in one pass.
+              </p>
+              <form className="grid-form" action="/api/admin/contacts/bulk-invite" method="post">
+                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+                <label>
+                  Contacts with email
+                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, sportsData.contactLeads.length))} required>
+                    {sportsData.contactLeads
+                      .filter((lead) => Boolean(lead.email))
+                      .map((lead) => (
+                        <option key={lead.id} value={lead.id}>
+                          {lead.fullName || lead.email || lead.id} ({lead.email})
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <button className="button ghost" type="submit">Send Bulk Invites</button>
+              </form>
             </details>
           </article>
 
