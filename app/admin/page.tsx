@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import EventFormEnhancer from "@/app/admin/event-form-enhancer";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
@@ -1268,6 +1269,7 @@ export default async function AdminPage({
 
       {(section === "onice" || section === "office") && (
         <div className="stack">
+          <EventFormEnhancer />
           {(() => {
             const eventScope = section === "onice" ? "onice" : "office";
             const returnSection = section;
@@ -1366,7 +1368,7 @@ export default async function AdminPage({
           <details className="card admin-disclosure" open>
             <summary>Create Event</summary>
             <h3>Publish Event (Public Site Feed Source)</h3>
-            <form className="grid-form" action="/api/admin/events" method="post">
+            <form className="grid-form" data-event-form="1" action="/api/admin/events" method="post">
               <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
               <h4>Step 1: Core Details</h4>
               <input name="title" placeholder="Event title" required />
@@ -1435,29 +1437,29 @@ export default async function AdminPage({
                     <option value="internal">Internal (admin only)</option>
                   </select>
                 </label>
-                <label>
+                <label data-onice-only="1">
                   <input name="requiresUsaHockeyVerified" type="checkbox" /> Require verified USA Hockey number
                 </label>
               </details>
 
               <details className="event-card admin-disclosure">
                 <summary>Step 3: Interest + Guest Rules (optional)</summary>
-                <label>
+                <label data-interest-only="1">
                   Interest closes at
                   <input name="interestClosesAt" type="datetime-local" />
                 </label>
-                <label>
+                <label data-interest-only="1">
                   Target roster size
                   <input name="targetRosterSize" type="number" min={1} step={1} placeholder="Optional" />
                 </label>
-                <label>
+                <label data-guest-only="1">
                   <input name="allowGuestRequests" type="checkbox" /> Allow players to request guests (disabled for DVHL)
                 </label>
-                <label>
+                <label data-guest-only="1">
                   <input name="guestCostEnabled" type="checkbox" /> Guest cost applies
                 </label>
-                <input name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
-                <input name="guestCostAmountUsd" type="number" min={0} step="0.01" placeholder="Guest cost amount (USD)" />
+                <input data-guest-only="1" name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
+                <input data-guest-only="1" name="guestCostAmountUsd" type="number" min={0} step="0.01" placeholder="Guest cost amount (USD)" />
               </details>
 
               <details className="event-card admin-disclosure">
@@ -1522,7 +1524,7 @@ export default async function AdminPage({
                       </p>
                     );
                   })()}
-                  <form className="grid-form" action="/api/admin/events/update" method="post">
+                  <form className="grid-form" data-event-form="1" action="/api/admin/events/update" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
                     <h4>Step 1: Core Details</h4>
@@ -1604,7 +1606,7 @@ export default async function AdminPage({
 
                     <details className="event-card admin-disclosure">
                       <summary>Step 3: Interest + Guest Rules (optional)</summary>
-                      <label>
+                      <label data-interest-only="1">
                         Interest closes at
                         <input
                           name="interestClosesAt"
@@ -1616,7 +1618,7 @@ export default async function AdminPage({
                           }
                         />
                       </label>
-                      <label>
+                      <label data-interest-only="1">
                         Target roster size
                         <input
                           name="targetRosterSize"
@@ -1627,7 +1629,7 @@ export default async function AdminPage({
                           placeholder="Optional"
                         />
                       </label>
-                      <label>
+                      <label data-guest-only="1">
                         <input
                           name="allowGuestRequests"
                           type="checkbox"
@@ -1635,7 +1637,7 @@ export default async function AdminPage({
                         />{" "}
                         Allow players to request guests (disabled for DVHL)
                       </label>
-                      <label>
+                      <label data-onice-only="1">
                         <input
                           name="requiresUsaHockeyVerified"
                           type="checkbox"
@@ -1643,7 +1645,7 @@ export default async function AdminPage({
                         />{" "}
                         Require verified USA Hockey number
                       </label>
-                      <label>
+                      <label data-guest-only="1">
                         <input
                           name="guestCostEnabled"
                           type="checkbox"
@@ -1652,11 +1654,13 @@ export default async function AdminPage({
                         Guest cost applies
                       </label>
                       <input
+                        data-guest-only="1"
                         name="guestCostLabel"
                         placeholder="Guest cost label (e.g., hotel fee)"
                         defaultValue={signupConfigsByEvent[event.id]?.guestCostLabel || ""}
                       />
                       <input
+                        data-guest-only="1"
                         name="guestCostAmountUsd"
                         type="number"
                         min={0}
