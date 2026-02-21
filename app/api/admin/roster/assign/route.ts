@@ -22,19 +22,21 @@ export async function POST(request: Request) {
   const forceNumberOverlap = String(formData.get("forceNumberOverlap") ?? "").trim() === "on";
   const allowCrossColorJerseyOverlap =
     String(formData.get("allowCrossColorJerseyOverlap") ?? "").trim() === "on";
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin/roster";
 
   const jerseyNumber = jerseyNumberRaw ? Number(jerseyNumberRaw) : undefined;
 
   if (!userId || !fullName || !["active", "inactive"].includes(activityStatus)) {
-    return NextResponse.redirect(new URL("/admin/roster?error=invalid_roster_update", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_roster_update`, request.url), 303);
   }
 
   if (!["gold", "white", "black"].includes(primarySubRoster)) {
-    return NextResponse.redirect(new URL("/admin/roster?error=primary_sub_roster_required", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=primary_sub_roster_required`, request.url), 303);
   }
 
   if (jerseyNumberRaw && (!Number.isFinite(jerseyNumber) || Number(jerseyNumber) <= 0 || Number(jerseyNumber) > 99)) {
-    return NextResponse.redirect(new URL("/admin/roster?error=invalid_jersey_number", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=invalid_jersey_number`, request.url), 303);
   }
 
   try {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return NextResponse.redirect(
         new URL(
-          `/admin/roster?error=number_conflict&conflictPlayer=${encodeURIComponent(result.conflict.name)}`,
+          `${returnTo}${returnTo.includes("?") ? "&" : "?"}error=number_conflict&conflictPlayer=${encodeURIComponent(result.conflict.name)}`,
           request.url
         ),
         303
@@ -63,8 +65,8 @@ export async function POST(request: Request) {
       allowCrossColorJerseyOverlap
     });
 
-    return NextResponse.redirect(new URL("/admin/roster?saved=1", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`, request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin/roster?error=roster_update_failed", request.url), 303);
+    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=roster_update_failed`, request.url), 303);
   }
 }

@@ -47,6 +47,8 @@ export default async function CentralRosterPage({
     usaUpdated?: string;
     legacyMigrated?: string;
     onboardingCheck?: string;
+    contact?: string;
+    linked?: string;
   };
 }) {
   const user = await getCurrentUser();
@@ -174,6 +176,14 @@ export default async function CentralRosterPage({
 
   const exportParams = new URLSearchParams(paramsBase);
   const exportHref = `/api/admin/roster/export${exportParams.toString() ? `?${exportParams.toString()}` : ""}`;
+  const rosterReturnParams = new URLSearchParams(paramsBase);
+  if (sort) {
+    rosterReturnParams.set("sort", sort);
+  }
+  if (dir) {
+    rosterReturnParams.set("dir", dir);
+  }
+  const rosterReturnTo = `/admin/roster${rosterReturnParams.toString() ? `?${rosterReturnParams.toString()}` : ""}`;
 
   return (
     <section className="stack">
@@ -208,6 +218,8 @@ export default async function CentralRosterPage({
           <button className="button" type="submit">Apply Filter</button>
         </form>
         {query.saved === "1" && <p className="badge">Player record updated.</p>}
+        {query.contact === "roster_locked" && query.linked === "1" && <p className="badge">Imported contact added to main roster and linked to a player account.</p>}
+        {query.contact === "roster_locked" && query.linked === "0" && <p className="badge">Jersey lock created. Contact still needs account link/invite before appearing in sortable player roster.</p>}
         {query.deleted === "1" && <p className="badge">Player deleted.</p>}
         {query.assignmentDeleted === "1" && <p className="badge">Team assignment removed.</p>}
         {query.usaStatus === "updated" && <p className="badge">USA Hockey status updated.</p>}
@@ -265,7 +277,7 @@ export default async function CentralRosterPage({
           Select an imported contact, choose sub-roster, and lock jersey number now. No manual typing required.
         </p>
         <form className="grid-form" action="/api/admin/contacts/add-to-roster" method="post">
-          <input type="hidden" name="returnTo" value="/admin/roster" />
+          <input type="hidden" name="returnTo" value={rosterReturnTo} />
           <label>
             Imported contact
             <select name="contactLeadId" defaultValue="" required>
@@ -503,6 +515,7 @@ export default async function CentralRosterPage({
                   <form className="grid-form" action="/api/admin/roster/assign" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <input type="hidden" name="fullName" value={player.fullName} />
+                    <input type="hidden" name="returnTo" value={rosterReturnTo} />
                     <strong>Main + Sub-Roster Assignment</strong>
                     <p className="muted">
                       One-step placement: Main roster is fixed to Main Player Roster.

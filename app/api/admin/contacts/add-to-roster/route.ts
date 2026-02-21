@@ -10,7 +10,8 @@ import {
   upsertRosterReservations
 } from "@/lib/hq/roster-reservations";
 import { readStore } from "@/lib/hq/store";
-import { getContactLeadById } from "@/lib/hq/ops-data";
+import { createSupporterUser } from "@/lib/hq/store";
+import { getContactLeadById, linkContactLeadToMatchingUser } from "@/lib/hq/ops-data";
 
 function nextAvailableNumber(used: Set<number>) {
   for (let number = 1; number <= 99; number += 1) {
@@ -24,6 +25,10 @@ function nextAvailableNumber(used: Set<number>) {
 function withParam(path: string, key: string, value: string) {
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
+function randomTempPassword() {
+  return `Warriors-${Math.random().toString(36).slice(2, 10)}!`;
 }
 
 export async function POST(request: Request) {
@@ -53,10 +58,29 @@ export async function POST(request: Request) {
   }
 
   try {
-    const lead = await getContactLeadById(contactLeadId);
+    let lead = await getContactLeadById(contactLeadId);
 
     if (!lead) {
       return NextResponse.redirect(new URL(withParam(returnTo, "error", "contact_not_found"), request.url), 303);
+    }
+
+    if (!lead.linkedUserId && lead.email) {
+      try {
+        await linkContactLeadToMatchingUser(lead.id);
+      } catch {
+        try {
+          await createSupporterUser({
+            fullName: lead.fullName?.trim() || lead.email,
+            email: lead.email,
+            password: randomTempPassword(),
+            phone: lead.phone || undefined
+          });
+          await linkContactLeadToMatchingUser(lead.id);
+        } catch {
+          // Leave unlinked and continue with reservation lock only.
+        }
+      }
+      lead = (await getContactLeadById(contactLeadId)) || lead;
     }
 
     const fullName = lead.fullName?.trim() || lead.email || `Lead ${lead.id.slice(0, 6)}`;
@@ -152,7 +176,10 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.redirect(new URL(withParam(returnTo, "contact", "roster_locked"), request.url), 303);
+    const url = new URL(returnTo, request.url);
+    url.searchParams.set("contact", "roster_locked");
+    url.searchParams.set("linked", lead.linkedUserId ? "1" : "0");
+    return NextResponse.redirect(url, 303);
   } catch {
     return NextResponse.redirect(new URL(withParam(returnTo, "error", "contact_roster_lock_failed"), request.url), 303);
   }
