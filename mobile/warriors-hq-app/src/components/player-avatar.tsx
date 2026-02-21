@@ -6,29 +6,28 @@ const normalizeNumber = (value: number): string => {
   return String(rounded).padStart(2, '0');
 };
 
-const hashToNumber = (seed: string): string => {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) % 97;
-  }
-  return normalizeNumber(hash + 1);
+const initialFromName = (fullName: string): string => {
+  const trimmed = fullName.trim();
+  if (!trimmed) return '?';
+  return trimmed.charAt(0).toUpperCase();
 };
 
 export function PlayerAvatar({
   fullName,
   jerseyNumber,
   avatarUrl,
-  seed,
+  role,
   size = 40
 }: {
   fullName: string;
   jerseyNumber: number | null;
   avatarUrl: string | null;
-  seed: string;
+  role?: 'player' | 'admin' | 'supporter' | null;
   size?: number;
 }) {
   const colors = useThemeColors();
-  const displayNumber = jerseyNumber ? normalizeNumber(jerseyNumber) : hashToNumber(seed || fullName);
+  const shouldShowInitial = role === 'supporter' || !jerseyNumber;
+  const displayText = shouldShowInitial ? initialFromName(fullName) : normalizeNumber(jerseyNumber);
 
   if (avatarUrl) {
     return (
@@ -41,7 +40,7 @@ export function PlayerAvatar({
 
   return (
     <View style={[styles.fallback, { width: size, height: size, borderColor: colors.border, backgroundColor: colors.secondary }]}>
-      <Text style={[styles.number, { color: colors.secondaryText }]}>{displayNumber}</Text>
+      <Text style={[styles.number, { color: colors.secondaryText }]}>{displayText}</Text>
     </View>
   );
 }
@@ -62,4 +61,3 @@ const styles = StyleSheet.create({
     fontWeight: '700'
   }
 });
-

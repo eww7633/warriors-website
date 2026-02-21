@@ -128,7 +128,7 @@ export default function DashboardScreen() {
               fullName={session.user?.fullName || 'User'}
               jerseyNumber={session.user?.jerseyNumber ?? null}
               avatarUrl={session.user?.avatarUrl ?? null}
-              seed={session.user?.id || session.user?.email || 'user'}
+              role={session.user?.role}
               size={54}
             />
             <View style={{ flex: 1 }}>
@@ -227,7 +227,7 @@ export default function DashboardScreen() {
                     fullName={entry.fullName}
                     jerseyNumber={entry.jerseyNumber}
                     avatarUrl={entry.avatarUrl}
-                    seed={entry.userId}
+                    role={entry.role}
                     size={30}
                   />
                   <Text style={{ color: colors.textMuted, fontSize: 12 }} numberOfLines={1}>

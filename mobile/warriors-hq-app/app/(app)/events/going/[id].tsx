@@ -115,7 +115,7 @@ export default function GoingListScreen() {
                   fullName={member.fullName}
                   jerseyNumber={member.jerseyNumber}
                   avatarUrl={member.avatarUrl}
-                  seed={member.userId}
+                  role={member.role}
                 />
                 <View style={styles.memberTextWrap}>
                   <Text style={{ color: colors.text, fontWeight: '700' }}>{member.fullName}</Text>

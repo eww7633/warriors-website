@@ -63,7 +63,7 @@ export default function SettingsScreen() {
             fullName={session.user?.fullName || 'User'}
             jerseyNumber={session.user?.jerseyNumber ?? null}
             avatarUrl={session.user?.avatarUrl ?? null}
-            seed={session.user?.id || session.user?.email || 'user'}
+            role={session.user?.role}
             size={52}
           />
           <View style={{ flex: 1 }}>

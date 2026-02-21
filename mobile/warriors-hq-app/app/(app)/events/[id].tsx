@@ -105,7 +105,7 @@ export default function EventDetailScreen() {
                         fullName={member.fullName}
                         jerseyNumber={member.jerseyNumber}
                         avatarUrl={member.avatarUrl}
-                        seed={member.userId}
+                        role={member.role}
                         size={32}
                       />
                       <Text style={{ color: colors.textMuted }}>
