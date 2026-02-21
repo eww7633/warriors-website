@@ -116,19 +116,7 @@ export async function Nav() {
         <ThemeToggle />
 
         <div className="auth-actions">
-          {!hasSession ? (
-            <>
-              <Link className="button ghost" href="/join?mode=supporter">Sign Up</Link>
-              <Link className="button" href="/login">Log In</Link>
-            </>
-          ) : (
-            <>
-              {isSupporterOrPending ? <Link className="button alt" href="/donate">Donate</Link> : null}
-              {isSupporterOrPending ? <Link className="button ghost" href="/join?mode=player">Join</Link> : null}
-              {showHqButton ? <Link className="button ghost" href="/player">HQ</Link> : null}
-              {showOpsButton ? <Link className="button ghost" href="/admin">Ops</Link> : null}
-            </>
-          )}
+          <Link className="button alt" href="/donate">Donate Now</Link>
         </div>
 
         <MobileNavMenu
@@ -153,6 +141,11 @@ export async function Nav() {
             <span>Welcome {accountName}</span>
           </Link>
           <div className="account-hub-switch">
+            {isSupporterOrPending ? (
+              <Link href="/join?mode=player" className="button ghost account-hub-button">
+                Join
+              </Link>
+            ) : null}
             {showHqButton ? (
               <Link href="/player" className="button ghost account-hub-button">
                 HQ
@@ -168,7 +161,21 @@ export async function Nav() {
             <button className="button account-logout-button" type="submit">Log Out</button>
           </form>
         </div>
-      ) : null}
+      ) : (
+        <div className="account-strip" aria-label="Guest quick actions">
+          <span className="account-chip account-chip-static">
+            Welcome Guest
+          </span>
+          <div className="account-hub-switch">
+            <Link href="/join?mode=supporter" className="button ghost account-hub-button">
+              Join
+            </Link>
+            <Link href="/login" className="button account-hub-button">
+              Log In
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

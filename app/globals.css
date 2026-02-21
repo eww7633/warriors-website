@@ -461,6 +461,10 @@ html[data-theme="dark"] .brand-logo-dark {
   font-weight: 700;
 }
 
+.account-chip-static {
+  pointer-events: none;
+}
+
 .account-avatar,
 .account-avatar-fallback {
   width: 26px;
