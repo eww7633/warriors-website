@@ -114,6 +114,9 @@ export default async function AdminPage({
     opsSkipped?: string;
     media?: string;
     news?: string;
+    bulkLocked?: string;
+    bulkSkipped?: string;
+    bulkRoles?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -202,6 +205,18 @@ export default async function AdminPage({
     acc.set(assignment.userId, list);
     return acc;
   }, new Map<string, typeof roleAssignments>());
+  const reservedEmails = new Set(
+    rosterReservations
+      .map((entry) => (entry.email || "").trim().toLowerCase())
+      .filter(Boolean)
+  );
+  const contactBulkRosterCandidates = sportsData.contactLeads.filter((lead) => {
+    const email = (lead.email || "").trim().toLowerCase();
+    if (email && reservedEmails.has(email)) {
+      return false;
+    }
+    return true;
+  });
 
   const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
@@ -235,6 +250,9 @@ export default async function AdminPage({
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
     query.contact === "roster_locked" ? "Contact added to main roster queue with jersey lock." : null,
+    query.contact === "bulk_roster_locked"
+      ? `Bulk roster lock complete: ${query.bulkLocked || "0"} locked, ${query.bulkSkipped || "0"} skipped, ${query.bulkRoles || "0"} role assignments.`
+      : null,
     query.contact === "imported" ? `Contacts import complete: ${query.imported || "0"} added, ${query.updated || "0"} updated, ${query.skipped || "0"} skipped.` : null,
     query.userrole === "updated" ? "User role updated." : null,
     query.eventtype === "created" ? "Event type created." : null,
@@ -855,6 +873,53 @@ export default async function AdminPage({
                 />
                 <button className="button" type="submit">Import Contacts</button>
               </form>
+            </details>
+            <details className="event-card admin-disclosure" open>
+              <summary>Bulk Add Imported Contacts to Main Roster</summary>
+              <p className="muted">
+                No typing flow: select contacts, choose sub-roster once, and lock all with auto jersey numbers.
+              </p>
+              <form className="grid-form" action="/api/admin/contacts/bulk-roster" method="post">
+                <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+                <label>
+                  Imported contacts
+                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, contactBulkRosterCandidates.length))} required>
+                    {contactBulkRosterCandidates.map((lead) => (
+                      <option key={lead.id} value={lead.id}>
+                        {lead.fullName || lead.email || lead.id}
+                        {lead.email ? ` (${lead.email})` : ""}
+                        {lead.linkedUserId ? " | linked" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Primary sub-roster
+                  <select name="primarySubRoster" defaultValue="" required>
+                    <option value="" disabled>Select sub-roster</option>
+                    <option value="gold">Gold</option>
+                    <option value="white">White</option>
+                    <option value="black">Black</option>
+                  </select>
+                </label>
+                <label>
+                  Optional ops role for linked users
+                  <select name="roleKey" defaultValue="">
+                    <option value="">No role assignment</option>
+                    {roleDefinitions
+                      .filter((definition) => actorIsSuperAdmin || definition.key !== "super_admin")
+                      .map((definition) => (
+                        <option key={definition.key} value={definition.key}>
+                          {definition.label}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <button className="button" type="submit">Bulk Add To Main Roster</button>
+              </form>
+              {contactBulkRosterCandidates.length === 0 ? (
+                <p className="muted">No imported contacts available for bulk roster lock.</p>
+              ) : null}
             </details>
           </article>
 
