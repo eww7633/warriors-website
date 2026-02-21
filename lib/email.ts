@@ -5,7 +5,8 @@ function getSmtpConfig() {
   const portRaw = process.env.SMTP_PORT;
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const from = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
+  // Default sender should match authenticated SMTP account for better deliverability.
+  const from = process.env.EMAIL_FROM || user || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
 
   if (!host || !portRaw || !user || !pass) {
     throw new Error("SMTP is not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS.");

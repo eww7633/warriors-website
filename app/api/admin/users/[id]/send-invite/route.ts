@@ -45,8 +45,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
       registerUrl
     });
     return NextResponse.redirect(new URL("/admin?section=contacts&contact=invite_sent", request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL("/admin?section=contacts&error=invite_send_failed", request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "invite_send_failed");
+    return NextResponse.redirect(
+      new URL(`/admin?section=contacts&error=invite_send_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }
-
