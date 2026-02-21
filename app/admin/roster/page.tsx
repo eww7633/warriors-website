@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listCentralRosterPlayers } from "@/lib/hq/roster";
 import { listSportsData } from "@/lib/hq/ops-data";
+import { listCompetitions } from "@/lib/hq/competitions";
 import { listRosterReservations } from "@/lib/hq/roster-reservations";
 import {
   listPendingJerseyNumberRequests,
@@ -71,7 +72,7 @@ export default async function CentralRosterPage({
     ? (query.activity as ActivityFilter)
     : "all";
 
-  const [players, pendingPhotoRequests, pendingJerseyRequests, teamAssignments, profileExtras, renewalCandidates, sportsData, rosterReservations] = await Promise.all([
+  const [players, pendingPhotoRequests, pendingJerseyRequests, teamAssignments, profileExtras, renewalCandidates, sportsData, rosterReservations, competitions] = await Promise.all([
     listCentralRosterPlayers(),
     listPendingPhotoSubmissionRequests(),
     listPendingJerseyNumberRequests(),
@@ -79,7 +80,8 @@ export default async function CentralRosterPage({
     listPlayerProfileExtras(),
     listUsaHockeyRenewalCandidates(),
     listSportsData(),
-    listRosterReservations()
+    listRosterReservations(),
+    listCompetitions()
   ]);
   const playersById = new Map(players.map((entry) => [entry.id, entry]));
   const onboarding = await listOnboardingChecklistByUserIds(players.map((entry) => entry.id));
@@ -101,6 +103,15 @@ export default async function CentralRosterPage({
     if (!email) return false;
     return !reservedEmails.has(email);
   });
+  const competitionTeamOptions = competitions.flatMap((competition) =>
+    competition.teams.map((team) => ({
+      competitionId: competition.id,
+      competitionTitle: competition.title,
+      competitionType: competition.type,
+      teamId: team.id,
+      teamName: team.name
+    }))
+  );
   const filtered = players.filter((player) => {
     if (activity !== "all" && player.activityStatus !== activity) {
       return false;
@@ -695,6 +706,36 @@ export default async function CentralRosterPage({
                       <input type="checkbox" name="forceNumberOverlap" /> Allow manual number overlap override
                     </label>
                     <button className="button" type="submit">Save Roster Profile</button>
+                  </form>
+
+                  <form className="grid-form" action="/api/admin/team-assignments/quick-save" method="post">
+                    <input type="hidden" name="userId" value={player.id} />
+                    <input type="hidden" name="returnTo" value="/admin/roster" />
+                    <strong>Quick Assign From Existing Teams</strong>
+                    <label>
+                      Team
+                      <select name="teamId" defaultValue="" required>
+                        <option value="" disabled>Select team</option>
+                        {competitionTeamOptions.map((option) => (
+                          <option key={`${option.competitionId}-${option.teamId}`} value={option.teamId}>
+                            {option.competitionTitle} | {option.teamName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Assignment status
+                      <select name="status" defaultValue="active">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive/Archived</option>
+                      </select>
+                    </label>
+                    <button className="button ghost" type="submit" disabled={competitionTeamOptions.length === 0}>
+                      Quick Add Assignment
+                    </button>
+                    {competitionTeamOptions.length === 0 ? (
+                      <p className="muted">No competition teams found yet. Add DVHL/tournament teams first.</p>
+                    ) : null}
                   </form>
 
                   <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
