@@ -196,9 +196,9 @@ export default async function AdminPage({
       invited: 0,
       linked: 0
     }
-  };
+  } as Awaited<ReturnType<typeof listSportsData>>;
 
-  let sportsData = defaultSportsData;
+  let sportsData: Awaited<ReturnType<typeof listSportsData>> = defaultSportsData;
   try {
     sportsData = await listSportsData();
   } catch {
