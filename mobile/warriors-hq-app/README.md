@@ -25,6 +25,16 @@ npm run ios
 npm run android
 ```
 
+## One Command iOS Launcher
+
+```bash
+cd "/Users/evanwawrykow/Documents/Warriors Website/mobile/warriors-hq-app"
+./scripts/run-ios-with-backend.sh
+```
+
+This launcher does not start the backend. It detects `localhost:3000/3001/3002`,
+writes `EXPO_PUBLIC_API_BASE_URL`, and starts Expo iOS with cache clear.
+
 ## Implemented
 
 - Login
