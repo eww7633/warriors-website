@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createPendingPlayer } from "@/lib/hq/store";
 import { upsertPlayerContactProfile, usaHockeySeasonLabel } from "@/lib/hq/player-profiles";
+import { listOpsAlertRecipients } from "@/lib/hq/ops-alerts";
+import { sendOpsRegistrationAlertEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   const formData = (await request.formData()) as unknown as {
@@ -22,6 +24,7 @@ export async function POST(request: Request) {
   const country = String(formData.get("country") ?? "").trim();
   const usaHockeyNumber = String(formData.get("usaHockeyNumber") ?? "").trim();
   const needsEquipment = String(formData.get("needsEquipment") ?? "").trim() === "on";
+  const inviteLinkUsed = String(formData.get("inviteLinkUsed") ?? "").trim() === "1";
 
   if (!fullName || !email || !password) {
     redirectBase.searchParams.set("error", "missing_fields");
@@ -63,6 +66,20 @@ export async function POST(request: Request) {
       playerExperienceSummary,
       codeOfConductAcceptedAt: new Date().toISOString()
     });
+
+    try {
+      const recipients = await listOpsAlertRecipients();
+      await sendOpsRegistrationAlertEmail({
+        recipients,
+        registrantName: fullName,
+        registrantEmail: email,
+        registrationType: "player",
+        inviteLinkUsed
+      });
+    } catch {
+      // Never block registration flow on notification failures.
+    }
+
     return NextResponse.redirect(new URL("/login?registered=1", request.url), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed.";

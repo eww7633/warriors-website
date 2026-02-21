@@ -40,7 +40,8 @@ export default function JoinPage({
             <li>Use the Join flow later if you decide to become a player.</li>
           </ol>
           {query.error && <p className="muted">{query.error.replaceAll("_", " ")}</p>}
-          <form className="grid-form" action="/api/auth/register-supporter" method="post">
+        <form className="grid-form" action="/api/auth/register-supporter" method="post">
+            <input type="hidden" name="inviteLinkUsed" value={inviteLocked ? "1" : "0"} />
             <input name="fullName" placeholder="Full name" required />
             <input
               name="email"
@@ -80,6 +81,7 @@ export default function JoinPage({
           <p className="badge">This invite is tied to {invitedEmail}. Use this email to link your account.</p>
         ) : null}
         <form className="grid-form" action="/api/auth/register" method="post">
+          <input type="hidden" name="inviteLinkUsed" value={inviteLocked ? "1" : "0"} />
           <input name="fullName" placeholder="Full name" required />
           <input
             name="email"

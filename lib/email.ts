@@ -278,3 +278,54 @@ export async function sendUsaHockeyReminderEmail(input: {
 
   return { sent: true as const };
 }
+
+export async function sendOpsRegistrationAlertEmail(input: {
+  recipients: string[];
+  registrantName: string;
+  registrantEmail: string;
+  registrationType: "player" | "supporter";
+  inviteLinkUsed?: boolean;
+}) {
+  if (!input.recipients.length) {
+    return { sent: false as const, reason: "no_recipients" as const };
+  }
+
+  let smtp: ReturnType<typeof getSmtpConfig>;
+  try {
+    smtp = getSmtpConfig();
+  } catch {
+    return { sent: false as const, reason: "smtp_not_configured" as const };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass
+    }
+  });
+
+  const subject = `New ${input.registrationType === "player" ? "Player" : "Supporter"} Registration`;
+  const text = [
+    "Hockey Ops notification:",
+    "",
+    `Name: ${input.registrantName}`,
+    `Email: ${input.registrantEmail}`,
+    `Registration type: ${input.registrationType}`,
+    `Invite link used: ${input.inviteLinkUsed ? "Yes" : "No"}`,
+    "",
+    "Review in Warrior HQ -> Users & Applications."
+  ].join("\n");
+
+  await transporter.sendMail({
+    from: smtp.from,
+    to: smtp.from,
+    bcc: input.recipients,
+    subject,
+    text
+  });
+
+  return { sent: true as const };
+}
