@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { readStore as readHQStore } from "@/lib/hq/store";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { getPrismaClient } from "@/lib/prisma";
 
 export type TeamAssignmentStatus = "active" | "inactive";
 
@@ -102,6 +104,76 @@ function normalizeAddress(input?: PlayerAddress) {
   return hasAny ? normalized : undefined;
 }
 
+function parseProfileFromEquipmentSizes(raw: unknown, userId: string): PlayerProfileExtra {
+  const root = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const blob = root.__profile && typeof root.__profile === "object"
+    ? (root.__profile as Record<string, unknown>)
+    : {};
+
+  const addressCandidate = blob.address && typeof blob.address === "object"
+    ? (blob.address as PlayerAddress)
+    : undefined;
+
+  const primarySubRosterRaw = typeof blob.primarySubRoster === "string" ? blob.primarySubRoster : undefined;
+  const primarySubRoster =
+    primarySubRosterRaw === "gold" || primarySubRosterRaw === "white" || primarySubRosterRaw === "black"
+      ? (primarySubRosterRaw as PrimarySubRoster)
+      : undefined;
+
+  const usaStatusRaw = typeof blob.usaHockeyStatus === "string" ? blob.usaHockeyStatus : undefined;
+  const usaHockeyStatus =
+    usaStatusRaw === "unverified" || usaStatusRaw === "verified" || usaStatusRaw === "pending_renewal" || usaStatusRaw === "expired"
+      ? (usaStatusRaw as UsaHockeyStatus)
+      : undefined;
+
+  const sourceRaw = typeof blob.usaHockeySource === "string" ? blob.usaHockeySource : undefined;
+  const usaHockeySource =
+    sourceRaw === "manual" || sourceRaw === "sportsengine" || sourceRaw === "player"
+      ? sourceRaw
+      : undefined;
+
+  return {
+    userId,
+    address: normalizeAddress(addressCandidate),
+    primarySubRoster,
+    allowCrossColorJerseyOverlap:
+      typeof blob.allowCrossColorJerseyOverlap === "boolean" ? blob.allowCrossColorJerseyOverlap : undefined,
+    needsEquipment: typeof blob.needsEquipment === "boolean" ? blob.needsEquipment : undefined,
+    usaHockeyNumber: typeof blob.usaHockeyNumber === "string" ? blob.usaHockeyNumber : undefined,
+    usaHockeySeason: typeof blob.usaHockeySeason === "string" ? blob.usaHockeySeason : undefined,
+    usaHockeyStatus,
+    usaHockeySource,
+    usaHockeyVerifiedAt: typeof blob.usaHockeyVerifiedAt === "string" ? blob.usaHockeyVerifiedAt : undefined,
+    usaHockeyExpiresAt: typeof blob.usaHockeyExpiresAt === "string" ? blob.usaHockeyExpiresAt : undefined,
+    playerExperienceSummary: typeof blob.playerExperienceSummary === "string" ? blob.playerExperienceSummary : undefined,
+    codeOfConductAcceptedAt: typeof blob.codeOfConductAcceptedAt === "string" ? blob.codeOfConductAcceptedAt : undefined,
+    updatedAt: typeof blob.updatedAt === "string" ? blob.updatedAt : nowIso()
+  };
+}
+
+function writeProfileIntoEquipmentSizes(
+  current: unknown,
+  profile: PlayerProfileExtra
+) {
+  const root = current && typeof current === "object" ? { ...(current as Record<string, unknown>) } : {};
+  root.__profile = {
+    address: profile.address,
+    primarySubRoster: profile.primarySubRoster,
+    allowCrossColorJerseyOverlap: profile.allowCrossColorJerseyOverlap,
+    needsEquipment: profile.needsEquipment,
+    usaHockeyNumber: profile.usaHockeyNumber,
+    usaHockeySeason: profile.usaHockeySeason,
+    usaHockeyStatus: profile.usaHockeyStatus,
+    usaHockeySource: profile.usaHockeySource,
+    usaHockeyVerifiedAt: profile.usaHockeyVerifiedAt,
+    usaHockeyExpiresAt: profile.usaHockeyExpiresAt,
+    playerExperienceSummary: profile.playerExperienceSummary,
+    codeOfConductAcceptedAt: profile.codeOfConductAcceptedAt,
+    updatedAt: profile.updatedAt
+  };
+  return root;
+}
+
 export function usaHockeySeasonLabel(date = new Date()) {
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth() + 1;
@@ -173,12 +245,30 @@ function ensureProfile(store: PlayerProfilesStore, userId: string) {
 }
 
 export async function getPlayerProfileExtra(userId: string) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      return { userId, updatedAt: nowIso() };
+    }
+    return parseProfileFromEquipmentSizes(user.equipmentSizes, userId);
+  }
+
   const store = await readStore();
   const profile = store.profiles.find((entry) => entry.userId === userId);
   return profile ?? { userId, updatedAt: nowIso() };
 }
 
 export async function listPlayerProfileExtras() {
+  if (hasDatabaseUrl()) {
+    const users = await getPrismaClient().user.findMany({
+      select: { id: true, equipmentSizes: true }
+    });
+    return users.map((user) => parseProfileFromEquipmentSizes(user.equipmentSizes, user.id));
+  }
+
   const store = await readStore();
   return store.profiles;
 }
@@ -191,6 +281,17 @@ export async function setPlayerUsaHockeyNumber(input: {
   usaHockeySource?: "manual" | "sportsengine" | "player";
   usaHockeyExpiresAt?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    return upsertPlayerContactProfile({
+      userId: input.userId,
+      usaHockeyNumber: input.usaHockeyNumber,
+      usaHockeySeason: input.usaHockeySeason,
+      usaHockeyStatus: input.usaHockeyStatus ?? (input.usaHockeyNumber ? "verified" : "unverified"),
+      usaHockeySource: input.usaHockeySource,
+      usaHockeyExpiresAt: input.usaHockeyExpiresAt
+    });
+  }
+
   const store = await readStore();
   const profile = ensureProfile(store, input.userId);
   const number = normalizeOptionalText(input.usaHockeyNumber);
@@ -210,6 +311,13 @@ export async function setPlayerAddress(input: {
   userId: string;
   address: PlayerAddress;
 }) {
+  if (hasDatabaseUrl()) {
+    return upsertPlayerContactProfile({
+      userId: input.userId,
+      address: input.address
+    });
+  }
+
   const store = await readStore();
   const profile = ensureProfile(store, input.userId);
   profile.address = normalizeAddress(input.address);
@@ -232,6 +340,59 @@ export async function upsertPlayerContactProfile(input: {
   playerExperienceSummary?: string;
   codeOfConductAcceptedAt?: string;
 }) {
+  if (hasDatabaseUrl()) {
+    const user = await getPrismaClient().user.findUnique({
+      where: { id: input.userId },
+      select: { id: true, equipmentSizes: true }
+    });
+    if (!user) {
+      throw new Error("user_not_found");
+    }
+
+    const profile = parseProfileFromEquipmentSizes(user.equipmentSizes, input.userId);
+    profile.address = normalizeAddress(input.address) ?? profile.address;
+    if (typeof input.primarySubRoster !== "undefined") {
+      profile.primarySubRoster = input.primarySubRoster;
+    }
+    if (typeof input.allowCrossColorJerseyOverlap !== "undefined") {
+      profile.allowCrossColorJerseyOverlap = input.allowCrossColorJerseyOverlap;
+    }
+    if (typeof input.needsEquipment !== "undefined") {
+      profile.needsEquipment = input.needsEquipment;
+    }
+    if (typeof input.usaHockeyNumber !== "undefined") {
+      profile.usaHockeyNumber = normalizeOptionalText(input.usaHockeyNumber);
+      profile.usaHockeyVerifiedAt = profile.usaHockeyNumber ? nowIso() : profile.usaHockeyVerifiedAt;
+    }
+    if (typeof input.usaHockeySeason !== "undefined") {
+      profile.usaHockeySeason = normalizeOptionalText(input.usaHockeySeason);
+    }
+    if (typeof input.usaHockeyStatus !== "undefined") {
+      profile.usaHockeyStatus = input.usaHockeyStatus;
+    }
+    if (typeof input.usaHockeySource !== "undefined") {
+      profile.usaHockeySource = input.usaHockeySource;
+    }
+    if (typeof input.usaHockeyExpiresAt !== "undefined") {
+      profile.usaHockeyExpiresAt = normalizeOptionalText(input.usaHockeyExpiresAt);
+    }
+    if (typeof input.playerExperienceSummary !== "undefined") {
+      profile.playerExperienceSummary = normalizeOptionalText(input.playerExperienceSummary);
+    }
+    if (typeof input.codeOfConductAcceptedAt !== "undefined") {
+      profile.codeOfConductAcceptedAt = normalizeOptionalText(input.codeOfConductAcceptedAt);
+    }
+    profile.updatedAt = nowIso();
+
+    await getPrismaClient().user.update({
+      where: { id: input.userId },
+      data: {
+        equipmentSizes: writeProfileIntoEquipmentSizes(user.equipmentSizes, profile)
+      }
+    });
+    return profile;
+  }
+
   const store = await readStore();
   const profile = ensureProfile(store, input.userId);
   profile.address = normalizeAddress(input.address) ?? profile.address;
