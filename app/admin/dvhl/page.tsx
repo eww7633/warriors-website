@@ -471,6 +471,7 @@ export default async function AdminDvhlPage({
               ) : (
                 dvhlCompetitions.map((competition) => {
                   const pairings = defaultDvhlPairings(competition.teams.map((team) => team.id));
+                  const seedTeams = competition.teams.slice(0, 4);
                   const allGames = competition.teams
                     .flatMap((team) => team.games.map((game) => ({ game, homeTeam: team.name })))
                     .sort((a, b) => {
@@ -484,6 +485,49 @@ export default async function AdminDvhlPage({
                       <p className="muted">
                         Default rotation: 1v2 + 3v4, then 1v3 + 2v4, then 1v4 + 2v3, repeated for weeks 4-6.
                       </p>
+                      {competition.teams.length >= 4 ? (
+                        <details className="event-card admin-disclosure" open>
+                          <summary>One-Click DVHL Schedule Preset</summary>
+                          <p className="muted">
+                            Fast path: generate standard DVHL pattern automatically. Then adjust anything below in weekly editor.
+                          </p>
+                          <form className="grid-form" action="/api/admin/competitions/dvhl-schedule" method="post">
+                            <input type="hidden" name="mode" value="preset" />
+                            <input type="hidden" name="competitionId" value={competition.id} />
+                            <input type="hidden" name="returnTo" value="/admin/dvhl?tab=schedule" />
+                            <input type="hidden" name="team1" value={seedTeams[0]?.id || ""} />
+                            <input type="hidden" name="team2" value={seedTeams[1]?.id || ""} />
+                            <input type="hidden" name="team3" value={seedTeams[2]?.id || ""} />
+                            <input type="hidden" name="team4" value={seedTeams[3]?.id || ""} />
+                            <label>
+                              <input type="checkbox" name="clearExisting" defaultChecked /> Replace existing season schedule
+                            </label>
+                            <label>
+                              Season cycles
+                              <select name="cycleCount" defaultValue="2">
+                                <option value="1">1 cycle (3 weeks)</option>
+                                <option value="2">2 cycles (6 weeks)</option>
+                                <option value="3">3 cycles (9 weeks)</option>
+                                <option value="4">4 cycles (12 weeks)</option>
+                              </select>
+                            </label>
+                            <label>
+                              Week interval (days)
+                              <input name="weekIntervalDays" type="number" min={1} max={21} defaultValue={7} />
+                            </label>
+                            <label>
+                              First week game 1 date/time (optional)
+                              <input name="baseStartsAt" type="datetime-local" />
+                            </label>
+                            <label>
+                              Game gap (minutes)
+                              <input name="gameGapMinutes" type="number" min={0} max={360} defaultValue={90} />
+                            </label>
+                            <input name="defaultLocation" placeholder="Default location (optional)" />
+                            <button className="button" type="submit">Generate Preset Schedule</button>
+                          </form>
+                        </details>
+                      ) : null}
                       {competition.teams.length < 4 ? (
                         <p className="muted">Add at least 4 teams to use the guided DVHL weekly builder.</p>
                       ) : (
@@ -552,6 +596,9 @@ export default async function AdminDvhlPage({
                       )}
 
                       <h4>Current Scheduled Games</h4>
+                      <p>
+                        <Link className="button ghost" href="/games">Open live scoring console</Link>
+                      </p>
                       {allGames.length === 0 ? (
                         <p className="muted">No games scheduled yet.</p>
                       ) : (
