@@ -1,4 +1,5 @@
 export type ReservationStatus = 'going' | 'maybe' | 'not_going';
+export type ThemeMode = 'system' | 'light' | 'dark';
 
 export type MobileUser = {
   id: string;
@@ -32,6 +33,11 @@ export type MobileEvent = {
   canManage: boolean;
   signupMode: 'straight_rsvp' | 'interest_gathering';
   signupClosed: boolean;
+  isOnIceEvent: boolean;
+  viewerCanRsvp: boolean;
+  viewerNeedsApproval: boolean;
+  viewerRosteredTeam: string | null;
+  teamLabel: string | null;
   goingMembers: Array<{
     userId: string;
     fullName: string;
@@ -42,6 +48,14 @@ export type MobileEvent = {
     jerseyNumber: number | null;
     avatarUrl: string | null;
   }>;
+};
+
+export type MobileAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  createdByName: string | null;
 };
 
 export type DashboardSummary = {

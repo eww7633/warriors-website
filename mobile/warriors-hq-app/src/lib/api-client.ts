@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/lib/env';
-import type { DashboardSummary, MobileEvent, MobileUser, ReservationStatus } from '@/lib/types';
+import type { DashboardSummary, MobileAnnouncement, MobileEvent, MobileUser, ReservationStatus } from '@/lib/types';
 
 const buildUrl = (path: string): string => `${API_BASE_URL}${path}`;
 const toNullableNumber = (value: unknown): number | null => {
@@ -81,9 +81,22 @@ const normalizeEvent = (raw: Record<string, unknown>): MobileEvent => {
     canManage: Boolean(raw.canManage),
     signupMode: (raw.signupMode as 'straight_rsvp' | 'interest_gathering') ?? 'straight_rsvp',
     signupClosed: Boolean(raw.signupClosed),
+    isOnIceEvent: Boolean(raw.isOnIceEvent ?? raw.onIceEvent ?? raw.eventCategory === 'on_ice'),
+    viewerCanRsvp: Boolean(raw.viewerCanRsvp ?? raw.canRsvp ?? true),
+    viewerNeedsApproval: Boolean(raw.viewerNeedsApproval ?? raw.rsvpNeedsApproval ?? false),
+    viewerRosteredTeam: raw.viewerRosteredTeam ? String(raw.viewerRosteredTeam) : null,
+    teamLabel: raw.teamLabel ? String(raw.teamLabel) : raw.teamName ? String(raw.teamName) : null,
     goingMembers
   };
 };
+
+const normalizeAnnouncement = (raw: Record<string, unknown>): MobileAnnouncement => ({
+  id: String(raw.id ?? raw.slug ?? ''),
+  title: String(raw.title ?? 'Announcement'),
+  body: String(raw.body ?? raw.message ?? ''),
+  createdAt: String(raw.createdAt ?? raw.date ?? new Date().toISOString()),
+  createdByName: raw.createdByName ? String(raw.createdByName) : raw.authorName ? String(raw.authorName) : null
+});
 
 const postForm = async (path: string, body: Record<string, string>): Promise<Response> => {
   const form = new FormData();
@@ -195,12 +208,32 @@ export const apiClient = {
     return event;
   },
 
-  async setRsvp(token: string, eventId: string, status: ReservationStatus): Promise<void> {
+  async setRsvp(token: string, eventId: string, status: ReservationStatus, note = ''): Promise<void> {
     const response = await authorized('/api/mobile/events/reservation', token, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ eventId, status, note: '' })
+      body: JSON.stringify({ eventId, status, note })
     });
+
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+  },
+
+  async requestRsvpApproval(token: string, eventId: string): Promise<void> {
+    let response = await authorized('/api/mobile/events/reservation/request', token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ eventId, request: true })
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/mobile/events/reservation', token, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ eventId, status: 'maybe', note: 'REQUEST_APPROVAL' })
+      });
+    }
 
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
@@ -247,5 +280,39 @@ export const apiClient = {
       throw new Error('Profile photo uploaded, but user payload is missing.');
     }
     return normalizeUser(payload.user);
+  },
+
+  async getAnnouncements(token: string): Promise<MobileAnnouncement[]> {
+    let response = await authorized('/api/mobile/announcements', token);
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/public/announcements', token);
+    }
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as { announcements?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
+    const items = payload.announcements ?? payload.items ?? [];
+    return items.map(normalizeAnnouncement);
+  },
+
+  async createAnnouncement(token: string, input: { title: string; body: string }): Promise<void> {
+    let response = await authorized('/api/mobile/announcements', token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input)
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/admin/announcements', token, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input)
+      });
+    }
+
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
   }
 };

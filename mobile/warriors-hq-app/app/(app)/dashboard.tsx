@@ -45,12 +45,16 @@ export default function DashboardScreen() {
 
     try {
       setError(null);
-      const [summary, items] = await Promise.all([
-        apiClient.getDashboard(session.token),
-        apiClient.getEvents(session.token)
-      ]);
-      setDashboard(summary);
+      const items = await apiClient.getEvents(session.token);
       setEvents(items);
+
+      try {
+        const summary = await apiClient.getDashboard(session.token);
+        setDashboard(summary);
+      } catch (dashboardErr) {
+        setDashboard(null);
+        setError(dashboardErr instanceof Error ? dashboardErr.message : 'Dashboard summary unavailable');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to load dashboard');
     }
@@ -88,6 +92,20 @@ export default function DashboardScreen() {
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'RSVP failed');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const onRequestApproval = async (eventId: string) => {
+    if (!session.token) return;
+    try {
+      setUpdatingId(eventId);
+      setError(null);
+      await apiClient.requestRsvpApproval(session.token, eventId);
+      setError('RSVP request submitted for approval.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to submit RSVP request');
     } finally {
       setUpdatingId(null);
     }
@@ -188,6 +206,11 @@ export default function DashboardScreen() {
             Type: {event.eventType}
             {!isSupporter ? ` · Going: ${event.goingCount} · Total RSVPs: ${event.reservationCount}` : ''}
           </Text>
+          {!isSupporter && event.isOnIceEvent && !event.viewerCanRsvp ? (
+            <Text style={{ color: colors.textMuted }}>
+              Eligible roster required{event.teamLabel ? ` (${event.teamLabel})` : ''}. You can submit a request for Hockey Ops review.
+            </Text>
+          ) : null}
           {!isSupporter && event.goingMembers.length > 0 ? (
             <View style={styles.memberPreviewWrap}>
               {event.goingMembers.slice(0, 6).map((entry) => (
@@ -208,7 +231,7 @@ export default function DashboardScreen() {
           ) : !isSupporter ? (
             <Text style={{ color: colors.textMuted }}>Going list not available yet.</Text>
           ) : null}
-          {!isSupporter ? (
+          {!isSupporter && event.viewerCanRsvp ? (
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
               <View style={{ flex: 1 }}>
                 <Button
@@ -235,6 +258,15 @@ export default function DashboardScreen() {
                 />
               </View>
             </View>
+          ) : null}
+          {!isSupporter && !event.viewerCanRsvp ? (
+            <Button
+              label="Request RSVP Approval"
+              variant="secondary"
+              onPress={() => onRequestApproval(event.id)}
+              disabled={updatingId === event.id}
+              loading={updatingId === event.id}
+            />
           ) : null}
           <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/${event.id}`)}>
             Open details

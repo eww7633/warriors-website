@@ -1,6 +1,7 @@
 import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
+import { WarriorsLogo } from '@/components/warriors-logo';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { useThemeColors } from '@/lib/theme';
@@ -34,6 +35,9 @@ export default function RegisterScreen() {
 
   return (
     <Screen>
+      <View style={{ alignItems: 'center' }}>
+        <WarriorsLogo size={58} />
+      </View>
       <Title>Request Access</Title>
       <Subtitle>Submit registration for Hockey Ops approval</Subtitle>
       <Card>

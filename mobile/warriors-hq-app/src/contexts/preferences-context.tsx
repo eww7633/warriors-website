@@ -1,8 +1,7 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-
-export type ThemeMode = 'system' | 'light' | 'dark';
+import type { ThemeMode } from '@/lib/types';
 
 type NotificationPrefs = {
   eventReminders: boolean;
@@ -94,4 +93,3 @@ export const usePreferences = (): PreferencesContextValue => {
   if (!ctx) throw new Error('usePreferences must be used inside PreferencesProvider');
   return ctx;
 };
-

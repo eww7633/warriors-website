@@ -53,6 +53,21 @@ export default function EventDetailScreen() {
     }
   };
 
+  const onRequestApproval = async () => {
+    try {
+      if (!params.id) throw new Error('Missing event id');
+      if (!session.token) throw new Error('Session missing. Please sign in again.');
+      setSaving(true);
+      await apiClient.requestRsvpApproval(session.token, params.id);
+      setError('RSVP request submitted for approval.');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'RSVP request failed');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Screen>
       <ErrorText message={error} />
@@ -68,6 +83,11 @@ export default function EventDetailScreen() {
               Type: {event.eventType}
               {!isSupporter ? ` · Going: ${event.goingCount} · Total RSVPs: ${event.reservationCount}` : ''}
             </Text>
+            {!isSupporter && event.isOnIceEvent && !event.viewerCanRsvp ? (
+              <Text style={{ color: colors.textMuted }}>
+                You are not rostered for this team{event.teamLabel ? ` (${event.teamLabel})` : ''}. Submit an RSVP request for Hockey Ops approval.
+              </Text>
+            ) : null}
             {event.locationMapUrl ? (
               <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
                 Open map
@@ -108,9 +128,15 @@ export default function EventDetailScreen() {
                   Use dedicated going list view
                 </Text>
               </Card>
-              <Button label="Going" onPress={() => onRsvp('going')} loading={saving} disabled={saving} />
-              <Button label="Maybe" variant="secondary" onPress={() => onRsvp('maybe')} disabled={saving} />
-              <Button label="Not Going" variant="danger" onPress={() => onRsvp('not_going')} disabled={saving} />
+              {event.viewerCanRsvp ? (
+                <>
+                  <Button label="Going" onPress={() => onRsvp('going')} loading={saving} disabled={saving} />
+                  <Button label="Maybe" variant="secondary" onPress={() => onRsvp('maybe')} disabled={saving} />
+                  <Button label="Not Going" variant="danger" onPress={() => onRsvp('not_going')} disabled={saving} />
+                </>
+              ) : (
+                <Button label="Request RSVP Approval" variant="secondary" onPress={onRequestApproval} loading={saving} disabled={saving} />
+              )}
             </>
           ) : null}
         </ScrollView>

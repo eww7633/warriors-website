@@ -4,9 +4,10 @@ import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
-import { usePreferences, type ThemeMode } from '@/contexts/preferences-context';
+import { usePreferences } from '@/contexts/preferences-context';
 import { apiClient } from '@/lib/api-client';
 import { useThemeColors } from '@/lib/theme';
+import type { ThemeMode } from '@/lib/types';
 
 const themeOptions: ThemeMode[] = ['system', 'light', 'dark'];
 
