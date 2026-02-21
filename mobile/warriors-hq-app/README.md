@@ -36,6 +36,14 @@ npm run ios
 npm run android
 ```
 
+## Release + QA
+
+See `/Users/evanwawrykow/Documents/Warriors Website/mobile/warriors-hq-app/docs/release-and-qa.md` for:
+
+- EAS build/submit setup
+- required env vars and secret commands
+- full QA checklist and test matrix
+
 ## One Command iOS Launcher
 
 ```bash

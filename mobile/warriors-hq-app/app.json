@@ -3,12 +3,20 @@
     "name": "Warriors HQ",
     "slug": "warriors-hq-app",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "warriorshq",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "us.pghwarriorhockey.warriorshq",
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Warriors HQ uses camera access to scan QR check-in codes.",
@@ -17,6 +25,7 @@
       }
     },
     "android": {
+      "package": "us.pghwarriorhockey.warriorshq",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
@@ -28,7 +37,8 @@
       "expo-router",
       "expo-secure-store",
       "expo-camera",
-      "expo-notifications"
+      "expo-notifications",
+      "@sentry/react-native/expo"
     ],
     "extra": {
       "apiBaseUrl": "",
