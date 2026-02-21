@@ -319,6 +319,21 @@ export default async function AdminPage({
       .toLowerCase()
       .includes(userSearch);
   });
+  const filteredContactLeads = sportsData.contactLeads.filter((lead) => {
+    if (!userSearch) return true;
+    return [
+      lead.fullName || "",
+      lead.email || "",
+      lead.phone || "",
+      lead.source || "",
+      lead.onboardingStatus || "",
+      lead.linkedUser?.email || "",
+      lead.linkedUser?.fullName || ""
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(userSearch);
+  });
   const showcaseByGallery = showcasePhotos.reduce((acc, photo) => {
     const key = photo.gallery || "general";
     const list = acc.get(key) || [];
@@ -1034,6 +1049,52 @@ export default async function AdminPage({
                       </label>
                       <button className="button ghost" type="submit">Save User Access</button>
                     </form>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="card">
+            <h3>Imported Contacts (Not Yet Website Users)</h3>
+            <p className="muted">
+              If someone was imported from Wix but is missing from the website-user list, invite them from here.
+            </p>
+            {filteredContactLeads.length === 0 ? (
+              <p className="muted">No imported contacts match current filter.</p>
+            ) : (
+              <div className="stack">
+                {filteredContactLeads.map((lead) => (
+                  <div key={lead.id} className="event-card stack">
+                    <strong>{lead.fullName || "Unnamed contact"}</strong>
+                    <p>{lead.email || "No email on file"}</p>
+                    <p>
+                      Status: {lead.onboardingStatus} | Source: {lead.source || "wix"}
+                    </p>
+                    {lead.linkedUser ? (
+                      <p className="muted">
+                        Linked user: {lead.linkedUser.fullName || lead.linkedUser.email} ({lead.linkedUser.role})
+                      </p>
+                    ) : (
+                      <p className="muted">Not linked to a website user yet.</p>
+                    )}
+                    <div className="cta-row">
+                      {lead.email ? (
+                        <form action={`/api/admin/contacts/${lead.id}/send-invite`} method="post">
+                          <button className="button ghost" type="submit">Send Invite Email</button>
+                        </form>
+                      ) : null}
+                      {lead.email ? (
+                        <a
+                          className="button alt"
+                          href={`/join?mode=player&invite=1&email=${encodeURIComponent(lead.email)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open Invite Link
+                        </a>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
