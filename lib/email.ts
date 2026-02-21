@@ -26,6 +26,30 @@ function getSmtpConfig() {
   };
 }
 
+export function buildInviteEmail(input: {
+  to: string;
+  fullName?: string | null;
+  registerUrl: string;
+}) {
+  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
+  return {
+    subject: "Pittsburgh Warriors Hockey Club Registration Invite",
+    text: [
+    greeting,
+    "",
+    "You are invited to register for the Pittsburgh Warriors Hockey Club player portal.",
+    "Use the invite link below and keep the prefilled email address exactly as provided so we can auto-link your existing contact record:",
+    input.to,
+    "",
+    input.registerUrl,
+    "",
+    "After registration, Hockey Ops will review and approve your player access.",
+    "",
+    "Pittsburgh Warriors Hockey Ops"
+  ].join("\n")
+  };
+}
+
 export async function sendInviteEmail(input: {
   to: string;
   fullName?: string | null;
@@ -43,22 +67,7 @@ export async function sendInviteEmail(input: {
     }
   });
 
-  const subject = "Pittsburgh Warriors Hockey Club Registration Invite";
-  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
-
-  const text = [
-    greeting,
-    "",
-    "You are invited to register for the Pittsburgh Warriors Hockey Club player portal.",
-    "Use the invite link below and keep the prefilled email address exactly as provided so we can auto-link your existing contact record:",
-    input.to,
-    "",
-    input.registerUrl,
-    "",
-    "After registration, Hockey Ops will review and approve your player access.",
-    "",
-    "Pittsburgh Warriors Hockey Ops"
-  ].join("\n");
+  const { subject, text } = buildInviteEmail(input);
 
   await transporter.sendMail({
     from: smtp.from,

@@ -21,7 +21,6 @@ import {
 } from "@/lib/hq/competitions";
 import { listSportsData } from "@/lib/hq/ops-data";
 import { summarizeAttendanceInsights } from "@/lib/hq/attendance-analytics";
-import { listRosterReservations } from "@/lib/hq/roster-reservations";
 import { listReservationBoards } from "@/lib/hq/reservations";
 import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
 import { listOnboardingChecklistTemplate } from "@/lib/hq/onboarding";
@@ -171,7 +170,7 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, rosterReservations, newsPosts, showcasePhotos, showcaseGalleries, announcements, playerProfileExtras] = await Promise.all([
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, newsPosts, showcasePhotos, showcaseGalleries, announcements, playerProfileExtras] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
@@ -180,7 +179,6 @@ export default async function AdminPage({
     listEligibleScorekeepers(),
     listSportsData(),
     summarizeAttendanceInsights(),
-    listRosterReservations(),
     listAllNewsPosts(),
     listLocalShowcasePhotos(),
     listLocalShowcaseGalleries(),
@@ -248,28 +246,10 @@ export default async function AdminPage({
     query.data === "position_created" ? "Position created." : null,
     query.data === "staff_created" ? "Staff profile created." : null,
     query.data === "sponsor_created" ? "Sponsor created." : null,
-    query.contact === "invited" ? "Contact marked as invited." : null,
     query.contact === "linked" ? "Contact linked to existing user account." : null,
     query.contact === "invite_sent" ? "Invite email sent from configured HQ mailbox." : null,
-    query.contact === "roster_locked" ? "Contact added to main roster queue with jersey lock." : null,
-    query.contact === "bulk_roster_locked"
-      ? `Bulk roster lock complete: ${query.bulkLocked || "0"} locked, ${query.bulkSkipped || "0"} skipped, ${query.bulkRoles || "0"} role assignments.`
-      : null,
-    query.contact === "bulk_invited"
-      ? `Bulk invite complete: ${query.bulkInvited || "0"} invited, ${query.bulkSkipped || "0"} skipped.`
-      : null,
-    query.contact === "queue_progress"
-      ? `Queue processed: invited ${query.queueInvited || "0"}, linked ${query.queueLinked || "0"}, provisioned ${query.queueProvisioned || "0"}, promoted ${query.queuePromoted || "0"}, rostered ${query.queueRostered || "0"}, skipped ${query.queueSkipped || "0"}.`
-      : null,
-    query.contact === "supporters_provisioned"
-      ? `Supporter users provisioned from contacts: created ${query.usersCreated || "0"}, linked ${query.usersLinked || "0"}, skipped ${query.usersSkipped || "0"}.`
-      : null,
-    query.contact === "imported" ? `Contacts import complete: ${query.imported || "0"} added, ${query.updated || "0"} updated, ${query.skipped || "0"} skipped.` : null,
     query.userrole === "updated" ? "User role updated." : null,
     query.eventtype === "created" ? "Event type created." : null,
-    query.contact !== "imported" && query.imported ? `Imported roster locks: ${query.imported}` : null,
-    query.contact !== "imported" && query.updated ? `Updated roster locks: ${query.updated}` : null,
-    query.contact !== "imported" && query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
     query.reservationlinked === "1" ? "Reservation linked to player account." : null,
     query.rosterselected === "1"
       ? query.generated === "1"
@@ -282,8 +262,8 @@ export default async function AdminPage({
     query.dvhl === "subpool_saved" ? "DVHL sub pool updated." : null,
     query.donation === "saved" ? "Donation record updated." : null,
     query.opsrole === "updated" ? "Ops role assignment updated." : null,
-    query.opsUpdated ? `Ops roles imported: ${query.opsUpdated}` : null,
-    query.opsSkipped ? `Ops role rows skipped: ${query.opsSkipped}` : null,
+    query.opsUpdated ? `Ops roles updated: ${query.opsUpdated}` : null,
+    query.opsSkipped ? `Ops updates skipped: ${query.opsSkipped}` : null,
     query.media === "saved" ? "Showcase media uploaded." : null,
     query.media === "deleted" ? "Showcase media deleted." : null,
     query.news === "saved" ? "News post created." : null,
@@ -307,7 +287,6 @@ export default async function AdminPage({
   const onIceEvents = allEvents.filter((event) => isOnIceEventType(event.eventTypeName));
   const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
   const scopedEvents = section === "onice" ? onIceEvents : section === "office" ? offIceEvents : allEvents;
-  const inviteFromEmail = process.env.EMAIL_FROM || process.env.ADMIN_EMAIL || "ops@pghwarriorhockey.us";
   const showcaseByGallery = showcasePhotos.reduce((acc, photo) => {
     const key = photo.gallery || "general";
     const list = acc.get(key) || [];
@@ -865,6 +844,10 @@ export default async function AdminPage({
               Legacy contact import tools have been retired. This area now manages real website users, player
               applications, and onboarding.
             </p>
+            <p className="muted">
+              Invite email copy is now standardized. Use <strong>Preview Invite Email</strong> on any user to verify the exact
+              outgoing message before sending.
+            </p>
             <div className="admin-kpi-grid">
               <div className="admin-kpi">
                 <span className="muted">Total users</span>
@@ -975,6 +958,16 @@ export default async function AdminPage({
                     <p>{member.email}</p>
                     <p>
                       Role: {member.role} | Status: {member.status}
+                    </p>
+                    <p>
+                      <a
+                        className="button alt"
+                        href={`/api/admin/users/${member.id}/invite-preview`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Preview Invite Email
+                      </a>
                     </p>
                     <form className="grid-form" action={`/api/admin/users/${member.id}/access`} method="post">
                       <input type="hidden" name="returnTo" value="/admin?section=contacts" />
@@ -1900,26 +1893,6 @@ export default async function AdminPage({
           {actorIsSuperAdmin ? (
             <details className="card admin-disclosure" open>
               <summary>Ops Role Assignments</summary>
-              <form
-                className="grid-form event-card"
-                action="/api/admin/ops-roles/import"
-                method="post"
-                encType="multipart/form-data"
-              >
-                <input type="hidden" name="returnTo" value="/admin?section=usermanagement" />
-                <strong>Bulk import ops roles</strong>
-                <label>
-                  Upload CSV (optional)
-                  <input name="csvFile" type="file" accept=".csv,text/csv,text/plain" />
-                </label>
-                <textarea
-                  name="rows"
-                  rows={6}
-                  placeholder={`email,roleKey,titleLabel,officialEmail,badgeLabel\neww7633@yahoo.com,president,President,president@pghwarriorhockey.org,President`}
-                  required
-                />
-                <button className="button" type="submit">Import Ops Roles</button>
-              </form>
               <div className="stack">
                 {store.users.map((member) => (
                   <form
@@ -1974,75 +1947,16 @@ export default async function AdminPage({
           </article>
 
           <article className="card">
-            <h3>Import Roster Number Locks</h3>
+            <h3>Roster Setup Flow</h3>
             <p className="muted">
-              Advanced tool. Most admins should use <strong>Users & Applications</strong> and{" "}
-              <strong>Central Roster Manager</strong> to approve players and assign numbers.
+              Legacy roster-import and reservation-lock tooling is retired. Use <strong>Users & Applications</strong> for approvals,
+              then complete placements in <strong>Central Roster Manager</strong>.
             </p>
-            <p className="muted">
-              Use this only for large legacy imports to reserve existing players and jersey numbers before they register.
-              CSV format per line: <code>fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes</code>
+            <p>
+              <Link className="button ghost" href="/admin/roster">
+                Open Central Roster Manager
+              </Link>
             </p>
-            <form className="grid-form" action="/api/admin/roster/import" method="post">
-              <textarea
-                name="rows"
-                rows={8}
-                placeholder={`fullName,email,jerseyNumber,rosterId,primarySubRoster,usaHockeyNumber,phone,notes\nEvan Wawrykow,eww7633@yahoo.com,19,main-player-roster,gold,123456789,555-555-1111,legacy roster`}
-                required
-              />
-              <label>
-                Import source
-                <select name="source" defaultValue="wix">
-                  <option value="wix">Wix</option>
-                  <option value="manual">Manual</option>
-                </select>
-              </label>
-              <label>
-                <input name="autoLinkByEmail" type="checkbox" defaultChecked /> Auto-link to existing accounts by email
-              </label>
-              <button className="button" type="submit">Import / Update Roster Locks</button>
-            </form>
-          </article>
-
-          <article className="card">
-            <h3>Roster Number Locks</h3>
-            {rosterReservations.length === 0 ? (
-              <p className="muted">No imported roster locks yet.</p>
-            ) : (
-              <div className="stack">
-                {rosterReservations.map((reservation) => {
-                  const matchedUser = store.users.find(
-                    (member) =>
-                      member.id === reservation.linkedUserId ||
-                      (reservation.email && member.email.toLowerCase() === reservation.email.toLowerCase())
-                  );
-                  return (
-                    <div key={reservation.id} className="event-card stack">
-                      <strong>{reservation.fullName}</strong>
-                      <p>
-                        Roster: {reservation.rosterId} | Number: #{reservation.jerseyNumber}
-                        {reservation.primarySubRoster ? ` | ${reservation.primarySubRoster}` : ""}
-                      </p>
-                      <p>
-                        Contact: {reservation.email || "No email"} {reservation.phone ? `| ${reservation.phone}` : ""}
-                      </p>
-                      <p className="muted">Source: {reservation.source || "manual"}</p>
-                      <p>
-                        Linked account: {matchedUser ? `${matchedUser.fullName} (${matchedUser.email})` : "Not linked yet"}
-                      </p>
-                      {reservation.notes ? <p className="muted">Notes: {reservation.notes}</p> : null}
-                      {!reservation.linkedUserId && matchedUser ? (
-                        <form className="cta-row" action="/api/admin/roster/reservations/link" method="post">
-                          <input type="hidden" name="reservationId" value={reservation.id} />
-                          <input type="hidden" name="userId" value={matchedUser.id} />
-                          <button className="button ghost" type="submit">Link to Matched Account</button>
-                        </form>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </article>
 
           <details className="card admin-disclosure" open>
@@ -2081,16 +1995,6 @@ export default async function AdminPage({
             {actorIsSuperAdmin ? (
               <div className="stack">
                 <h4>Assign Ops Leadership Roles</h4>
-                <form className="grid-form event-card" action="/api/admin/ops-roles/import" method="post">
-                  <strong>Bulk import ops roles</strong>
-                  <textarea
-                    name="rows"
-                    rows={6}
-                    placeholder={`email,roleKey,titleLabel,officialEmail,badgeLabel\neww7633@yahoo.com,president,President,president@pghwarriorhockey.org,President`}
-                    required
-                  />
-                  <button className="button" type="submit">Import Ops Roles</button>
-                </form>
                 {store.users.map((member) => (
                   <form
                     key={`${member.id}-ops-role`}

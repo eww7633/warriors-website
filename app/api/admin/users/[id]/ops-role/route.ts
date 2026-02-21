@@ -6,30 +6,6 @@ import {
   upsertUserOpsRole,
   userHasPermission
 } from "@/lib/hq/permissions";
-import { hasDatabaseUrl } from "@/lib/db-env";
-import { getPrismaClient } from "@/lib/prisma";
-import { readStore, writeStore } from "@/lib/hq/store";
-
-async function promoteUserToAdminIfNeeded(userId: string) {
-  if (hasDatabaseUrl()) {
-    const user = await getPrismaClient().user.findUnique({ where: { id: userId } });
-    if (user && user.role !== "admin") {
-      await getPrismaClient().user.update({
-        where: { id: userId },
-        data: { role: "admin" }
-      });
-    }
-    return;
-  }
-
-  const store = await readStore();
-  const target = store.users.find((entry) => entry.id === userId);
-  if (target && target.role !== "admin") {
-    target.role = "admin";
-    target.updatedAt = new Date().toISOString();
-    await writeStore(store);
-  }
-}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const actor = await getCurrentUser();
@@ -86,7 +62,6 @@ export async function POST(request: Request, { params }: { params: { id: string 
         officialEmail,
         badgeLabel
       });
-      await promoteUserToAdminIfNeeded(params.id);
     }
 
     return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}opsrole=updated`, request.url), 303);
