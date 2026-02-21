@@ -1737,6 +1737,14 @@ html[data-theme="dark"] .auth-actions .button.ghost {
   margin-bottom: 0.7rem;
 }
 
+.admin-sticky-actions {
+  position: sticky;
+  top: 86px;
+  z-index: 6;
+  background: color-mix(in srgb, var(--surface-soft) 94%, transparent);
+  backdrop-filter: blur(4px);
+}
+
 .calendar-event-expanded {
   margin-top: 0.45rem;
 }

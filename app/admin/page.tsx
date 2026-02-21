@@ -133,6 +133,8 @@ export default async function AdminPage({
     usersSkipped?: string;
     generated?: string;
     contactSearch?: string;
+    userSearch?: string;
+    eventSearch?: string;
     announcement?: string;
     sent?: string;
     failed?: string;
@@ -288,6 +290,35 @@ export default async function AdminPage({
   const onIceEvents = allEvents.filter((event) => isOnIceEventType(event.eventTypeName));
   const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
   const scopedEvents = section === "onice" ? onIceEvents : section === "office" ? offIceEvents : allEvents;
+  const eventSearch = String(query.eventSearch || "").trim().toLowerCase();
+  const userSearch = String(query.userSearch || "").trim().toLowerCase();
+  const filteredScopedEvents = scopedEvents.filter((event) => {
+    if (!eventSearch) return true;
+    return [event.title, event.eventTypeName || "", event.locationPublic || "", event.managerName || ""]
+      .join(" ")
+      .toLowerCase()
+      .includes(eventSearch);
+  });
+  const filteredNonPlayerUsers = nonPlayerUsers.filter((member) => {
+    if (!userSearch) return true;
+    return [member.fullName, member.email, member.role, member.status].join(" ").toLowerCase().includes(userSearch);
+  });
+  const filteredApprovedPlayers = approvedPlayers.filter((member) => {
+    if (!userSearch) return true;
+    const opsTitles = (roleAssignmentsByUserId.get(member.id) || []).map((entry) => entry.titleLabel).join(" ");
+    return [member.fullName, member.email, member.role, member.status, opsTitles]
+      .join(" ")
+      .toLowerCase()
+      .includes(userSearch);
+  });
+  const filteredAllUsers = store.users.filter((member) => {
+    if (!userSearch) return true;
+    const opsTitles = (roleAssignmentsByUserId.get(member.id) || []).map((entry) => entry.titleLabel).join(" ");
+    return [member.fullName, member.email, member.role, member.status, opsTitles]
+      .join(" ")
+      .toLowerCase()
+      .includes(userSearch);
+  });
   const showcaseByGallery = showcasePhotos.reduce((acc, photo) => {
     const key = photo.gallery || "general";
     const list = acc.get(key) || [];
@@ -870,6 +901,11 @@ export default async function AdminPage({
             <p className="muted">
               Public signup URL: <code>https://pghwarriorhockey.us/join</code>
             </p>
+            <form className="grid-form" action="/admin" method="get">
+              <input type="hidden" name="section" value="contacts" />
+              <input name="userSearch" placeholder="Search users by name, email, role, status" defaultValue={String(query.userSearch || "")} />
+              <button className="button" type="submit">Filter Users</button>
+            </form>
           </article>
 
           <article className="card">
@@ -949,11 +985,11 @@ export default async function AdminPage({
 
           <article className="card">
             <h3>Existing Website Users</h3>
-            {nonPlayerUsers.length === 0 ? (
+            {filteredNonPlayerUsers.length === 0 ? (
               <p className="muted">No non-player website users.</p>
             ) : (
               <div className="stack">
-                {nonPlayerUsers.map((member) => (
+                {filteredNonPlayerUsers.map((member) => (
                   <div key={member.id} className="event-card stack">
                     <strong>{member.fullName}</strong>
                     <p>{member.email}</p>
@@ -1275,6 +1311,19 @@ export default async function AdminPage({
             const returnSection = section;
             return (
           <>
+          <article className="card admin-sticky-actions">
+            <div className="cta-row">
+              <a className="button ghost" href={`/admin?section=${returnSection}#create-event`}>Create Event</a>
+              <Link className="button ghost" href="/admin/dvhl">DVHL Hub</Link>
+              <a className="button ghost" href="/api/public/events" target="_blank" rel="noreferrer">Open Public Feed</a>
+            </div>
+            <form className="grid-form" action="/admin" method="get">
+              <input type="hidden" name="section" value={returnSection} />
+              <input name="eventSearch" placeholder="Search events by title, type, location, manager" defaultValue={String(query.eventSearch || "")} />
+              <button className="button" type="submit">Filter Events</button>
+            </form>
+          </article>
+
           <article className="card">
             <h3>{eventScope === "onice" ? "Quick On-Ice Event Builder" : "Quick Off-Ice Event Builder"}</h3>
             <p className="muted">
@@ -1365,7 +1414,7 @@ export default async function AdminPage({
             </p>
           </details>
 
-          <details className="card admin-disclosure" open>
+          <details id="create-event" className="card admin-disclosure" open>
             <summary>Create Event</summary>
             <h3>Publish Event (Public Site Feed Source)</h3>
             <form className="grid-form" data-event-form="1" action="/api/admin/events" method="post">
@@ -1502,7 +1551,7 @@ export default async function AdminPage({
             <summary>Event Manager</summary>
             <h3>Current Event Feed Inventory</h3>
             <div className="stack">
-              {scopedEvents.map((event) => (
+              {filteredScopedEvents.map((event) => (
                 <details key={event.id} className="event-card admin-disclosure">
                   <summary>{event.title} | {new Date(event.date).toLocaleString()}</summary>
                   {(() => {
@@ -1799,7 +1848,7 @@ export default async function AdminPage({
                   </form>
                 </details>
               ))}
-              {scopedEvents.length === 0 && <p className="muted">No events in this category yet.</p>}
+              {filteredScopedEvents.length === 0 && <p className="muted">No events match current filter.</p>}
             </div>
           </details>
 
@@ -1828,12 +1877,17 @@ export default async function AdminPage({
               To make someone both player + admin, keep account role as <strong>player</strong> and assign Ops role(s)
               below. They will keep Player Hub and also gain Hockey Ops access.
             </p>
+            <form className="grid-form" action="/admin" method="get">
+              <input type="hidden" name="section" value="usermanagement" />
+              <input name="userSearch" placeholder="Search users by name, email, role, ops title" defaultValue={String(query.userSearch || "")} />
+              <button className="button" type="submit">Filter User Lists</button>
+            </form>
           </article>
 
           <details className="card admin-disclosure" open>
             <summary>Access Controls (Non-Players)</summary>
             <div className="stack">
-              {nonPlayerUsers.map((member) => (
+              {filteredNonPlayerUsers.map((member) => (
                 <form
                   key={member.id}
                   className="event-card grid-form"
@@ -1860,7 +1914,7 @@ export default async function AdminPage({
                   <button className="button ghost" type="submit">Update Access</button>
                 </form>
               ))}
-              {nonPlayerUsers.length === 0 ? <p className="muted">No non-player users yet.</p> : null}
+              {filteredNonPlayerUsers.length === 0 ? <p className="muted">No non-player users match current filter.</p> : null}
             </div>
           </details>
 
@@ -1872,7 +1926,7 @@ export default async function AdminPage({
                 while preserving Player HQ access.
               </p>
               <div className="stack">
-                {approvedPlayers.map((member) => (
+                {filteredApprovedPlayers.map((member) => (
                   <form
                     key={`${member.id}-player-ops-role`}
                     className="event-card grid-form"
@@ -1909,7 +1963,7 @@ export default async function AdminPage({
                     <button className="button ghost" type="submit">Save Player Ops Role</button>
                   </form>
                 ))}
-                {approvedPlayers.length === 0 ? <p className="muted">No approved players yet.</p> : null}
+                {filteredApprovedPlayers.length === 0 ? <p className="muted">No approved players match current filter.</p> : null}
               </div>
             </details>
           ) : null}
@@ -1918,7 +1972,7 @@ export default async function AdminPage({
             <details className="card admin-disclosure" open>
               <summary>Ops Role Assignments</summary>
               <div className="stack">
-                {store.users.map((member) => (
+                {filteredAllUsers.map((member) => (
                   <form
                     key={`${member.id}-ops-role-usermanagement`}
                     className="event-card grid-form"
