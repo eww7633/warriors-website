@@ -331,6 +331,60 @@ export async function createPendingPlayer(input: {
   return user;
 }
 
+export async function createSupporterUser(input: {
+  fullName: string;
+  email: string;
+  password: string;
+  phone?: string;
+}) {
+  if (useDatabaseBackend()) {
+    await ensureAdminSeedDb();
+
+    const existing = await getPrismaClient().user.findUnique({ where: { email: normalizeEmail(input.email) } });
+    if (existing) {
+      throw new Error("An account already exists for this email.");
+    }
+
+    const created = await getPrismaClient().user.create({
+      data: {
+        fullName: input.fullName,
+        email: normalizeEmail(input.email),
+        passwordHash: await hashPassword(input.password),
+        phone: input.phone,
+        role: "public",
+        status: "approved",
+        activityStatus: "active",
+        equipmentSizes: {}
+      }
+    });
+    return mapUser(created);
+  }
+
+  const store = await readStore();
+  const existing = store.users.find((entry) => normalizeEmail(entry.email) === normalizeEmail(input.email));
+  if (existing) {
+    throw new Error("An account already exists for this email.");
+  }
+
+  const user: MemberUser = {
+    id: crypto.randomUUID(),
+    fullName: input.fullName,
+    email: normalizeEmail(input.email),
+    passwordHash: await hashPassword(input.password),
+    phone: input.phone,
+    role: "public",
+    status: "approved",
+    activityStatus: "active",
+    equipmentSizes: {},
+    createdAt: nowIso(),
+    updatedAt: nowIso()
+  };
+
+  store.users.push(user);
+  await writeStore(store);
+  return user;
+}
+
 export async function approvePlayer(userId: string, rosterId: string, jerseyNumber?: number) {
   if (useDatabaseBackend()) {
     await ensureAdminSeedDb();
