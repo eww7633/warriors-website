@@ -92,21 +92,24 @@ export default function SettingsScreen() {
       <Card>
         <Text style={{ color: colors.text, fontWeight: '700' }}>Appearance</Text>
         <View style={styles.chips}>
-          {themeOptions.map((option) => (
-            <Pressable
-              key={option}
-              style={[
-                styles.chip,
-                { borderColor: colors.border },
-                preferences.themeMode === option && { borderColor: colors.primary, backgroundColor: colors.secondary }
-              ]}
-              onPress={() => setThemeMode(option)}
-            >
-              <Text style={{ color: colors.text, fontWeight: '600' }}>
-                {option === 'system' ? 'Match System' : option.charAt(0).toUpperCase() + option.slice(1)}
-              </Text>
-            </Pressable>
-          ))}
+          {themeOptions.map((option) => {
+            const selected = preferences.themeMode === option;
+            return (
+              <Pressable
+                key={option}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border },
+                  selected && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                ]}
+                onPress={() => setThemeMode(option)}
+              >
+                <Text style={{ color: selected ? colors.secondaryText : colors.text, fontWeight: '600' }}>
+                  {option === 'system' ? 'Match System' : option.charAt(0).toUpperCase() + option.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </Card>
 

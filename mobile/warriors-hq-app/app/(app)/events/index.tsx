@@ -44,19 +44,24 @@ export default function EventsScreen() {
       <Card>
         <Text style={{ color: colors.text, fontWeight: '700' }}>Filter by Type</Text>
         <View style={styles.chips}>
-          {eventTypes.map((value) => (
-            <Pressable
-              key={value}
-              style={[
-                styles.chip,
-                { borderColor: colors.border },
-                typeFilter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
-              ]}
-              onPress={() => setTypeFilter(value)}
-            >
-              <Text style={{ color: colors.text, fontWeight: '600' }}>{value === 'all' ? 'All Types' : value}</Text>
-            </Pressable>
-          ))}
+          {eventTypes.map((value) => {
+            const selected = typeFilter === value;
+            return (
+              <Pressable
+                key={value}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border },
+                  selected && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                ]}
+                onPress={() => setTypeFilter(value)}
+              >
+                <Text style={{ color: selected ? colors.secondaryText : colors.text, fontWeight: '600' }}>
+                  {value === 'all' ? 'All Types' : value}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </Card>
       <ScrollView

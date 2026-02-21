@@ -134,41 +134,47 @@ export default function DashboardScreen() {
         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Filter</Text>
         {!isSupporter ? (
           <View style={styles.chips}>
-            {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => (
-              <Pressable
-                key={value}
-                style={[
-                  styles.chip,
-                  { borderColor: colors.border },
-                  filter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
-                ]}
-                onPress={() => setFilter(value)}
-              >
-                <Text style={[styles.chipText, { color: colors.text }]}>
-                  {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
-                </Text>
-              </Pressable>
-            ))}
+            {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => {
+              const selected = filter === value;
+              return (
+                <Pressable
+                  key={value}
+                  style={[
+                    styles.chip,
+                    { borderColor: colors.border },
+                    selected && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                  ]}
+                  onPress={() => setFilter(value)}
+                >
+                  <Text style={[styles.chipText, { color: selected ? colors.secondaryText : colors.text }]}>
+                    {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         ) : (
           <Text style={{ color: colors.textMuted }}>Supporter accounts can filter by event type.</Text>
         )}
         <View style={[styles.chips, { marginTop: 8 }]}>
-          {eventTypes.map((value) => (
-            <Pressable
-              key={value}
-              style={[
-                styles.chip,
-                { borderColor: colors.border },
-                typeFilter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
-              ]}
-              onPress={() => setTypeFilter(value)}
-            >
-              <Text style={[styles.chipText, { color: colors.text }]}>
-                {value === 'all' ? 'All Types' : value}
-              </Text>
-            </Pressable>
-          ))}
+          {eventTypes.map((value) => {
+            const selected = typeFilter === value;
+            return (
+              <Pressable
+                key={value}
+                style={[
+                  styles.chip,
+                  { borderColor: colors.border },
+                  selected && { borderColor: colors.primary, backgroundColor: colors.secondary }
+                ]}
+                onPress={() => setTypeFilter(value)}
+              >
+                <Text style={[styles.chipText, { color: selected ? colors.secondaryText : colors.text }]}>
+                  {value === 'all' ? 'All Types' : value}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
       </Card>
 
