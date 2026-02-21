@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
@@ -25,12 +25,16 @@ export default function DashboardScreen() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | ReservationStatus>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const isSupporter = session.user?.role === 'supporter';
 
-  const upcoming = useMemo(
-    () => [...events].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).slice(0, 8),
-    [events]
-  );
+  const upcoming = useMemo(() => {
+    const now = Date.now();
+    return [...events]
+      .filter((event) => (showPastEvents ? true : new Date(event.startsAt).getTime() >= now))
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+      .slice(0, 8);
+  }, [events, showPastEvents]);
   const filteredEvents = useMemo(() => {
     const byRsvp = filter === 'all' ? upcoming : upcoming.filter((event) => event.viewerReservationStatus === filter);
     if (typeFilter === 'all') return byRsvp;
@@ -194,6 +198,10 @@ export default function DashboardScreen() {
             );
           })}
         </View>
+        <View style={styles.toggleRow}>
+          <Text style={{ color: colors.textMuted }}>Show past events</Text>
+          <Switch value={showPastEvents} onValueChange={setShowPastEvents} />
+        </View>
       </Card>
 
       {filteredEvents.map((event) => (
@@ -342,5 +350,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8
+  },
+  toggleRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   }
 });

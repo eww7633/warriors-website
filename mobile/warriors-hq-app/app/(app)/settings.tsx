@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
@@ -12,6 +13,7 @@ import type { ThemeMode } from '@/lib/types';
 const themeOptions: ThemeMode[] = ['system', 'light', 'dark'];
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const colors = useThemeColors();
   const { session, logout, updateUser } = useAuth();
   const { preferences, setNotificationPref, setThemeMode } = usePreferences();
@@ -113,6 +115,14 @@ export default function SettingsScreen() {
           })}
         </View>
       </Card>
+
+      {session.user?.role === 'admin' ? (
+        <Card>
+          <Text style={{ color: colors.text, fontWeight: '700' }}>Admin View</Text>
+          <Text style={{ color: colors.textMuted }}>Open Hockey Ops mobile admin tools.</Text>
+          <Button label="Open Admin Tools" variant="secondary" onPress={() => router.push('/(app)/admin')} />
+        </Card>
+      ) : null}
 
       <Button label="Log Out" variant="danger" onPress={logout} />
     </Screen>

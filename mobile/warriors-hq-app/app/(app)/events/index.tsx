@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
@@ -14,11 +14,17 @@ export default function EventsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const isSupporter = session.user?.role === 'supporter';
   const eventTypes = useMemo(() => ['all', ...Array.from(new Set(events.map((event) => event.eventType).filter(Boolean)))], [events]);
   const filteredEvents = useMemo(
-    () => (typeFilter === 'all' ? events : events.filter((event) => event.eventType === typeFilter)),
-    [events, typeFilter]
+    () => {
+      const now = Date.now();
+      const futureFiltered = events.filter((event) => (showPastEvents ? true : new Date(event.startsAt).getTime() >= now));
+      const typed = typeFilter === 'all' ? futureFiltered : futureFiltered.filter((event) => event.eventType === typeFilter);
+      return typed.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+    },
+    [events, showPastEvents, typeFilter]
   );
 
   const load = useCallback(async () => {
@@ -62,6 +68,10 @@ export default function EventsScreen() {
               </Pressable>
             );
           })}
+        </View>
+        <View style={styles.toggleRow}>
+          <Text style={{ color: colors.textMuted }}>Show past events</Text>
+          <Switch value={showPastEvents} onValueChange={setShowPastEvents} />
         </View>
       </Card>
       <ScrollView
@@ -119,5 +129,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     paddingHorizontal: 10,
     paddingVertical: 6
+  },
+  toggleRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   }
 });
