@@ -996,7 +996,7 @@ export default async function AdminPage({
                     <p>
                       Role: {member.role} | Status: {member.status}
                     </p>
-                    <p>
+                    <div className="cta-row">
                       <a
                         className="button alt"
                         href={`/api/admin/users/${member.id}/invite-preview`}
@@ -1005,7 +1005,10 @@ export default async function AdminPage({
                       >
                         Preview Invite Email
                       </a>
-                    </p>
+                      <form action={`/api/admin/users/${member.id}/send-invite`} method="post">
+                        <button className="button ghost" type="submit">Send Invite Email</button>
+                      </form>
+                    </div>
                     <form className="grid-form" action={`/api/admin/users/${member.id}/access`} method="post">
                       <input type="hidden" name="returnTo" value="/admin?section=contacts" />
                       <label>

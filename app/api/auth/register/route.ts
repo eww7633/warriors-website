@@ -6,6 +6,7 @@ export async function POST(request: Request) {
   const formData = (await request.formData()) as unknown as {
     get: (name: string) => FormDataEntryValue | null;
   };
+  const redirectBase = new URL("/join?mode=player", request.url);
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
@@ -23,14 +24,17 @@ export async function POST(request: Request) {
   const needsEquipment = String(formData.get("needsEquipment") ?? "").trim() === "on";
 
   if (!fullName || !email || !password) {
-    return NextResponse.redirect(new URL("/join?error=missing_fields", request.url), 303);
+    redirectBase.searchParams.set("error", "missing_fields");
+    return NextResponse.redirect(redirectBase, 303);
   }
 
   if (password.length < 8) {
-    return NextResponse.redirect(new URL("/join?error=password_too_short", request.url), 303);
+    redirectBase.searchParams.set("error", "password_too_short");
+    return NextResponse.redirect(redirectBase, 303);
   }
   if (!requestedPosition || !playerExperienceSummary || !acceptCodeOfConduct) {
-    return NextResponse.redirect(new URL("/join?error=player_application_incomplete", request.url), 303);
+    redirectBase.searchParams.set("error", "player_application_incomplete");
+    return NextResponse.redirect(redirectBase, 303);
   }
 
   try {
@@ -62,9 +66,7 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/login?registered=1", request.url), 303);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Registration failed.";
-    return NextResponse.redirect(
-      new URL(`/join?error=${encodeURIComponent(message)}`, request.url),
-      303
-    );
+    redirectBase.searchParams.set("error", message);
+    return NextResponse.redirect(redirectBase, 303);
   }
 }

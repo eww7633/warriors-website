@@ -268,15 +268,42 @@ export async function createPendingPlayer(input: {
   if (useDatabaseBackend()) {
     await ensureAdminSeedDb();
 
-    const existing = await getPrismaClient().user.findUnique({ where: { email: normalizeEmail(input.email) } });
+    const normalizedEmail = normalizeEmail(input.email);
+    const existing = await getPrismaClient().user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
-      throw new Error("An account already exists for this email.");
+      if (existing.role === "admin" || existing.role === "player") {
+        throw new Error("An account already exists for this email.");
+      }
+
+      const updated = await getPrismaClient().user.update({
+        where: { id: existing.id },
+        data: {
+          fullName: input.fullName || existing.fullName,
+          passwordHash: await hashPassword(input.password),
+          requestedPosition: input.requestedPosition || existing.requestedPosition,
+          phone: input.phone || existing.phone,
+          status: "pending"
+        }
+      });
+
+      await getPrismaClient().contactLead.updateMany({
+        where: {
+          email: normalizedEmail
+        },
+        data: {
+          linkedUserId: updated.id,
+          onboardingStatus: "linked",
+          linkedAt: new Date()
+        }
+      });
+
+      return mapUser(updated);
     }
 
     const created = await getPrismaClient().user.create({
       data: {
         fullName: input.fullName,
-        email: normalizeEmail(input.email),
+        email: normalizedEmail,
         passwordHash: await hashPassword(input.password),
         requestedPosition: input.requestedPosition,
         phone: input.phone,
@@ -289,7 +316,7 @@ export async function createPendingPlayer(input: {
 
     await getPrismaClient().contactLead.updateMany({
       where: {
-        email: normalizeEmail(input.email),
+        email: normalizedEmail,
         linkedUserId: null
       },
       data: {
@@ -303,18 +330,29 @@ export async function createPendingPlayer(input: {
   }
 
   const store = await readStore();
+  const normalizedEmail = normalizeEmail(input.email);
   const existing = store.users.find(
-    (user) => normalizeEmail(user.email) === normalizeEmail(input.email)
+    (user) => normalizeEmail(user.email) === normalizedEmail
   );
 
   if (existing) {
-    throw new Error("An account already exists for this email.");
+    if (existing.role === "admin" || existing.role === "player") {
+      throw new Error("An account already exists for this email.");
+    }
+    existing.fullName = input.fullName || existing.fullName;
+    existing.passwordHash = await hashPassword(input.password);
+    existing.requestedPosition = input.requestedPosition || existing.requestedPosition;
+    existing.phone = input.phone || existing.phone;
+    existing.status = "pending";
+    existing.updatedAt = nowIso();
+    await writeStore(store);
+    return existing;
   }
 
   const user: MemberUser = {
     id: crypto.randomUUID(),
     fullName: input.fullName,
-    email: normalizeEmail(input.email),
+    email: normalizedEmail,
     passwordHash: await hashPassword(input.password),
     requestedPosition: input.requestedPosition,
     phone: input.phone,

@@ -36,7 +36,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
   }
 
   const base = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
-  const registerUrl = `${base}/join?prefillEmail=${encodeURIComponent(user.email)}&mode=player`;
+  const registerUrl = `${base}/join?mode=player&invite=1&email=${encodeURIComponent(user.email)}`;
   const message = buildInviteEmail({
     to: user.email,
     fullName: user.fullName,
@@ -56,4 +56,3 @@ export async function GET(request: Request, { params }: { params: { id: string }
     headers: { "content-type": "text/html; charset=utf-8" }
   });
 }
-
