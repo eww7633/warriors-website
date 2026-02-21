@@ -219,3 +219,52 @@ export async function sendAnnouncementEmail(input: {
 
   return { sent: true as const };
 }
+
+export async function sendUsaHockeyReminderEmail(input: {
+  to: string;
+  fullName?: string | null;
+  hqProfileUrl?: string;
+  reason?: string;
+}) {
+  let smtp: ReturnType<typeof getSmtpConfig>;
+  try {
+    smtp = getSmtpConfig();
+  } catch {
+    return { sent: false as const, reason: "smtp_not_configured" as const };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: {
+      user: smtp.user,
+      pass: smtp.pass
+    }
+  });
+
+  const subject = "Action Required: USA Hockey Number Verification";
+  const greeting = input.fullName ? `Hi ${input.fullName},` : "Hi,";
+  const reasonLine = input.reason ? `Current status: ${input.reason}` : "";
+  const text = [
+    greeting,
+    "",
+    "You need a current, verified USA Hockey number before Hockey Ops can roster you for official on-ice competitions.",
+    reasonLine,
+    "Please update your USA Hockey number in Player HQ as soon as possible.",
+    input.hqProfileUrl ? `Update now: ${input.hqProfileUrl}` : "",
+    "",
+    "Pittsburgh Warriors Hockey Ops"
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await transporter.sendMail({
+    from: smtp.from,
+    to: input.to,
+    subject,
+    text
+  });
+
+  return { sent: true as const };
+}

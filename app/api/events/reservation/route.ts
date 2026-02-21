@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { isValidReservationStatus, setEventReservation } from "@/lib/hq/reservations";
 import { getEventSignupConfig, isInterestSignupClosed } from "@/lib/hq/event-signups";
+import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
 
 function getReturnPath(raw: string) {
   const value = raw.trim();
@@ -38,6 +39,15 @@ export async function POST(request: Request) {
   }
 
   const signupConfig = await getEventSignupConfig(eventId);
+  if (user.role !== "admin" && signupConfig?.requiresUsaHockeyVerified) {
+    const profile = await getPlayerProfileExtra(user.id);
+    if (!isUsaHockeyVerifiedForSeason(profile)) {
+      return NextResponse.redirect(
+        new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=usa_hockey_verification_required`, request.url),
+        303
+      );
+    }
+  }
   if (
     user.role !== "admin" &&
     signupConfig?.signupMode === "interest_gathering" &&

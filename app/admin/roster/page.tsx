@@ -45,6 +45,9 @@ export default async function CentralRosterPage({
     usaRollover?: string;
     usaSeason?: string;
     usaUpdated?: string;
+    usaReminder?: string;
+    sent?: string;
+    skipped?: string;
     legacyMigrated?: string;
     onboardingCheck?: string;
     contact?: string;
@@ -232,6 +235,9 @@ export default async function CentralRosterPage({
             USA Hockey rollover complete for {query.usaSeason || currentUsaSeason}. Updated {query.usaUpdated || "0"} profiles.
           </p>
         )}
+        {query.usaReminder === "sent" && (
+          <p className="badge">USA Hockey reminders sent: {query.sent || "0"} | skipped: {query.skipped || "0"}</p>
+        )}
         {query.request === "approved" && <p className="badge">Request approved.</p>}
         {query.request === "rejected" && <p className="badge">Request rejected.</p>}
         {query.error && (
@@ -250,6 +256,11 @@ export default async function CentralRosterPage({
         <form action="/api/admin/roster/migrate-legacy" method="post">
           <button className="button alt" type="submit">
             Migrate Legacy Roster IDs to Main + Sub-Roster
+          </button>
+        </form>
+        <form action="/api/admin/usa-hockey/reminders" method="post">
+          <button className="button ghost" type="submit">
+            Send USA Hockey Reminder Emails
           </button>
         </form>
       </article>

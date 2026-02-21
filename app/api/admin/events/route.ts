@@ -52,6 +52,8 @@ export async function POST(request: Request) {
   const guestCostLabel = String(formData.get("guestCostLabel") ?? "").trim();
   const guestCostAmountUsdRaw = String(formData.get("guestCostAmountUsd") ?? "").trim();
   const guestCostAmountUsd = Number(guestCostAmountUsdRaw);
+  const requiresUsaHockeyVerified =
+    String(formData.get("requiresUsaHockeyVerified") ?? "").trim() === "on";
 
   if (!title || !startsAt || !publicDetails) {
     return NextResponse.redirect(new URL(withParam(returnTo, "error", "missing_event_fields"), request.url), 303);
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
       guestCostEnabled: guestsAllowedForEventType && guestCostEnabled,
       guestCostLabel,
       guestCostAmountUsd: Number.isFinite(guestCostAmountUsd) ? guestCostAmountUsd : undefined,
+      requiresUsaHockeyVerified,
       updatedByUserId: actor.id
     });
 

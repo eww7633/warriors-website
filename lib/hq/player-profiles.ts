@@ -107,6 +107,28 @@ export function usaHockeySeasonLabel(date = new Date()) {
   return `${startYear}-${startYear + 1}`;
 }
 
+export function isUsaHockeyVerifiedForSeason(profile: PlayerProfileExtra | null | undefined, season = usaHockeySeasonLabel()) {
+  if (!profile?.usaHockeyNumber) return false;
+  if (profile.usaHockeyStatus !== "verified") return false;
+  if ((profile.usaHockeySeason || "").trim() !== season) return false;
+  if (profile.usaHockeyExpiresAt) {
+    const exp = new Date(profile.usaHockeyExpiresAt).getTime();
+    if (Number.isFinite(exp) && exp < Date.now()) return false;
+  }
+  return true;
+}
+
+export function usaHockeyEligibilityReason(profile: PlayerProfileExtra | null | undefined, season = usaHockeySeasonLabel()) {
+  if (!profile?.usaHockeyNumber) return "missing_number";
+  if ((profile.usaHockeySeason || "").trim() !== season) return "season_not_current";
+  if (profile.usaHockeyStatus !== "verified") return "not_verified";
+  if (profile.usaHockeyExpiresAt) {
+    const exp = new Date(profile.usaHockeyExpiresAt).getTime();
+    if (Number.isFinite(exp) && exp < Date.now()) return "expired";
+  }
+  return "eligible";
+}
+
 async function ensureStoreFile() {
   const filePath = profileStorePath();
   await fs.mkdir(path.dirname(filePath), { recursive: true });

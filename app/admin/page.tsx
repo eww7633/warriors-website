@@ -1729,6 +1729,9 @@ export default async function AdminPage({
                 <input name="allowGuestRequests" type="checkbox" /> Allow players to request guests (disabled for DVHL)
               </label>
               <label>
+                <input name="requiresUsaHockeyVerified" type="checkbox" /> Require verified USA Hockey number
+              </label>
+              <label>
                 <input name="guestCostEnabled" type="checkbox" /> Guest cost applies
               </label>
               <input name="guestCostLabel" placeholder="Guest cost label (e.g., hotel fee)" />
@@ -1778,6 +1781,7 @@ export default async function AdminPage({
                           ? ` | Target: ${signupConfig.targetRosterSize}`
                           : ""}
                         {signupConfig?.signupMode === "interest_gathering" ? ` | Selected: ${selectedCount}` : ""}
+                        {signupConfig?.requiresUsaHockeyVerified ? " | USA Hockey verified required" : ""}
                       </p>
                     );
                   })()}
@@ -1882,6 +1886,14 @@ export default async function AdminPage({
                         defaultChecked={Boolean(signupConfigsByEvent[event.id]?.allowGuestRequests)}
                       />{" "}
                       Allow players to request guests (disabled for DVHL)
+                    </label>
+                    <label>
+                      <input
+                        name="requiresUsaHockeyVerified"
+                        type="checkbox"
+                        defaultChecked={Boolean(signupConfigsByEvent[event.id]?.requiresUsaHockeyVerified)}
+                      />{" "}
+                      Require verified USA Hockey number
                     </label>
                     <label>
                       <input

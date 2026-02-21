@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/hq/session";
-import { getEventSignupConfig, setEventRosterSelection } from "@/lib/hq/event-signups";
-import { canAccessAdminPanel } from "@/lib/hq/permissions";
+import {
+  getEventSignupConfig,
+  isInterestSignupClosed,
+  setEventRosterSelection
+} from "@/lib/hq/event-signups";
 import { getAllEvents } from "@/lib/hq/events";
-import { readStore } from "@/lib/hq/store";
-import { sendInterestRosterFinalizedEmail } from "@/lib/email";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
+import { listReservationBoards } from "@/lib/hq/reservations";
 import { canEmailUserForCategory } from "@/lib/hq/notifications";
+import { readStore } from "@/lib/hq/store";
+import { getCurrentUser } from "@/lib/hq/session";
+import { sendInterestRosterFinalizedEmail } from "@/lib/email";
 import { getPlayerProfileExtra, isUsaHockeyVerifiedForSeason } from "@/lib/hq/player-profiles";
 
 function getReturnPath(raw: string) {
@@ -25,10 +30,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const eventId = String(formData.get("eventId") ?? "").trim();
   const returnTo = getReturnPath(String(formData.get("returnTo") ?? "/admin?section=onice"));
-  let selectedUserIds = formData
-    .getAll("selectedUserIds")
-    .map((entry) => String(entry))
-    .filter(Boolean);
+  const respectCloseWindow = formData.get("respectCloseWindow") !== null;
 
   if (!eventId) {
     return NextResponse.redirect(
@@ -45,6 +47,33 @@ export async function POST(request: Request) {
     );
   }
 
+  if (respectCloseWindow && !isInterestSignupClosed(config)) {
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=interest_window_still_open`, request.url),
+      303
+    );
+  }
+
+  const reservationBoards = await listReservationBoards([eventId]);
+  const interested = (reservationBoards.byEvent[eventId] || []).filter((entry) => entry.status !== "not_going");
+  if (interested.length === 0) {
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=no_interested_players`, request.url),
+      303
+    );
+  }
+
+  const sorted = interested.sort((a, b) => {
+    const score = (value: "going" | "maybe") => (value === "going" ? 2 : 1);
+    const delta = score(b.status as "going" | "maybe") - score(a.status as "going" | "maybe");
+    if (delta !== 0) return delta;
+    return a.fullName.localeCompare(b.fullName);
+  });
+  const maxSelected =
+    typeof config.targetRosterSize === "number" && config.targetRosterSize > 0
+      ? config.targetRosterSize
+      : sorted.length;
+  let selectedUserIds = sorted.slice(0, maxSelected).map((entry) => entry.userId);
   if (config.requiresUsaHockeyVerified) {
     const checked = await Promise.all(
       selectedUserIds.map(async (id) => {
@@ -95,12 +124,15 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.redirect(
-      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}rosterselected=1`, request.url),
+      new URL(
+        `${returnTo}${returnTo.includes("?") ? "&" : "?"}rosterselected=1&generated=1`,
+        request.url
+      ),
       303
     );
   } catch {
     return NextResponse.redirect(
-      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=roster_select_failed`, request.url),
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=roster_generation_failed`, request.url),
       303
     );
   }

@@ -106,6 +106,7 @@ export async function POST(request: Request) {
       signupMode: preset.signupMode,
       allowGuestRequests: preset.allowGuestRequests,
       guestCostEnabled: false,
+      requiresUsaHockeyVerified: eventKind.startsWith("hockey_"),
       updatedByUserId: actor.id
     });
 

@@ -14,6 +14,7 @@ export type EventSignupConfig = {
   guestCostEnabled?: boolean;
   guestCostLabel?: string;
   guestCostAmountUsd?: number;
+  requiresUsaHockeyVerified?: boolean;
   updatedAt: string;
   updatedByUserId?: string;
 };
@@ -149,7 +150,8 @@ export async function getEventSignupConfigMap(eventIds: string[]) {
       guestCostAmountUsd:
         typeof entry.guestCostAmountUsd === "number" && entry.guestCostAmountUsd >= 0
           ? entry.guestCostAmountUsd
-          : undefined
+          : undefined,
+      requiresUsaHockeyVerified: Boolean(entry.requiresUsaHockeyVerified)
     };
   }
 
@@ -172,6 +174,7 @@ export async function upsertEventSignupConfig(input: {
   guestCostEnabled?: boolean;
   guestCostLabel?: string;
   guestCostAmountUsd?: number;
+  requiresUsaHockeyVerified?: boolean;
   updatedByUserId?: string;
 }) {
   const store = await readEventSignupStore();
@@ -187,6 +190,7 @@ export async function upsertEventSignupConfig(input: {
       : undefined;
   const allowGuestRequests = Boolean(input.allowGuestRequests);
   const guestCostEnabled = allowGuestRequests && Boolean(input.guestCostEnabled);
+  const requiresUsaHockeyVerified = Boolean(input.requiresUsaHockeyVerified);
 
   const existingIndex = store.configs.findIndex((entry) => entry.eventId === input.eventId);
   const next: EventSignupConfig = {
@@ -200,6 +204,7 @@ export async function upsertEventSignupConfig(input: {
     guestCostEnabled,
     guestCostLabel: guestCostEnabled ? input.guestCostLabel?.trim() || undefined : undefined,
     guestCostAmountUsd: guestCostEnabled ? guestCostAmountUsd : undefined,
+    requiresUsaHockeyVerified,
     updatedAt: nowIso(),
     updatedByUserId: input.updatedByUserId
   };

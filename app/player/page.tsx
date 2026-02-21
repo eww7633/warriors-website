@@ -12,6 +12,8 @@ import {
 } from "@/lib/hq/player-requests";
 import {
   getPlayerProfileExtra,
+  isUsaHockeyVerifiedForSeason,
+  usaHockeyEligibilityReason,
   listJerseyOptionsForPlayer,
   listTeamAssignmentsByUser,
   usaHockeySeasonLabel
@@ -123,6 +125,8 @@ export default async function PlayerPage({
   const pendingPhoto = photoRequests.find((entry) => entry.status === "pending");
   const pendingJersey = jerseyRequests.find((entry) => entry.status === "pending");
   const equipment = latestUser.equipmentSizes ?? {};
+  const usaEligible = isUsaHockeyVerifiedForSeason(profileExtra);
+  const usaReason = usaHockeyEligibilityReason(profileExtra);
   const featuredAnnouncement = playerAnnouncements[0] || null;
   const selectedAnnouncement =
     allPlayerAnnouncements.find((entry) => entry.id === queryAnnouncement) ||
@@ -210,6 +214,11 @@ export default async function PlayerPage({
               {profileExtra.usaHockeyStatus || "unverified"} | Current season target:{" "}
               {usaHockeySeasonLabel()}
             </p>
+            {!usaEligible ? (
+              <p className="badge">
+                USA Hockey update needed ({usaReason.replaceAll("_", " ")}). You may be blocked from official on-ice rosters.
+              </p>
+            ) : null}
           </>
         )}
       </article>
@@ -546,6 +555,8 @@ export default async function PlayerPage({
               const guestIntent = (guestIntentsByEvent[event.id] || []).find((entry) => entry.userId === latestUser.id);
               const guestsAllowed = canEventCollectGuests(signupConfig, event.eventTypeName);
               const dvhl = isDvhlEvent(event.eventTypeName);
+              const usaRequired = Boolean(signupConfig?.requiresUsaHockeyVerified);
+              const usaBlocked = usaRequired && !usaEligible;
               return (
                 <article key={event.id} className="event-card">
                   <strong>{event.title}</strong>
@@ -556,6 +567,7 @@ export default async function PlayerPage({
                     {isInterest && signupConfig?.interestClosesAt
                       ? ` | Closes ${new Date(signupConfig.interestClosesAt).toLocaleString()}`
                       : ""}
+                    {usaRequired ? " | USA Hockey verified required" : ""}
                   </p>
                   {isInterest ? (
                     <p className="muted">
@@ -566,18 +578,21 @@ export default async function PlayerPage({
                   <form className="grid-form" action="/api/events/reservation" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
                     <input type="hidden" name="returnTo" value="/player?section=events" />
-                    <select name="status" defaultValue={myStatus === "not_set" ? "going" : myStatus} disabled={isClosed}>
+                    <select name="status" defaultValue={myStatus === "not_set" ? "going" : myStatus} disabled={isClosed || usaBlocked}>
                       <option value="going">Going</option>
                       <option value="maybe">Maybe</option>
                       <option value="not_going">Not going</option>
                     </select>
-                    <input name="note" placeholder="Optional note" disabled={isClosed} />
-                    <button className="button" type="submit" disabled={isClosed}>
+                    <input name="note" placeholder="Optional note" disabled={isClosed || usaBlocked} />
+                    <button className="button" type="submit" disabled={isClosed || usaBlocked}>
                       {dvhl ? "Save DVHL Sign-Up" : isInterest ? "Save Interest" : "Save RSVP"}
                     </button>
                   </form>
                   {isClosed ? (
                     <p className="muted">Interest submissions are closed for this event.</p>
+                  ) : null}
+                  {usaBlocked ? (
+                    <p className="muted">USA Hockey verification is required before you can be rostered for this event.</p>
                   ) : null}
                   {guestsAllowed ? (
                     <form className="grid-form" action="/api/events/guest-intent" method="post">
