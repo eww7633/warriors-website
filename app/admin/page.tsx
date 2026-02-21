@@ -84,6 +84,15 @@ function isOffIceEventType(name?: string | null) {
   return !isOnIceEventType(name);
 }
 
+function safeDecode(value?: string) {
+  if (!value) return "";
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 export default async function AdminPage({
   searchParams
 }: {
@@ -173,14 +182,36 @@ export default async function AdminPage({
     ? (requestedSection as Section)
     : defaultSection;
 
-  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, sportsData, attendanceInsights, newsPosts, showcasePhotos, showcaseGalleries, announcements, playerProfileExtras] = await Promise.all([
+  const defaultSportsData = {
+    seasons: [],
+    teams: [],
+    venues: [],
+    positions: [],
+    staff: [],
+    sponsors: [],
+    contactLeads: [],
+    contactLeadStats: {
+      total: 0,
+      imported: 0,
+      invited: 0,
+      linked: 0
+    }
+  };
+
+  let sportsData = defaultSportsData;
+  try {
+    sportsData = await listSportsData();
+  } catch {
+    sportsData = defaultSportsData;
+  }
+
+  const [store, allEvents, eventTypes, competitions, eligiblePlayers, eligibleScorekeepers, attendanceInsights, newsPosts, showcasePhotos, showcaseGalleries, announcements, playerProfileExtras] = await Promise.all([
     readStore(),
     getAllEvents(),
     listEventTypes(),
     listCompetitions(),
     listEligiblePlayers(),
     listEligibleScorekeepers(),
-    listSportsData(),
     summarizeAttendanceInsights(),
     listAllNewsPosts(),
     listLocalShowcasePhotos(),
@@ -382,18 +413,18 @@ export default async function AdminPage({
           <p className="muted">
             {query.error === "link_failed"
               ? query.errorDetail
-                ? decodeURIComponent(query.errorDetail)
+                ? safeDecode(query.errorDetail)
                 : "Unable to link this contact by email."
               : query.error === "invite_send_failed"
               ? query.errorDetail
-                ? decodeURIComponent(query.errorDetail)
+                ? safeDecode(query.errorDetail)
                 : "Unable to send invite email."
               : query.error === "role_update_failed"
               ? query.errorDetail
-                ? decodeURIComponent(query.errorDetail)
+                ? safeDecode(query.errorDetail)
                 : "Unable to update user role."
               : query.errorDetail
-              ? decodeURIComponent(query.errorDetail)
+              ? safeDecode(query.errorDetail)
               : query.error.replaceAll("_", " ")}
           </p>
         )}
