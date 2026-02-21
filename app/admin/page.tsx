@@ -311,6 +311,13 @@ export default async function AdminPage({
     query.announcement === "sent"
       ? `Announcement delivery processed: sent ${query.sent || "0"}, queued ${query.queued || "0"}, failed ${query.failed || "0"}.`
       : null
+    ,
+    query.queueInvited ? `Queue invited: ${query.queueInvited}` : null,
+    query.queueLinked ? `Queue linked: ${query.queueLinked}` : null,
+    query.queueProvisioned ? `Queue provisioned users: ${query.queueProvisioned}` : null,
+    query.queuePromoted ? `Queue promoted to players: ${query.queuePromoted}` : null,
+    query.queueRostered ? `Queue rostered: ${query.queueRostered}` : null,
+    query.queueSkipped ? `Queue skipped: ${query.queueSkipped}` : null
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
@@ -1137,16 +1144,47 @@ export default async function AdminPage({
           </article>
 
           <article className="card">
-            <h3>Imported Contacts (Not Yet Website Users)</h3>
+            <h3>Imported Contacts Queue</h3>
             <p className="muted">
-              If someone was imported from Wix but is missing from the website-user list, invite them from here.
+              Select contacts and run one step at a time: invite, link, provision as user, then roster as player.
             </p>
+            <form id="contact-queue-form" className="grid-form" action="/api/admin/contacts/queue" method="post">
+              <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+              <label>
+                Queue action
+                <select name="action" defaultValue="invite" required>
+                  <option value="invite">Send invites</option>
+                  <option value="link">Link by email to existing users</option>
+                  <option value="provision">Create supporter users + link</option>
+                  <option value="roster">Promote + roster as players</option>
+                </select>
+              </label>
+              <label>
+                Main roster (for roster action)
+                <select name="rosterId" defaultValue="main-player-roster">
+                  <option value="main-player-roster">Main Player Roster</option>
+                </select>
+              </label>
+              <label>
+                Primary sub-roster (for roster action)
+                <select name="primarySubRoster" defaultValue="">
+                  <option value="">Select color roster</option>
+                  <option value="gold">Gold</option>
+                  <option value="white">White</option>
+                  <option value="black">Black</option>
+                </select>
+              </label>
+              <button className="button" type="submit">Run Queue Action On Selected</button>
+            </form>
             {filteredContactLeads.length === 0 ? (
               <p className="muted">No imported contacts match current filter.</p>
             ) : (
               <div className="stack">
                 {filteredContactLeads.map((lead) => (
                   <div key={lead.id} className="event-card stack">
+                    <label>
+                      <input form="contact-queue-form" type="checkbox" name="leadIds" value={lead.id} /> Select contact
+                    </label>
                     <strong>{lead.fullName || "Unnamed contact"}</strong>
                     <p>{lead.email || "No email on file"}</p>
                     <p>
@@ -1163,6 +1201,14 @@ export default async function AdminPage({
                       {lead.email ? (
                         <form action={`/api/admin/contacts/${lead.id}/send-invite`} method="post">
                           <button className="button ghost" type="submit">Send Invite Email</button>
+                        </form>
+                      ) : null}
+                      {lead.email ? (
+                        <form action="/api/admin/contacts/queue" method="post">
+                          <input type="hidden" name="returnTo" value="/admin?section=contacts" />
+                          <input type="hidden" name="action" value="link" />
+                          <input type="hidden" name="leadIds" value={lead.id} />
+                          <button className="button ghost" type="submit">Link Now</button>
                         </form>
                       ) : null}
                       {lead.email ? (
