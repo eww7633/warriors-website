@@ -1,13 +1,22 @@
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@/contexts/auth-context';
+import { useThemeColors } from '@/lib/theme';
 
 export default function AppLayout() {
   const { ready, session } = useAuth();
+  const colors = useThemeColors();
   if (!ready) return null;
   if (!session.isAuthenticated) return <Redirect href="/(auth)/login" />;
 
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: '#0f172a' }, headerTintColor: '#f8fafc', contentStyle: { backgroundColor: '#0b1320' } }}>
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.text,
+        headerTitleStyle: { color: colors.text },
+        contentStyle: { backgroundColor: colors.background }
+      }}
+    >
       <Stack.Screen name="dashboard" options={{ title: 'Dashboard' }} />
       <Stack.Screen name="events/index" options={{ title: 'Events' }} />
       <Stack.Screen name="events/[id]" options={{ title: 'Event Detail' }} />

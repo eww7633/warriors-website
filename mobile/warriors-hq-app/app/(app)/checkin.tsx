@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { useThemeColors } from '@/lib/theme';
 
 const parseToken = (raw: string): string => {
   const trimmed = raw.trim();
@@ -18,6 +19,7 @@ const parseToken = (raw: string): string => {
 
 export default function CheckInScreen() {
   const { session } = useAuth();
+  const colors = useThemeColors();
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function CheckInScreen() {
     }
   };
 
-  if (!permission) return <Screen><Text style={{ color: '#cbd5e1' }}>Loading camera permission...</Text></Screen>;
+  if (!permission) return <Screen><Text style={{ color: colors.textMuted }}>Loading camera permission...</Text></Screen>;
   if (!permission.granted) {
     return (
       <Screen>
@@ -76,7 +78,7 @@ export default function CheckInScreen() {
         </View>
       </Card>
       <ErrorText message={error} />
-      {message ? <Text style={{ color: '#86efac' }}>{message}</Text> : null}
+      {message ? <Text style={{ color: colors.success }}>{message}</Text> : null}
     </Screen>
   );
 }

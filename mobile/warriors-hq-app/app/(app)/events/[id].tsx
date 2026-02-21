@@ -4,6 +4,7 @@ import { Linking, ScrollView, Text } from 'react-native';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { useThemeColors } from '@/lib/theme';
 import type { MobileEvent, ReservationStatus } from '@/lib/types';
 
 const renderStatus = (status: ReservationStatus | null) => {
@@ -16,6 +17,7 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
+  const colors = useThemeColors();
   const [event, setEvent] = useState<MobileEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,29 +59,29 @@ export default function EventDetailScreen() {
           <Card>
             <Title>{event.title}</Title>
             <Subtitle>{new Date(event.startsAt).toLocaleString()}</Subtitle>
-            <Text style={{ color: '#cbd5e1' }}>{event.location}</Text>
-            <Text style={{ color: '#cbd5e1' }}>{event.publicDetails || 'No details.'}</Text>
-            <Text style={{ color: '#cbd5e1' }}>Your RSVP: {renderStatus(event.viewerReservationStatus)}</Text>
-            <Text style={{ color: '#cbd5e1' }}>Going: {event.goingCount} · Total RSVPs: {event.reservationCount}</Text>
+            <Text style={{ color: colors.textMuted }}>{event.location}</Text>
+            <Text style={{ color: colors.textMuted }}>{event.publicDetails || 'No details.'}</Text>
+            <Text style={{ color: colors.textMuted }}>Your RSVP: {renderStatus(event.viewerReservationStatus)}</Text>
+            <Text style={{ color: colors.textMuted }}>Going: {event.goingCount} · Total RSVPs: {event.reservationCount}</Text>
             {event.locationMapUrl ? (
-              <Text style={{ color: '#60a5fa' }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
+              <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
                 Open map
               </Text>
             ) : null}
           </Card>
           <Card>
-            <Text style={{ color: '#f8fafc', fontWeight: '700' }}>Who is Going</Text>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>Who is Going</Text>
             {event.goingMembers.length ? (
               event.goingMembers.map((member) => (
-                <Text key={member.userId} style={{ color: '#cbd5e1' }}>
+                <Text key={member.userId} style={{ color: colors.textMuted }}>
                   {member.fullName}
                 </Text>
               ))
             ) : (
-              <Text style={{ color: '#64748b' }}>No published going list yet.</Text>
+              <Text style={{ color: colors.textMuted }}>No published going list yet.</Text>
             )}
             <Text
-              style={{ color: '#60a5fa', marginTop: 4 }}
+              style={{ color: colors.link, marginTop: 4 }}
               onPress={() => {
                 if (params.id) {
                   router.push(`/(app)/events/going/${params.id}`);
@@ -94,7 +96,7 @@ export default function EventDetailScreen() {
           <Button label="Not Going" variant="danger" onPress={() => onRsvp('not_going')} disabled={saving} />
         </ScrollView>
       ) : (
-        <Text style={{ color: '#cbd5e1' }}>Loading...</Text>
+        <Text style={{ color: colors.textMuted }}>Loading...</Text>
       )}
     </Screen>
   );

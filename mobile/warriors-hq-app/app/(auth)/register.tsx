@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { useThemeColors } from '@/lib/theme';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuth();
+  const colors = useThemeColors();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,11 +43,13 @@ export default function RegisterScreen() {
         <Field value={phone} placeholder="Phone (optional)" onChangeText={setPhone} />
         <Field value={position} placeholder="Requested position (optional)" onChangeText={setPosition} />
         <ErrorText message={error} />
-        {message ? <Text style={{ color: '#86efac' }}>{message}</Text> : null}
+        {message ? <Text style={{ color: colors.success }}>{message}</Text> : null}
         <Button label="Submit request" onPress={onSubmit} loading={loading} disabled={!fullName || !email || password.length < 8} />
         <Button label="Back to login" variant="secondary" onPress={() => router.replace('/(auth)/login')} />
       </Card>
-      <Text style={{ color: '#cbd5e1' }}>Already approved? <Link href="/(auth)/login" style={{ color: '#60a5fa' }}>Go to login</Link></Text>
+      <Text style={{ color: colors.textMuted }}>
+        Already approved? <Link href="/(auth)/login" style={{ color: colors.link }}>Go to login</Link>
+      </Text>
     </Screen>
   );
 }

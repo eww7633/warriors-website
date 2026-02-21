@@ -4,6 +4,7 @@ import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View 
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { useThemeColors } from '@/lib/theme';
 import type { DashboardSummary, MobileEvent, ReservationStatus } from '@/lib/types';
 
 const formatStatus = (status: ReservationStatus | null): string => {
@@ -15,6 +16,7 @@ const formatStatus = (status: ReservationStatus | null): string => {
 export default function DashboardScreen() {
   const router = useRouter();
   const { session, logout } = useAuth();
+  const colors = useThemeColors();
   const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
   const [events, setEvents] = useState<MobileEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -88,9 +90,9 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView
-      style={{ backgroundColor: '#0b1320' }}
+      style={{ backgroundColor: colors.background }}
       contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#fff" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.text} />}
     >
       <Title>Events</Title>
       <Subtitle>
@@ -98,7 +100,7 @@ export default function DashboardScreen() {
       </Subtitle>
 
       <Card>
-        <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>Quick Actions</Text>
+        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Quick Actions</Text>
         <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} />
         <Button label="Full Event List" onPress={() => router.push('/(app)/events')} />
       </Card>
@@ -106,15 +108,19 @@ export default function DashboardScreen() {
       <ErrorText message={error} />
 
       <Card>
-        <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>Filter</Text>
+        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Filter</Text>
         <View style={styles.chips}>
           {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => (
             <Pressable
               key={value}
-              style={[styles.chip, filter === value && styles.chipActive]}
+              style={[
+                styles.chip,
+                { borderColor: colors.border },
+                filter === value && { borderColor: colors.primary, backgroundColor: colors.secondary }
+              ]}
               onPress={() => setFilter(value)}
             >
-              <Text style={styles.chipText}>
+              <Text style={[styles.chipText, { color: colors.text }]}>
                 {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
               </Text>
             </Pressable>
@@ -124,18 +130,18 @@ export default function DashboardScreen() {
 
       {filteredEvents.map((event) => (
         <Card key={event.id}>
-          <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>{event.title}</Text>
-          <Text style={{ color: '#cbd5e1' }}>{new Date(event.startsAt).toLocaleString()}</Text>
-          <Text style={{ color: '#cbd5e1' }}>{event.location}</Text>
-          <Text style={{ color: '#cbd5e1' }}>
+          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>{event.title}</Text>
+          <Text style={{ color: colors.textMuted }}>{new Date(event.startsAt).toLocaleString()}</Text>
+          <Text style={{ color: colors.textMuted }}>{event.location}</Text>
+          <Text style={{ color: colors.textMuted }}>
             Your RSVP: {formatStatus(event.viewerReservationStatus)} · Going: {event.goingCount} · Total RSVPs: {event.reservationCount}
           </Text>
           {event.goingMembers.length > 0 ? (
-            <Text style={{ color: '#cbd5e1' }}>
+            <Text style={{ color: colors.textMuted }}>
               Going: {event.goingMembers.slice(0, 6).map((entry) => entry.fullName).join(', ')}
             </Text>
           ) : (
-            <Text style={{ color: '#64748b' }}>Going list not available yet.</Text>
+            <Text style={{ color: colors.textMuted }}>Going list not available yet.</Text>
           )}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
             <View style={{ flex: 1 }}>
@@ -163,14 +169,14 @@ export default function DashboardScreen() {
               />
             </View>
           </View>
-          <Text style={{ color: '#60a5fa' }} onPress={() => router.push(`/(app)/events/${event.id}`)}>
+          <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/${event.id}`)}>
             Open details
           </Text>
-          <Text style={{ color: '#60a5fa' }} onPress={() => router.push(`/(app)/events/going/${event.id}`)}>
+          <Text style={{ color: colors.link }} onPress={() => router.push(`/(app)/events/going/${event.id}`)}>
             See who&apos;s going
           </Text>
           {event.locationMapUrl ? (
-            <Text style={{ color: '#60a5fa' }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
+            <Text style={{ color: colors.link }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
               Open map
             </Text>
           ) : null}
@@ -179,7 +185,7 @@ export default function DashboardScreen() {
 
       {!filteredEvents.length && !error ? (
         <Card>
-          <Text style={{ color: '#cbd5e1' }}>No visible events right now.</Text>
+          <Text style={{ color: colors.textMuted }}>No visible events right now.</Text>
         </Card>
       ) : null}
 
@@ -203,17 +209,11 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#334155',
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8
   },
-  chipActive: {
-    borderColor: '#60a5fa',
-    backgroundColor: '#1e3a8a'
-  },
   chipText: {
-    color: '#e2e8f0',
     fontSize: 13,
     fontWeight: '600'
   }

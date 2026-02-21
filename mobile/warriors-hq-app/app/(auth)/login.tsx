@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Text } from 'react-native';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { useThemeColors } from '@/lib/theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  const colors = useThemeColors();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,9 @@ export default function LoginScreen() {
         <ErrorText message={error} />
         <Button label="Login" onPress={onSubmit} loading={loading} disabled={!email || !password} />
       </Card>
-      <Text style={{ color: '#cbd5e1' }}>Need access? <Link href="/(auth)/register" style={{ color: '#60a5fa' }}>Request account</Link></Text>
+      <Text style={{ color: colors.textMuted }}>
+        Need access? <Link href="/(auth)/register" style={{ color: colors.link }}>Request account</Link>
+      </Text>
     </Screen>
   );
 }

@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { useThemeColors } from '@/lib/theme';
 import type { MobileEvent } from '@/lib/types';
 
 type SortMode = 'priority' | 'alpha';
@@ -16,6 +17,7 @@ const isGoalie = (value: string | null): boolean => {
 export default function GoingListScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
+  const colors = useThemeColors();
   const [event, setEvent] = useState<MobileEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -66,15 +68,29 @@ export default function GoingListScreen() {
           value={query}
           onChangeText={setQuery}
           placeholder="Search players"
-          placeholderTextColor="#64748b"
-          style={styles.search}
+          placeholderTextColor={colors.textMuted}
+          style={[styles.search, { borderColor: colors.border, color: colors.text, backgroundColor: colors.background }]}
         />
         <View style={styles.row}>
-          <Pressable style={[styles.chip, sortMode === 'priority' && styles.chipActive]} onPress={() => setSortMode('priority')}>
-            <Text style={styles.chipText}>Manager/Goalie First</Text>
+          <Pressable
+            style={[
+              styles.chip,
+              { borderColor: colors.border },
+              sortMode === 'priority' && { borderColor: colors.primary, backgroundColor: colors.secondary }
+            ]}
+            onPress={() => setSortMode('priority')}
+          >
+            <Text style={[styles.chipText, { color: colors.text }]}>Manager/Goalie First</Text>
           </Pressable>
-          <Pressable style={[styles.chip, sortMode === 'alpha' && styles.chipActive]} onPress={() => setSortMode('alpha')}>
-            <Text style={styles.chipText}>Alphabetical</Text>
+          <Pressable
+            style={[
+              styles.chip,
+              { borderColor: colors.border },
+              sortMode === 'alpha' && { borderColor: colors.primary, backgroundColor: colors.secondary }
+            ]}
+            onPress={() => setSortMode('alpha')}
+          >
+            <Text style={[styles.chipText, { color: colors.text }]}>Alphabetical</Text>
           </Pressable>
         </View>
       </Card>
@@ -83,8 +99,8 @@ export default function GoingListScreen() {
         <View style={{ gap: 10, paddingBottom: 16 }}>
           {filtered.map((member) => (
             <Card key={member.userId}>
-              <Text style={{ color: '#f8fafc', fontWeight: '700' }}>{member.fullName}</Text>
-              <Text style={{ color: '#cbd5e1' }}>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{member.fullName}</Text>
+              <Text style={{ color: colors.textMuted }}>
                 {member.isManager ? 'Manager' : 'Player'}
                 {member.requestedPosition ? ` · ${member.requestedPosition}` : ''}
               </Text>
@@ -92,7 +108,7 @@ export default function GoingListScreen() {
           ))}
           {event && !filtered.length ? (
             <Card>
-              <Text style={{ color: '#cbd5e1' }}>No matching players.</Text>
+              <Text style={{ color: colors.textMuted }}>No matching players.</Text>
             </Card>
           ) : null}
         </View>
@@ -104,11 +120,9 @@ export default function GoingListScreen() {
 const styles = StyleSheet.create({
   search: {
     borderWidth: 1,
-    borderColor: '#334155',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#f8fafc'
+    paddingVertical: 10
   },
   row: {
     flexDirection: 'row',
@@ -117,17 +131,11 @@ const styles = StyleSheet.create({
   },
   chip: {
     borderWidth: 1,
-    borderColor: '#334155',
     borderRadius: 18,
     paddingHorizontal: 10,
     paddingVertical: 6
   },
-  chipActive: {
-    borderColor: '#60a5fa',
-    backgroundColor: '#1e3a8a'
-  },
   chipText: {
-    color: '#e2e8f0',
     fontWeight: '600',
     fontSize: 12
   }
