@@ -118,6 +118,13 @@ export default async function AdminPage({
     bulkSkipped?: string;
     bulkRoles?: string;
     bulkInvited?: string;
+    queueInvited?: string;
+    queueLinked?: string;
+    queuePromoted?: string;
+    queueRostered?: string;
+    queueSkipped?: string;
+    generated?: string;
+    contactSearch?: string;
   };
 }) {
   const query = searchParams ?? {};
@@ -218,6 +225,24 @@ export default async function AdminPage({
     }
     return true;
   });
+  const queryContactSearch = String(query.contactSearch || "").trim().toLowerCase();
+  const filteredContactLeads = sportsData.contactLeads.filter((lead) => {
+    if (!queryContactSearch) return true;
+    const haystack = [
+      lead.fullName || "",
+      lead.email || "",
+      lead.phone || "",
+      lead.tags || "",
+      lead.onboardingStatus || "",
+      lead.linkedUser?.fullName || ""
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(queryContactSearch);
+  });
+  const queueReadyContactLeads = sportsData.contactLeads.filter(
+    (lead) => lead.onboardingStatus !== "linked" || !lead.linkedUserId
+  );
 
   const attendanceByEvent = allEvents.map((event) => {
     const rows = store.checkIns.filter((entry) => entry.eventId === event.id);
@@ -257,6 +282,12 @@ export default async function AdminPage({
     query.contact === "bulk_invited"
       ? `Bulk invite complete: ${query.bulkInvited || "0"} invited, ${query.bulkSkipped || "0"} skipped.`
       : null,
+    query.contact === "queue_progress"
+      ? `Queue processed: invited ${query.queueInvited || "0"}, linked ${query.queueLinked || "0"}, provisioned ${query.queueProvisioned || "0"}, promoted ${query.queuePromoted || "0"}, rostered ${query.queueRostered || "0"}, skipped ${query.queueSkipped || "0"}.`
+      : null,
+    query.contact === "supporters_provisioned"
+      ? `Supporter users provisioned from contacts: created ${query.usersCreated || "0"}, linked ${query.usersLinked || "0"}, skipped ${query.usersSkipped || "0"}.`
+      : null,
     query.contact === "imported" ? `Contacts import complete: ${query.imported || "0"} added, ${query.updated || "0"} updated, ${query.skipped || "0"} skipped.` : null,
     query.userrole === "updated" ? "User role updated." : null,
     query.eventtype === "created" ? "Event type created." : null,
@@ -264,7 +295,11 @@ export default async function AdminPage({
     query.contact !== "imported" && query.updated ? `Updated roster locks: ${query.updated}` : null,
     query.contact !== "imported" && query.skipped && Number(query.skipped) > 0 ? `Skipped invalid rows: ${query.skipped}` : null,
     query.reservationlinked === "1" ? "Reservation linked to player account." : null,
-    query.rosterselected === "1" ? "Final roster selection saved." : null,
+    query.rosterselected === "1"
+      ? query.generated === "1"
+        ? "Final roster generated from interest list and notifications sent."
+        : "Final roster selection saved."
+      : null,
     query.onboardingTemplate === "updated" ? "Onboarding checklist template updated." : null,
     query.onboardingCheck === "saved" ? "Onboarding checklist item updated." : null,
     query.dvhl === "captain_saved" ? "DVHL captain assignment saved." : null,
@@ -880,6 +915,87 @@ export default async function AdminPage({
               </form>
             </details>
             <details className="event-card admin-disclosure" open>
+              <summary>Provision All Contacts As Supporter Users</summary>
+              <p className="muted">
+                Bootstrap mode: create user accounts for all imported contacts (supporter role) and link them now.
+              </p>
+              <form className="grid-form" action="/api/admin/contacts/provision-supporters" method="post">
+                <input
+                  type="hidden"
+                  name="returnTo"
+                  value={`/admin?section=contacts${queryContactSearch ? `&contactSearch=${encodeURIComponent(queryContactSearch)}` : ""}`}
+                />
+                <button className="button" type="submit">
+                  Create / Link Supporter Users For All Contacts
+                </button>
+              </form>
+              <p className="muted">
+                Then use the queue below with <strong>Run Full Pipeline</strong> to invite, promote to player, and add to main roster.
+              </p>
+            </details>
+            <details className="event-card admin-disclosure" open>
+              <summary>Imported Contacts Queue (Invite -> Link -> Promote -> Roster)</summary>
+              <p className="muted">
+                One-click queue workflow for selected contacts. Use full pipeline for contacts ready to become players.
+              </p>
+              <form className="grid-form" method="get" action="/admin">
+                <input type="hidden" name="section" value="contacts" />
+                <label>
+                  Search contacts
+                  <input
+                    name="contactSearch"
+                    placeholder="Name, email, phone, tag, status"
+                    defaultValue={queryContactSearch}
+                  />
+                </label>
+                <button className="button ghost" type="submit">Apply Filter</button>
+              </form>
+              <form className="grid-form" action="/api/admin/contacts/queue-progress" method="post">
+                <input type="hidden" name="returnTo" value={`/admin?section=contacts${queryContactSearch ? `&contactSearch=${encodeURIComponent(queryContactSearch)}` : ""}`} />
+                <label>
+                  Queue contacts
+                  <select
+                    name="contactLeadIds"
+                    multiple
+                    size={Math.min(12, Math.max(4, filteredContactLeads.length))}
+                    required
+                  >
+                    {filteredContactLeads.map((lead) => (
+                      <option key={lead.id} value={lead.id}>
+                        {lead.fullName || lead.email || lead.id}
+                        {lead.email ? ` (${lead.email})` : ""}
+                        {lead.onboardingStatus ? ` | ${lead.onboardingStatus}` : ""}
+                        {lead.linkedUserId ? " | linked" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Primary sub-roster (for promote/roster)
+                  <select name="primarySubRoster" defaultValue="">
+                    <option value="">Not used for invite/link only</option>
+                    <option value="gold">Gold</option>
+                    <option value="white">White</option>
+                    <option value="black">Black</option>
+                  </select>
+                </label>
+                <div className="cta-row">
+                  <button className="button ghost" type="submit" name="action" value="invite_link">
+                    Invite + Link Selected
+                  </button>
+                  <button className="button alt" type="submit" name="action" value="promote_roster">
+                    Promote + Roster Selected
+                  </button>
+                  <button className="button" type="submit" name="action" value="full">
+                    Run Full Pipeline
+                  </button>
+                </div>
+              </form>
+              {queueReadyContactLeads.length === 0 ? (
+                <p className="muted">All contacts are linked. Use Promote + Roster for player conversion.</p>
+              ) : null}
+            </details>
+            <details className="event-card admin-disclosure" open>
               <summary>Bulk Add Imported Contacts to Main Roster</summary>
               <p className="muted">
                 No typing flow: select contacts, choose sub-roster once, and lock all with auto jersey numbers.
@@ -935,8 +1051,8 @@ export default async function AdminPage({
                 <input type="hidden" name="returnTo" value="/admin?section=contacts" />
                 <label>
                   Contacts with email
-                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, sportsData.contactLeads.length))} required>
-                    {sportsData.contactLeads
+                  <select name="contactLeadIds" multiple size={Math.min(10, Math.max(4, filteredContactLeads.length))} required>
+                    {filteredContactLeads
                       .filter((lead) => Boolean(lead.email))
                       .map((lead) => (
                         <option key={lead.id} value={lead.id}>
@@ -952,6 +1068,9 @@ export default async function AdminPage({
 
           <article className="card">
             <h3>Imported Contacts</h3>
+            <p className="muted">
+              Showing {filteredContactLeads.length} of {sportsData.contactLeads.length} contacts.
+            </p>
             <details className="event-card admin-disclosure" open>
               <summary>Onboarding Checklist Template</summary>
               <p className="muted">
@@ -966,11 +1085,13 @@ export default async function AdminPage({
                 <button className="button" type="submit">Save Onboarding Template</button>
               </form>
             </details>
-            {sportsData.contactLeads.length === 0 ? (
-              <p className="muted">No contacts imported yet.</p>
+            {filteredContactLeads.length === 0 ? (
+              <p className="muted">
+                {sportsData.contactLeads.length === 0 ? "No contacts imported yet." : "No contacts match this filter."}
+              </p>
             ) : (
               <div className="stack">
-                {sportsData.contactLeads.map((lead) => (
+                {filteredContactLeads.map((lead) => (
                   <div key={lead.id} className="event-card stack">
                     {(() => {
                       const matchingUser = lead.email
@@ -1267,6 +1388,44 @@ export default async function AdminPage({
           </article>
 
           <details className="card admin-disclosure" open>
+            <summary>Guided Event Wizard</summary>
+            <p className="muted">
+              Step-by-step flow for non-technical admins: basics, signup type, then publish.
+            </p>
+            <form className="grid-form" action="/api/admin/events/quick" method="post">
+              <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
+              <h4>Step 1: Basics</h4>
+              <input name="title" placeholder="Event title" required />
+              <label>
+                Event date/time
+                <input name="startsAt" type="datetime-local" required />
+              </label>
+              <input name="locationPublic" placeholder="Public location" />
+
+              <h4>Step 2: Event Type</h4>
+              <label>
+                Event template
+                <select name="eventKind" defaultValue={eventScope === "onice" ? "hockey_interest" : "off_ice"}>
+                  {eventScope === "onice" ? (
+                    <>
+                      <option value="hockey_interest">On-Ice Interest Gathering</option>
+                      <option value="hockey_rsvp">On-Ice Straight RSVP</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="off_ice">Off-Ice Straight RSVP</option>
+                      <option value="volunteer">Volunteer Opportunity</option>
+                    </>
+                  )}
+                </select>
+              </label>
+
+              <h4>Step 3: Publish</h4>
+              <button className="button" type="submit">Create Event</button>
+            </form>
+          </details>
+
+          <details className="card admin-disclosure" open>
             <summary>Event Types</summary>
             <p className="muted">
               Add event categories that can be reused in scheduling and reporting.
@@ -1519,6 +1678,22 @@ export default async function AdminPage({
                       ) : (
                         <p className="muted">Interest is still open. You can still pre-select and adjust roster.</p>
                       )}
+                      <form className="grid-form" action="/api/admin/events/interest-roster/generate" method="post">
+                        <input type="hidden" name="eventId" value={event.id} />
+                        <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
+                        <label>
+                          <input
+                            type="checkbox"
+                            name="respectCloseWindow"
+                            value="1"
+                            defaultChecked
+                          />{" "}
+                          Only allow auto-generate after interest closes
+                        </label>
+                        <button className="button ghost" type="submit">
+                          Auto-generate final roster from interest list
+                        </button>
+                      </form>
                       <form className="grid-form" action="/api/admin/events/interest-roster/select" method="post">
                         <input type="hidden" name="eventId" value={event.id} />
                         <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />

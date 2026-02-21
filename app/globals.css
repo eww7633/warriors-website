@@ -251,6 +251,7 @@ html[data-theme="dark"] .brand-logo-dark {
   gap: 0.45rem;
   align-items: center;
   flex-shrink: 0;
+  flex-wrap: nowrap;
 }
 
 .theme-toggle {
@@ -294,9 +295,7 @@ html[data-theme="dark"] .brand-logo-dark {
   display: none;
 }
 
-.mobile-nav summary {
-  list-style: none;
-  cursor: pointer;
+.mobile-menu-trigger {
   border: 1px solid var(--line-strong);
   border-radius: 10px;
   padding: 0.42rem 0.5rem;
@@ -304,26 +303,55 @@ html[data-theme="dark"] .brand-logo-dark {
   color: var(--ink);
   background: var(--surface-soft);
   line-height: 0;
+  cursor: pointer;
 }
 
-.mobile-nav summary::-webkit-details-marker {
-  display: none;
-}
-
-.mobile-nav summary svg {
+.mobile-menu-trigger svg {
   width: 1.1rem;
   height: 1.1rem;
   fill: currentColor;
 }
 
+.mobile-nav-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 11, 20, 0.52);
+  border: 0;
+  z-index: 80;
+}
+
 .mobile-nav-panel {
-  margin-top: 0.55rem;
+  position: fixed;
+  right: 0.75rem;
+  top: 0.75rem;
+  width: min(88vw, 330px);
+  max-height: calc(100vh - 1.5rem);
+  overflow: auto;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   background: #fffaf1;
   padding: 0.72rem;
   display: grid;
   gap: 0.72rem;
+  z-index: 81;
+  box-shadow: 0 22px 42px rgba(4, 9, 18, 0.35);
+}
+
+.mobile-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-nav-close {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 800;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
 }
 
 .mobile-nav-list {
@@ -356,6 +384,10 @@ html[data-theme="dark"] .brand-logo-dark {
 }
 
 .mobile-nav-list .button {
+  width: 100%;
+}
+
+.mobile-menu-logout {
   width: 100%;
 }
 
@@ -404,6 +436,73 @@ html[data-theme="dark"] .brand-logo-dark {
   color: var(--blue-accent);
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.account-strip {
+  border-top: 1px solid var(--line);
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.account-chip {
+  text-decoration: none;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-soft) 86%, transparent);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem 0.3rem 0.38rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.46rem;
+  font-weight: 700;
+}
+
+.account-avatar,
+.account-avatar-fallback {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.account-avatar {
+  object-fit: cover;
+  border: 1px solid var(--line-strong);
+}
+
+.account-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.account-strip form {
+  margin: 0;
+}
+
+.account-hub-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+}
+
+.account-hub-button {
+  padding: 0.34rem 0.66rem;
+  font-size: 0.8rem;
+}
+
+.account-logout-button {
+  padding: 0.38rem 0.72rem;
+  font-size: 0.82rem;
 }
 
 .site-main {
@@ -1577,11 +1676,51 @@ html[data-theme="dark"] .auth-actions .button.ghost {
   margin-top: 0.45rem;
 }
 
+.calendar-list-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 0.7rem 0.8rem;
+}
+
+.calendar-list-item p {
+  margin: 0.25rem 0 0;
+}
+
+.calendar-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 11, 20, 0.56);
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: auto;
+  padding: 1rem 0.8rem;
+}
+
+.calendar-modal {
+  width: min(1020px, 100%);
+  margin: 0 auto;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 44px rgba(5, 10, 18, 0.4);
+}
+
 .event-map {
   width: 100%;
   min-height: 280px;
   border: 1px solid var(--line);
   border-radius: 10px;
+}
+
+.join-steps {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.32rem;
+  color: var(--ink-soft);
 }
 
 .jersey-render {
@@ -1728,7 +1867,8 @@ td {
   .main-nav,
   .social-list,
   .auth-actions,
-  .theme-toggle {
+  .theme-toggle,
+  .account-strip {
     display: none;
   }
 

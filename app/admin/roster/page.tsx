@@ -249,6 +249,14 @@ export default async function CentralRosterPage({
           <li>Use <strong>Add Team Assignment</strong> to place them onto season/session/team structures (DVHL, tournaments, etc.).</li>
           <li>Upload headshots with <strong>Upload Headshot</strong>. External image URLs are disabled.</li>
         </ol>
+        <div className="cta-row">
+          <Link className="button ghost" href="/admin?section=contacts">
+            Open Contacts Queue Wizard
+          </Link>
+          <Link className="button ghost" href="/admin?section=players">
+            Open Players Hub
+          </Link>
+        </div>
       </article>
 
       <article className="card">
@@ -286,6 +294,39 @@ export default async function CentralRosterPage({
           </label>
           <button className="button" type="submit">Add Contact To Main Roster</button>
         </form>
+        <details className="event-card admin-disclosure">
+          <summary>One-Click Invite + Link + Promote + Roster</summary>
+          <p className="muted">
+            This sends invite, links account, promotes to player, and adds to main roster in one action.
+          </p>
+          <form className="grid-form" action="/api/admin/contacts/queue-progress" method="post">
+            <input type="hidden" name="returnTo" value="/admin/roster" />
+            <input type="hidden" name="action" value="full" />
+            <label>
+              Imported contact
+              <select name="contactLeadIds" defaultValue="" required>
+                <option value="" disabled>Select contact</option>
+                {rosterReadyContacts.map((lead) => (
+                  <option key={`${lead.id}-full`} value={lead.id}>
+                    {(lead.fullName || lead.email || lead.id)}{lead.email ? ` (${lead.email})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Primary sub-roster
+              <select name="primarySubRoster" defaultValue="" required>
+                <option value="" disabled>Select color roster</option>
+                {PRIMARY_SUB_ROSTER_OPTIONS.map((option) => (
+                  <option key={`${option}-full`} value={option}>
+                    {option.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button className="button" type="submit">Run Full Player Onboarding Pipeline</button>
+          </form>
+        </details>
         {rosterReadyContacts.length === 0 ? (
           <p className="muted">No imported contacts pending roster lock.</p>
         ) : null}
@@ -523,7 +564,9 @@ export default async function CentralRosterPage({
                     <button className="button" type="submit">Save Placement</button>
                   </form>
 
-                  <form className="grid-form" action={`/api/admin/users/${player.id}/identity`} method="post">
+                  <details className="event-card admin-disclosure">
+                    <summary>Identity + Account</summary>
+                    <form className="grid-form" action={`/api/admin/users/${player.id}/identity`} method="post">
                     <strong>Identity + Account</strong>
                     <label>
                       Full name
@@ -621,7 +664,8 @@ export default async function CentralRosterPage({
                       <input name="newPassword" type="password" placeholder="Temporary or reset password" />
                     </label>
                     <button className="button ghost" type="submit">Save Identity</button>
-                  </form>
+                    </form>
+                  </details>
 
                   <details className="event-card admin-disclosure">
                     <summary>Onboarding Checklist</summary>
@@ -670,7 +714,9 @@ export default async function CentralRosterPage({
                     </div>
                   </details>
 
-                  <form className="grid-form" action="/api/admin/roster/update" method="post">
+                  <details className="event-card admin-disclosure">
+                    <summary>Legacy Roster Profile Editor</summary>
+                    <form className="grid-form" action="/api/admin/roster/update" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <input type="hidden" name="fullName" value={player.fullName} />
                     <strong>Legacy Roster Profile Editor</strong>
@@ -706,9 +752,12 @@ export default async function CentralRosterPage({
                       <input type="checkbox" name="forceNumberOverlap" /> Allow manual number overlap override
                     </label>
                     <button className="button" type="submit">Save Roster Profile</button>
-                  </form>
+                    </form>
+                  </details>
 
-                  <form className="grid-form" action="/api/admin/team-assignments/quick-save" method="post">
+                  <details className="event-card admin-disclosure">
+                    <summary>Team Assignment Tools</summary>
+                    <form className="grid-form" action="/api/admin/team-assignments/quick-save" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <input type="hidden" name="returnTo" value="/admin/roster" />
                     <strong>Quick Assign From Existing Teams</strong>
@@ -736,9 +785,9 @@ export default async function CentralRosterPage({
                     {competitionTeamOptions.length === 0 ? (
                       <p className="muted">No competition teams found yet. Add DVHL/tournament teams first.</p>
                     ) : null}
-                  </form>
+                    </form>
 
-                  <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
+                    <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
                     <input type="hidden" name="userId" value={player.id} />
                     <strong>Add Team Assignment</strong>
                     <input name="assignmentType" placeholder="Type (season, tournament, DVHL, custom)" required />
@@ -763,59 +812,60 @@ export default async function CentralRosterPage({
                     </label>
                     <input name="notes" placeholder="Notes" />
                     <button className="button ghost" type="submit">Add Assignment</button>
-                  </form>
+                    </form>
 
-                  {(assignmentsByUserId.get(player.id) ?? []).length > 0 ? (
-                    <details className="event-card admin-disclosure">
-                      <summary>Team assignments ({(assignmentsByUserId.get(player.id) ?? []).length})</summary>
-                      <div className="stack">
-                        {(assignmentsByUserId.get(player.id) ?? []).map((assignment) => (
-                          <div className="event-card" key={assignment.id}>
-                            <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
-                              <input type="hidden" name="assignmentId" value={assignment.id} />
-                              <input type="hidden" name="userId" value={player.id} />
-                              <input name="assignmentType" defaultValue={assignment.assignmentType} required />
-                              <input name="seasonLabel" defaultValue={assignment.seasonLabel ?? ""} placeholder="Season" />
-                              <input name="sessionLabel" defaultValue={assignment.sessionLabel ?? ""} placeholder="Session" />
-                              <input name="subRosterLabel" defaultValue={assignment.subRosterLabel ?? ""} placeholder="Sub-roster" />
-                              <input name="teamName" defaultValue={assignment.teamName} required />
-                              <label>
-                                Starts
-                                <input
-                                  name="startsAt"
-                                  type="date"
-                                  defaultValue={assignment.startsAt ? assignment.startsAt.slice(0, 10) : ""}
-                                />
-                              </label>
-                              <label>
-                                Ends
-                                <input
-                                  name="endsAt"
-                                  type="date"
-                                  defaultValue={assignment.endsAt ? assignment.endsAt.slice(0, 10) : ""}
-                                />
-                              </label>
-                              <label>
-                                Status
-                                <select name="status" defaultValue={assignment.status}>
-                                  <option value="active">Active</option>
-                                  <option value="inactive">Inactive/Archived</option>
-                                </select>
-                              </label>
-                              <input name="notes" defaultValue={assignment.notes ?? ""} placeholder="Notes" />
-                              <button className="button ghost" type="submit">Save Assignment</button>
-                            </form>
-                            <form className="grid-form" action="/api/admin/team-assignments/delete" method="post">
-                              <input type="hidden" name="assignmentId" value={assignment.id} />
-                              <button className="button alt" type="submit">Remove Assignment</button>
-                            </form>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  ) : (
-                    <p className="muted">No team assignments saved yet.</p>
-                  )}
+                    {(assignmentsByUserId.get(player.id) ?? []).length > 0 ? (
+                      <details className="event-card admin-disclosure">
+                        <summary>Team assignments ({(assignmentsByUserId.get(player.id) ?? []).length})</summary>
+                        <div className="stack">
+                          {(assignmentsByUserId.get(player.id) ?? []).map((assignment) => (
+                            <div className="event-card" key={assignment.id}>
+                              <form className="grid-form" action="/api/admin/team-assignments/save" method="post">
+                                <input type="hidden" name="assignmentId" value={assignment.id} />
+                                <input type="hidden" name="userId" value={player.id} />
+                                <input name="assignmentType" defaultValue={assignment.assignmentType} required />
+                                <input name="seasonLabel" defaultValue={assignment.seasonLabel ?? ""} placeholder="Season" />
+                                <input name="sessionLabel" defaultValue={assignment.sessionLabel ?? ""} placeholder="Session" />
+                                <input name="subRosterLabel" defaultValue={assignment.subRosterLabel ?? ""} placeholder="Sub-roster" />
+                                <input name="teamName" defaultValue={assignment.teamName} required />
+                                <label>
+                                  Starts
+                                  <input
+                                    name="startsAt"
+                                    type="date"
+                                    defaultValue={assignment.startsAt ? assignment.startsAt.slice(0, 10) : ""}
+                                  />
+                                </label>
+                                <label>
+                                  Ends
+                                  <input
+                                    name="endsAt"
+                                    type="date"
+                                    defaultValue={assignment.endsAt ? assignment.endsAt.slice(0, 10) : ""}
+                                  />
+                                </label>
+                                <label>
+                                  Status
+                                  <select name="status" defaultValue={assignment.status}>
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive/Archived</option>
+                                  </select>
+                                </label>
+                                <input name="notes" defaultValue={assignment.notes ?? ""} placeholder="Notes" />
+                                <button className="button ghost" type="submit">Save Assignment</button>
+                              </form>
+                              <form className="grid-form" action="/api/admin/team-assignments/delete" method="post">
+                                <input type="hidden" name="assignmentId" value={assignment.id} />
+                                <button className="button alt" type="submit">Remove Assignment</button>
+                              </form>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    ) : (
+                      <p className="muted">No team assignments saved yet.</p>
+                    )}
+                  </details>
 
                   <form className="grid-form" action="/api/admin/roster/photos/upload" method="post" encType="multipart/form-data">
                     <input type="hidden" name="userId" value={player.id} />

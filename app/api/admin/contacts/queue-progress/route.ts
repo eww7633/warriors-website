@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { setUserRole } from "@/lib/hq/access";
 import { sendInviteEmail } from "@/lib/email";
+import { createSupporterUser } from "@/lib/hq/store";
 import {
   getContactLeadById,
   linkContactLeadToMatchingUser,
@@ -27,6 +28,10 @@ function nextAvailableNumber(used: Set<number>) {
     if (!used.has(number)) return number;
   }
   return null;
+}
+
+function randomTempPassword() {
+  return `Warriors-${Math.random().toString(36).slice(2, 10)}!`;
 }
 
 export async function POST(request: Request) {
@@ -89,6 +94,7 @@ export async function POST(request: Request) {
   let linked = 0;
   let promoted = 0;
   let rostered = 0;
+  let provisioned = 0;
   let skipped = 0;
 
   for (const contactLeadId of selected) {
@@ -126,16 +132,41 @@ export async function POST(request: Request) {
         continue;
       }
 
-      if (!enablePromote || !canManagePlayers) {
-        continue;
+      if (!refreshed.linkedUserId && refreshed.email && canManageUsers) {
+        try {
+          await linkContactLeadToMatchingUser(refreshed.id);
+        } catch {
+          try {
+            await createSupporterUser({
+              fullName: refreshed.fullName?.trim() || refreshed.email,
+              email: refreshed.email,
+              password: randomTempPassword(),
+              phone: refreshed.phone || undefined
+            });
+            await linkContactLeadToMatchingUser(refreshed.id);
+            provisioned += 1;
+          } catch {
+            // keep going; promote/roster step will skip if still unlinked
+          }
+        }
       }
 
-      if (!refreshed.linkedUserId) {
+      const linkedRefreshed = await getContactLeadById(contactLeadId);
+      if (!linkedRefreshed) {
         skipped += 1;
         continue;
       }
 
-      const linkedUser = store.users.find((entry) => entry.id === refreshed.linkedUserId);
+      if (!enablePromote || !canManagePlayers) {
+        continue;
+      }
+
+      if (!linkedRefreshed.linkedUserId) {
+        skipped += 1;
+        continue;
+      }
+
+      const linkedUser = store.users.find((entry) => entry.id === linkedRefreshed.linkedUserId);
       if (linkedUser && linkedUser.role === "public") {
         await setUserRole({
           actorUserId: actor.id,
@@ -147,8 +178,8 @@ export async function POST(request: Request) {
 
       const existingReservation = reservations.find((entry) => {
         if (entry.rosterId !== "main-player-roster") return false;
-        if (entry.linkedUserId && entry.linkedUserId === refreshed.linkedUserId) return true;
-        if (entry.email && refreshed.email && entry.email === refreshed.email.toLowerCase()) return true;
+        if (entry.linkedUserId && entry.linkedUserId === linkedRefreshed.linkedUserId) return true;
+        if (entry.email && linkedRefreshed.email && entry.email === linkedRefreshed.email.toLowerCase()) return true;
         return false;
       });
 
@@ -156,7 +187,7 @@ export async function POST(request: Request) {
         continue;
       }
 
-      const fullName = refreshed.fullName?.trim() || refreshed.email || `Lead ${refreshed.id.slice(0, 6)}`;
+      const fullName = linkedRefreshed.fullName?.trim() || linkedRefreshed.email || `Lead ${linkedRefreshed.id.slice(0, 6)}`;
       const jerseyNumber = nextAvailableNumber(usedNumbers);
       if (!jerseyNumber) {
         skipped += 1;
@@ -166,9 +197,9 @@ export async function POST(request: Request) {
       const conflict = await findBlockingRosterReservation({
         rosterId: "main-player-roster",
         jerseyNumber,
-        candidateEmail: refreshed.email || undefined,
+        candidateEmail: linkedRefreshed.email || undefined,
         candidateFullName: fullName,
-        candidateUserId: refreshed.linkedUserId || undefined
+        candidateUserId: linkedRefreshed.linkedUserId || undefined
       });
       if (conflict) {
         skipped += 1;
@@ -179,12 +210,12 @@ export async function POST(request: Request) {
         [
           {
             fullName,
-            email: refreshed.email || undefined,
-            phone: refreshed.phone || undefined,
+            email: linkedRefreshed.email || undefined,
+            phone: linkedRefreshed.phone || undefined,
             rosterId: "main-player-roster",
             primarySubRoster: primarySubRoster as "gold" | "white" | "black",
             jerseyNumber,
-            notes: refreshed.notes || undefined
+            notes: linkedRefreshed.notes || undefined
           }
         ],
         {
@@ -196,7 +227,7 @@ export async function POST(request: Request) {
       rostered += 1;
 
       const placement = await updateCentralRosterPlayer({
-        userId: refreshed.linkedUserId,
+        userId: linkedRefreshed.linkedUserId,
         fullName,
         rosterId: "main-player-roster",
         jerseyNumber,
@@ -207,7 +238,7 @@ export async function POST(request: Request) {
         continue;
       }
       await upsertPlayerContactProfile({
-        userId: refreshed.linkedUserId,
+        userId: linkedRefreshed.linkedUserId,
         primarySubRoster: primarySubRoster as "gold" | "white" | "black"
       });
     } catch {
@@ -221,6 +252,7 @@ export async function POST(request: Request) {
   url.searchParams.set("queueLinked", String(linked));
   url.searchParams.set("queuePromoted", String(promoted));
   url.searchParams.set("queueRostered", String(rostered));
+  url.searchParams.set("queueProvisioned", String(provisioned));
   url.searchParams.set("queueSkipped", String(skipped));
   return NextResponse.redirect(url, 303);
 }
