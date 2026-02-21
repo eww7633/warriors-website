@@ -18,13 +18,33 @@ export type MobilePushTrigger = {
   body: string;
   payload?: Record<string, unknown>;
   createdAt: string;
+  processedAt?: string;
+  processingNote?: string;
+};
+
+export type MobilePushDeliveryStatus =
+  | "delivered"
+  | "queued_no_provider"
+  | "skipped_pref_disabled"
+  | "failed";
+
+export type MobilePushDelivery = {
+  id: string;
+  triggerId: string;
+  targetUserId?: string;
+  deviceToken?: string;
+  status: MobilePushDeliveryStatus;
+  providerResponseCode?: number;
+  reason?: string;
+  createdAt: string;
 };
 
 type MobilePushStore = {
   triggers: MobilePushTrigger[];
+  deliveries: MobilePushDelivery[];
 };
 
-const defaultStore: MobilePushStore = { triggers: [] };
+const defaultStore: MobilePushStore = { triggers: [], deliveries: [] };
 
 function storePath() {
   if (process.env.MOBILE_PUSH_STORE_PATH) {
@@ -49,7 +69,8 @@ async function ensureStoreFile() {
   try {
     const parsed = JSON.parse(await fs.readFile(filePath, "utf-8")) as Partial<MobilePushStore>;
     const normalized: MobilePushStore = {
-      triggers: Array.isArray(parsed.triggers) ? parsed.triggers : []
+      triggers: Array.isArray(parsed.triggers) ? parsed.triggers : [],
+      deliveries: Array.isArray(parsed.deliveries) ? parsed.deliveries : []
     };
     await fs.writeFile(filePath, JSON.stringify(normalized, null, 2), "utf-8");
   } catch {
@@ -93,4 +114,50 @@ export async function enqueueMobilePushTrigger(input: {
   }
   await writeStore(store);
   return trigger;
+}
+
+export async function listPendingMobilePushTriggers(limit = 100) {
+  const store = await readStore();
+  return store.triggers
+    .filter((entry) => !entry.processedAt)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    .slice(0, Math.max(1, Math.min(limit, 500)));
+}
+
+export async function markMobilePushTriggerProcessed(input: {
+  triggerId: string;
+  note?: string;
+}) {
+  const store = await readStore();
+  const trigger = store.triggers.find((entry) => entry.id === input.triggerId);
+  if (!trigger) return false;
+  trigger.processedAt = new Date().toISOString();
+  trigger.processingNote = input.note?.trim() || undefined;
+  await writeStore(store);
+  return true;
+}
+
+export async function appendMobilePushDelivery(input: {
+  triggerId: string;
+  targetUserId?: string;
+  deviceToken?: string;
+  status: MobilePushDeliveryStatus;
+  providerResponseCode?: number;
+  reason?: string;
+}) {
+  const store = await readStore();
+  store.deliveries.push({
+    id: crypto.randomUUID(),
+    triggerId: input.triggerId,
+    targetUserId: input.targetUserId?.trim() || undefined,
+    deviceToken: input.deviceToken?.trim() || undefined,
+    status: input.status,
+    providerResponseCode: input.providerResponseCode,
+    reason: input.reason?.trim() || undefined,
+    createdAt: new Date().toISOString()
+  });
+  if (store.deliveries.length > 50000) {
+    store.deliveries = store.deliveries.slice(-50000);
+  }
+  await writeStore(store);
 }

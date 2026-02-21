@@ -155,6 +155,29 @@ Base URL: same host as the production website backend (for example `https://pghw
   - `400 { error: "invalid_json" | "analytics_event_name_required" | "analytics_track_failed" }`
   - `401 { error: "unauthorized" }`
 
+### `POST /api/mobile/notifications/device-token`
+- Auth: bearer required
+- Body (JSON):
+  - `token` (string, required)
+  - `platform` (`"ios" | "android" | "web"`, optional)
+  - `appVersion` (string, optional)
+  - `deviceLabel` (string, optional)
+- Success `200`:
+  - `{ ok: true, tokenId }`
+- Errors:
+  - `400 { error: "invalid_json" | "device_token_required" }`
+  - `401 { error: "unauthorized" }`
+
+### `DELETE /api/mobile/notifications/device-token`
+- Auth: bearer required
+- Body (JSON):
+  - `token` (string, required)
+- Success `200`:
+  - `{ ok: true }`
+- Errors:
+  - `400 { error: "invalid_json" | "device_token_required" }`
+  - `401 { error: "unauthorized" }`
+
 ## Push Trigger Hooks (Server-Side)
 
 The backend now records push-trigger events for downstream delivery workers in `mobile-push-triggers` storage for:
@@ -162,3 +185,11 @@ The backend now records push-trigger events for downstream delivery workers in `
 - Reminders (`reminder_sent`) including USA Hockey reminder sends and finalized-interest roster notices
 - Announcements (`announcement_sent`)
 - Check-ins (`checkin_completed`)
+
+### Admin push processing endpoint
+- `POST /api/admin/mobile-push/process?limit=100`
+- Auth: admin with site-user management permission
+- Effect: drains pending trigger records, filters by user push preferences + device tokens, and forwards to provider webhook when configured:
+  - env var: `MOBILE_PUSH_WEBHOOK_URL`
+- Success `200`:
+  - `{ ok, processedTriggers, delivered, queuedNoProvider, skipped, failed }`
