@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type MobileAnalyticsEvent = {
   id: string;
@@ -51,11 +53,22 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<MobileAnalyticsStore>("mobileAnalytics", defaultStore);
+    return {
+      events: Array.isArray(parsed.events) ? parsed.events : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as MobileAnalyticsStore;
 }
 
 async function writeStore(store: MobileAnalyticsStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("mobileAnalytics", store);
+    return;
+  }
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

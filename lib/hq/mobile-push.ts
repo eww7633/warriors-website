@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type MobilePushTriggerType =
   | "rsvp_updated"
@@ -79,11 +81,23 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<MobilePushStore>("mobilePush", defaultStore);
+    return {
+      triggers: Array.isArray(parsed.triggers) ? parsed.triggers : [],
+      deliveries: Array.isArray(parsed.deliveries) ? parsed.deliveries : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as MobilePushStore;
 }
 
 async function writeStore(store: MobilePushStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("mobilePush", store);
+    return;
+  }
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

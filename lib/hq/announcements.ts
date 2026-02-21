@@ -5,6 +5,8 @@ import { sendAnnouncementEmail } from "@/lib/email";
 import { NotificationCategory, getNotificationPreference } from "@/lib/hq/notifications";
 import { readStore } from "@/lib/hq/store";
 import { enqueueMobilePushTrigger } from "@/lib/hq/mobile-push";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type AnnouncementCategory = "general" | "events" | "dvhl" | "urgent";
 export type AnnouncementAudience = "players" | "all_users";
@@ -96,11 +98,25 @@ async function ensureStoreFile() {
 }
 
 async function readAnnouncementStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<AnnouncementStore>("announcements", defaultStore);
+    return {
+      announcements: Array.isArray(parsed.announcements) ? parsed.announcements : [],
+      deliveries: Array.isArray(parsed.deliveries) ? parsed.deliveries : [],
+      views: Array.isArray(parsed.views) ? parsed.views : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as AnnouncementStore;
 }
 
 async function writeAnnouncementStore(store: AnnouncementStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("announcements", store);
+    return;
+  }
+
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

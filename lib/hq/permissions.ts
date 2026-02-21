@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Prisma } from "@prisma/client";
 import { MemberUser } from "@/lib/types";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
@@ -296,7 +297,7 @@ export async function upsertUserOpsRole(input: {
 
     await getPrismaClient().user.update({
       where: { id: input.targetUserId },
-      data: { equipmentSizes: root }
+      data: { equipmentSizes: root as Prisma.InputJsonValue }
     });
     return next;
   }
@@ -342,7 +343,7 @@ export async function clearUserOpsRoles(input: { actorUserId: string; targetUser
     root.__opsRoles = [];
     await getPrismaClient().user.update({
       where: { id: input.targetUserId },
-      data: { equipmentSizes: root }
+      data: { equipmentSizes: root as Prisma.InputJsonValue }
     });
     return { removed: before };
   }

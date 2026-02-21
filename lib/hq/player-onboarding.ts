@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Prisma } from "@prisma/client";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
 
@@ -132,7 +133,7 @@ export async function upsertPlayerOnboardingState(input: {
     root.__playerOnboarding = current;
     await getPrismaClient().user.update({
       where: { id: input.userId },
-      data: { equipmentSizes: root }
+      data: { equipmentSizes: root as Prisma.InputJsonValue }
     });
     return current;
   }

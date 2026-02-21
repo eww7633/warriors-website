@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Prisma } from "@prisma/client";
 import { readStore as readHQStore } from "@/lib/hq/store";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
@@ -387,7 +388,7 @@ export async function upsertPlayerContactProfile(input: {
     await getPrismaClient().user.update({
       where: { id: input.userId },
       data: {
-        equipmentSizes: writeProfileIntoEquipmentSizes(user.equipmentSizes, profile)
+        equipmentSizes: writeProfileIntoEquipmentSizes(user.equipmentSizes, profile) as Prisma.InputJsonValue
       }
     });
     return profile;

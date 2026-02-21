@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type EventSignupMode = "straight_rsvp" | "interest_gathering";
 
@@ -75,6 +77,15 @@ async function ensureStoreFile() {
 }
 
 async function readEventSignupStore(): Promise<EventSignupStore> {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<EventSignupStore>("eventSignups", defaultStore);
+    return {
+      configs: Array.isArray(parsed.configs) ? parsed.configs : [],
+      selections: Array.isArray(parsed.selections) ? parsed.selections : [],
+      guestIntents: Array.isArray(parsed.guestIntents) ? parsed.guestIntents : []
+    };
+  }
+
   const storePath = resolvedStorePath();
   await ensureStoreFile();
 
@@ -91,6 +102,11 @@ async function readEventSignupStore(): Promise<EventSignupStore> {
 }
 
 async function writeEventSignupStore(store: EventSignupStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("eventSignups", store);
+    return;
+  }
+
   const storePath = resolvedStorePath();
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }

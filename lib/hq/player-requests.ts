@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Prisma } from "@prisma/client";
 import { hasDatabaseUrl } from "@/lib/db-env";
 import { getPrismaClient } from "@/lib/prisma";
 
@@ -174,7 +175,7 @@ export async function createPhotoSubmissionRequest(input: {
     root.__photoRequests = [...requests, created];
     await getPrismaClient().user.update({
       where: { id: input.userId },
-      data: { equipmentSizes: root }
+      data: { equipmentSizes: root as Prisma.InputJsonValue }
     });
     return created;
   }
@@ -253,7 +254,7 @@ export async function createJerseyNumberRequest(input: {
     root.__jerseyRequests = [...requests, created];
     await getPrismaClient().user.update({
       where: { id: input.userId },
-      data: { equipmentSizes: root }
+      data: { equipmentSizes: root as Prisma.InputJsonValue }
     });
     return created;
   }
@@ -358,7 +359,7 @@ export async function reviewPhotoSubmissionRequest(input: {
       root.__photoRequests = requests;
       await getPrismaClient().user.update({
         where: { id: user.id },
-        data: { equipmentSizes: root }
+        data: { equipmentSizes: root as Prisma.InputJsonValue }
       });
       return request;
     }
@@ -412,7 +413,7 @@ export async function reviewJerseyNumberRequest(input: {
       root.__jerseyRequests = requests;
       await getPrismaClient().user.update({
         where: { id: user.id },
-        data: { equipmentSizes: root }
+        data: { equipmentSizes: root as Prisma.InputJsonValue }
       });
       return request;
     }
