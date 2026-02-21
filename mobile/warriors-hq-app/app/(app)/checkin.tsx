@@ -2,6 +2,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
+import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
 
 const parseToken = (raw: string): string => {
@@ -16,6 +17,7 @@ const parseToken = (raw: string): string => {
 };
 
 export default function CheckInScreen() {
+  const { session } = useAuth();
   const [permission, requestPermission] = useCameraPermissions();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -24,6 +26,11 @@ export default function CheckInScreen() {
 
   const onCode = async (value: string) => {
     if (!canScan) return;
+    if (!session.token) {
+      setError('Session missing. Please sign in again.');
+      return;
+    }
+
     const token = parseToken(value);
     if (!token) {
       setError('QR code missing check-in token.');
@@ -34,7 +41,7 @@ export default function CheckInScreen() {
     setError(null);
     setMessage(null);
     try {
-      await apiClient.submitQrCheckIn(token);
+      await apiClient.submitQrCheckIn(session.token, token);
       setMessage('Check-in complete.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Check-in failed');

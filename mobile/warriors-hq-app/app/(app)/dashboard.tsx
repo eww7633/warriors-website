@@ -1,51 +1,217 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ScrollView, Text } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
-import type { DashboardSummary } from '@/lib/types';
+import type { DashboardSummary, MobileEvent, ReservationStatus } from '@/lib/types';
+
+const formatStatus = (status: ReservationStatus | null): string => {
+  if (!status) return 'Not set';
+  if (status === 'not_going') return 'Not Going';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
   const { session, logout } = useAuth();
-  const [data, setData] = useState<DashboardSummary | null>(null);
+  const [dashboard, setDashboard] = useState<DashboardSummary | null>(null);
+  const [events, setEvents] = useState<MobileEvent[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | ReservationStatus>('all');
+
+  const upcoming = useMemo(
+    () => [...events].sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime()).slice(0, 8),
+    [events]
+  );
+  const filteredEvents = useMemo(() => {
+    if (filter === 'all') return upcoming;
+    return upcoming.filter((event) => event.viewerReservationStatus === filter);
+  }, [upcoming, filter]);
+
+  const load = useCallback(async () => {
+    if (!session.token) {
+      return;
+    }
+
+    try {
+      setError(null);
+      const [summary, items] = await Promise.all([
+        apiClient.getDashboard(session.token),
+        apiClient.getEvents(session.token)
+      ]);
+      setDashboard(summary);
+      setEvents(items);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unable to load dashboard');
+    }
+  }, [session.token]);
 
   useEffect(() => {
-    const run = async () => {
-      try {
-        setData(await apiClient.getDashboard(session.email));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Dashboard unavailable');
-      }
-    };
-    run();
-  }, [session.email]);
+    load();
+  }, [load]);
+
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }, [load]);
+
+  const onRsvp = async (eventId: string, status: ReservationStatus) => {
+    if (!session.token) {
+      return;
+    }
+
+    try {
+      setUpdatingId(eventId);
+      setError(null);
+      await apiClient.setRsvp(session.token, eventId, status);
+      setEvents((current) =>
+        current.map((entry) =>
+          entry.id === eventId
+            ? {
+                ...entry,
+                viewerReservationStatus: status,
+                reservationCount: entry.viewerReservationStatus ? entry.reservationCount : entry.reservationCount + 1
+              }
+            : entry
+        )
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'RSVP failed');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
   return (
-    <ScrollView style={{ backgroundColor: '#0b1320' }} contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Title>Player Dashboard</Title>
-      <Subtitle>{session.email ?? 'Signed in'}</Subtitle>
+    <ScrollView
+      style={{ backgroundColor: '#0b1320' }}
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 28 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#fff" />}
+    >
+      <Title>Events</Title>
+      <Subtitle>
+        {session.user?.fullName || session.user?.email || 'Player'} · {dashboard?.stats.visibleEvents ?? events.length} visible events
+      </Subtitle>
+
       <Card>
-        <Text style={{ color: '#cbd5e1' }}>API Base URL</Text>
-        <Text style={{ color: '#f8fafc' }}>{apiClient.apiBaseUrl}</Text>
+        <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>Quick Actions</Text>
+        <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} />
+        <Button label="Full Event List" onPress={() => router.push('/(app)/events')} />
       </Card>
+
       <ErrorText message={error} />
-      {data ? (
-        <Card>
-          <Text style={{ color: '#f8fafc', fontWeight: '700' }}>{data.fullName}</Text>
-          <Text style={{ color: '#cbd5e1' }}>Status: {data.status}</Text>
-          <Text style={{ color: '#cbd5e1' }}>Roster ID: {data.rosterId ?? 'Not assigned'}</Text>
-          <Text style={{ color: '#cbd5e1', marginTop: 8, fontWeight: '700' }}>Upcoming/Recent Event Context</Text>
-          {data.recentCheckIns.map((item) => (
-            <Text key={item.id} style={{ color: '#cbd5e1' }}>{item.eventTitle}: {item.attendanceStatus}</Text>
+
+      <Card>
+        <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>Filter</Text>
+        <View style={styles.chips}>
+          {(['all', 'going', 'maybe', 'not_going'] as const).map((value) => (
+            <Pressable
+              key={value}
+              style={[styles.chip, filter === value && styles.chipActive]}
+              onPress={() => setFilter(value)}
+            >
+              <Text style={styles.chipText}>
+                {value === 'all' ? 'All' : value === 'not_going' ? 'Not Going' : value.charAt(0).toUpperCase() + value.slice(1)}
+              </Text>
+            </Pressable>
           ))}
+        </View>
+      </Card>
+
+      {filteredEvents.map((event) => (
+        <Card key={event.id}>
+          <Text style={{ color: '#f8fafc', fontWeight: '700', fontSize: 16 }}>{event.title}</Text>
+          <Text style={{ color: '#cbd5e1' }}>{new Date(event.startsAt).toLocaleString()}</Text>
+          <Text style={{ color: '#cbd5e1' }}>{event.location}</Text>
+          <Text style={{ color: '#cbd5e1' }}>
+            Your RSVP: {formatStatus(event.viewerReservationStatus)} · Going: {event.goingCount} · Total RSVPs: {event.reservationCount}
+          </Text>
+          {event.goingMembers.length > 0 ? (
+            <Text style={{ color: '#cbd5e1' }}>
+              Going: {event.goingMembers.slice(0, 6).map((entry) => entry.fullName).join(', ')}
+            </Text>
+          ) : (
+            <Text style={{ color: '#64748b' }}>Going list not available yet.</Text>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Going"
+                onPress={() => onRsvp(event.id, 'going')}
+                disabled={updatingId === event.id}
+                loading={updatingId === event.id}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Maybe"
+                variant="secondary"
+                onPress={() => onRsvp(event.id, 'maybe')}
+                disabled={updatingId === event.id}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button
+                label="Not Going"
+                variant="danger"
+                onPress={() => onRsvp(event.id, 'not_going')}
+                disabled={updatingId === event.id}
+              />
+            </View>
+          </View>
+          <Text style={{ color: '#60a5fa' }} onPress={() => router.push(`/(app)/events/${event.id}`)}>
+            Open details
+          </Text>
+          {event.locationMapUrl ? (
+            <Text style={{ color: '#60a5fa' }} onPress={() => Linking.openURL(event.locationMapUrl || '')}>
+              Open map
+            </Text>
+          ) : null}
+        </Card>
+      ))}
+
+      {!filteredEvents.length && !error ? (
+        <Card>
+          <Text style={{ color: '#cbd5e1' }}>No visible events right now.</Text>
         </Card>
       ) : null}
-      <Button label="View Events" onPress={() => router.push('/(app)/events')} />
-      <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} />
-      <Button label="Logout" variant="danger" onPress={async () => { await logout(); router.replace('/(auth)/login'); }} />
+
+      <Button
+        label="Logout"
+        variant="danger"
+        onPress={async () => {
+          await logout();
+          router.replace('/(auth)/login');
+        }}
+      />
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  chipActive: {
+    borderColor: '#60a5fa',
+    backgroundColor: '#1e3a8a'
+  },
+  chipText: {
+    color: '#e2e8f0',
+    fontSize: 13,
+    fontWeight: '600'
+  }
+});

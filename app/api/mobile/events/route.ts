@@ -33,6 +33,8 @@ export async function GET(request: Request) {
       ...event,
       viewerReservationStatus: boards.viewerStatusByEvent[event.id] || null,
       reservationCount: (boards.byEvent[event.id] || []).length,
+      goingCount: (boards.byEvent[event.id] || []).filter((entry) => entry.status === "going").length,
+      reservationBoard: boards.byEvent[event.id] || [],
       canManage: user.role === "admin" || (user.role === "player" && event.managerUserId === user.id),
       signupMode: signupConfigs[event.id]?.signupMode || "straight_rsvp",
       interestClosesAt: signupConfigs[event.id]?.interestClosesAt || null,

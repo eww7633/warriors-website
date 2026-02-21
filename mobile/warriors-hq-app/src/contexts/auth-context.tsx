@@ -1,8 +1,8 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient } from '@/lib/api-client';
+import type { MobileUser, SessionState } from '@/lib/types';
 
-type SessionState = { isAuthenticated: boolean; email: string | null };
 type AuthContextValue = {
   ready: boolean;
   session: SessionState;
@@ -11,8 +11,8 @@ type AuthContextValue = {
   logout: () => Promise<void>;
 };
 
-const KEY = 'hq_mobile_auth_state_v1';
-const defaultSession: SessionState = { isAuthenticated: false, email: null };
+const KEY = 'hq_mobile_auth_state_v2';
+const defaultSession: SessionState = { isAuthenticated: false, token: null, user: null };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
@@ -22,9 +22,12 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   useEffect(() => {
     const run = async () => {
       const raw = await SecureStore.getItemAsync(KEY);
-      if (raw) setSession(JSON.parse(raw) as SessionState);
+      if (raw) {
+        setSession(JSON.parse(raw) as SessionState);
+      }
       setReady(true);
     };
+
     run();
   }, []);
 
@@ -33,19 +36,34 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     await SecureStore.setItemAsync(KEY, JSON.stringify(value));
   };
 
-  const value = useMemo<AuthContextValue>(() => ({
-    ready,
-    session,
-    login: async (email, password) => {
-      await apiClient.login(email, password);
-      await persist({ isAuthenticated: true, email });
-    },
-    register: async (input) => { await apiClient.register(input); },
-    logout: async () => {
-      await apiClient.logout();
-      await persist(defaultSession);
-    }
-  }), [ready, session]);
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      ready,
+      session,
+      login: async (email, password) => {
+        const result = await apiClient.login(email, password);
+        await persist({
+          isAuthenticated: true,
+          token: result.token,
+          user: result.user as MobileUser
+        });
+      },
+      register: async (input) => {
+        await apiClient.register(input);
+      },
+      logout: async () => {
+        if (session.token) {
+          try {
+            await apiClient.logout(session.token);
+          } catch {
+            // Best effort logout: clear local session even if remote logout fails.
+          }
+        }
+        await persist(defaultSession);
+      }
+    }),
+    [ready, session]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

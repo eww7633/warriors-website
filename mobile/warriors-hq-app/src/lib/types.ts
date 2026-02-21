@@ -1,4 +1,22 @@
-export type PublicEvent = {
+export type ReservationStatus = 'going' | 'maybe' | 'not_going';
+
+export type MobileUser = {
+  id: string;
+  fullName: string;
+  email: string;
+  role: 'player' | 'admin';
+  status: 'pending' | 'approved' | 'rejected';
+  rosterId?: string;
+  jerseyNumber?: number;
+};
+
+export type SessionState = {
+  isAuthenticated: boolean;
+  token: string | null;
+  user: MobileUser | null;
+};
+
+export type MobileEvent = {
   id: string;
   title: string;
   startsAt: string;
@@ -6,26 +24,25 @@ export type PublicEvent = {
   location: string;
   locationMapUrl: string | null;
   eventType: string;
-  eventUrl: string;
-  loginUrl: string;
-  registerUrl: string;
-};
-
-export type DashboardSummary = {
-  fullName: string;
-  email: string;
-  role: 'player' | 'admin';
-  status: 'pending' | 'approved' | 'rejected';
-  rosterId: string | null;
-  jerseyNumber: string | null;
-  recentCheckIns: Array<{
-    id: string;
-    eventTitle: string;
-    attendanceStatus: string;
-    checkedInAt: string | null;
+  viewerReservationStatus: ReservationStatus | null;
+  reservationCount: number;
+  goingCount: number;
+  canManage: boolean;
+  signupMode: 'straight_rsvp' | 'interest_gathering';
+  signupClosed: boolean;
+  goingMembers: Array<{
+    userId: string;
+    fullName: string;
+    status: ReservationStatus;
   }>;
 };
 
-export type EventDetail = PublicEvent & {
-  userReservationStatus?: 'going' | 'maybe' | 'not_going' | null;
+export type DashboardSummary = {
+  user: MobileUser;
+  stats: {
+    pendingRegistrations: number;
+    approvedPlayers: number;
+    recentCheckIns: number;
+    visibleEvents: number;
+  };
 };
