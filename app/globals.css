@@ -1527,6 +1527,25 @@ html[data-theme="dark"] .auth-actions .button.ghost {
   font-size: 1.15rem;
 }
 
+.admin-kpi-link {
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.admin-kpi-link:hover,
+.admin-kpi-link:focus-visible {
+  transform: translateY(-1px);
+  border-color: var(--gold);
+  box-shadow: 0 8px 16px rgba(10, 14, 23, 0.08);
+}
+
+.admin-kpi-cta {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--blue);
+}
+
 .admin-grid-2 {
   display: grid;
   gap: 0.8rem;

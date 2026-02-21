@@ -281,11 +281,11 @@ export default async function AdminPage({
   ].filter(Boolean) as string[];
 
   const snapshotItems = [
-    ["Pending", pendingUsers.length],
-    ["Approved", approvedPlayers.length],
-    ["Events", allEvents.length],
-    ["Competitions", competitions.length],
-    ["Check-ins", store.checkIns.length]
+    { label: "Pending", value: pendingUsers.length, href: "/admin?section=contacts" },
+    { label: "Approved", value: approvedPlayers.length, href: "/admin?section=players" },
+    { label: "Events", value: allEvents.length, href: "/admin?section=onice" },
+    { label: "Competitions", value: competitions.length, href: "/admin?section=dvhl" },
+    { label: "Check-ins", value: store.checkIns.length, href: "/admin?section=attendance" }
   ] as const;
   const onIceEvents = allEvents.filter((event) => isOnIceEventType(event.eventTypeName));
   const offIceEvents = allEvents.filter((event) => isOffIceEventType(event.eventTypeName));
@@ -302,11 +302,12 @@ export default async function AdminPage({
           <strong>{hasDatabaseUrl() ? "Database" : "Fallback file"}</strong>
         </p>
         <div className="admin-kpi-grid">
-          {snapshotItems.map(([label, value]) => (
-            <div key={label} className="admin-kpi">
-              <span className="muted">{label}</span>
-              <strong>{value}</strong>
-            </div>
+          {snapshotItems.map((item) => (
+            <Link key={item.label} href={item.href} className="admin-kpi admin-kpi-link">
+              <span className="muted">{item.label}</span>
+              <strong>{item.value}</strong>
+              <span className="admin-kpi-cta">Open</span>
+            </Link>
           ))}
         </div>
         {statusMessages.map((message) => (

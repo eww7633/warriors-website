@@ -156,9 +156,8 @@ export default async function PlayerPage({
             ) : (
               <p className="badge">Onboarding complete.</p>
             )}
-            <p>Main roster: {latestUser.rosterId === "main-player-roster" ? "Main Player Roster" : (latestUser.rosterId || "Unassigned")}</p>
             <p>Official jersey number: #{latestUser.jerseyNumber}</p>
-            <p>Primary sub-roster: {profileExtra.primarySubRoster?.toUpperCase() || "Not assigned yet"}</p>
+            <p>Team color roster: {profileExtra.primarySubRoster?.toUpperCase() || "Not assigned yet"}</p>
             <p>USA Hockey #: {profileExtra.usaHockeyNumber || "Not set yet"}</p>
             <p>
               USA Hockey season: {profileExtra.usaHockeySeason || "Not set"} | Status:{" "}
@@ -191,22 +190,26 @@ export default async function PlayerPage({
       <article className="card">
         <h3>Player Snapshot</h3>
         <div className="admin-kpi-grid">
-          <div className="admin-kpi">
+          <Link href="/player?section=onboarding" className="admin-kpi admin-kpi-link">
             <span className="muted">Status</span>
             <strong>{latestUser.status}</strong>
-          </div>
-          <div className="admin-kpi">
-            <span className="muted">Roster</span>
-            <strong>{latestUser.rosterId || "Pending"}</strong>
-          </div>
-          <div className="admin-kpi">
+            <span className="admin-kpi-cta">Open</span>
+          </Link>
+          <Link href="/player?section=teams" className="admin-kpi admin-kpi-link">
+            <span className="muted">Team Color</span>
+            <strong>{profileExtra.primarySubRoster?.toUpperCase() || "Pending"}</strong>
+            <span className="admin-kpi-cta">Open</span>
+          </Link>
+          <Link href="/player?section=gear" className="admin-kpi admin-kpi-link">
             <span className="muted">Jersey</span>
             <strong>{latestUser.jerseyNumber ? `#${latestUser.jerseyNumber}` : "Unassigned"}</strong>
-          </div>
-          <div className="admin-kpi">
+            <span className="admin-kpi-cta">Open</span>
+          </Link>
+          <Link href="/player?section=events" className="admin-kpi admin-kpi-link">
             <span className="muted">Upcoming Events</span>
             <strong>{myUpcomingEvents.length}</strong>
-          </div>
+            <span className="admin-kpi-cta">Open</span>
+          </Link>
         </div>
       </article>
 
