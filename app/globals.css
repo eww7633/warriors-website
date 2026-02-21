@@ -850,6 +850,14 @@ html[data-theme="dark"] .brand-logo-dark {
   border: 0;
 }
 
+.video-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+  display: block;
+}
+
 .video-fallback {
   display: grid;
   gap: 0.55rem;

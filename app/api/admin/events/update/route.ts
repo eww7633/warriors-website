@@ -4,6 +4,17 @@ import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { listEventTypes, updateEvent } from "@/lib/hq/events";
 import { isDvhlEvent, upsertEventSignupConfig } from "@/lib/hq/event-signups";
 
+function withParam(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
+function toGoogleMapsSearchUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmed)}`;
+}
+
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
 
@@ -27,12 +38,16 @@ export async function POST(request: Request) {
   const locationPrivateMapUrl = String(formData.get("locationPrivateMapUrl") ?? "").trim();
   const eventTypeId = String(formData.get("eventTypeId") ?? "").trim();
   const managerUserId = String(formData.get("managerUserId") ?? "").trim();
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/") ? returnToRaw : "/admin?section=onice";
   const signupMode = String(formData.get("signupMode") ?? "straight_rsvp").trim();
   const interestClosesAt = String(formData.get("interestClosesAt") ?? "").trim();
   const targetRosterSizeRaw = String(formData.get("targetRosterSize") ?? "").trim();
   const targetRosterSize = Number(targetRosterSizeRaw);
   const heroImageUrl = String(formData.get("heroImageUrl") ?? "").trim();
+  const heroImageChoice = String(formData.get("heroImageChoice") ?? "").trim();
   const thumbnailImageUrl = String(formData.get("thumbnailImageUrl") ?? "").trim();
+  const thumbnailImageChoice = String(formData.get("thumbnailImageChoice") ?? "").trim();
   const allowGuestRequests = String(formData.get("allowGuestRequests") ?? "").trim() === "on";
   const guestCostEnabled = String(formData.get("guestCostEnabled") ?? "").trim() === "on";
   const guestCostLabel = String(formData.get("guestCostLabel") ?? "").trim();
@@ -40,11 +55,11 @@ export async function POST(request: Request) {
   const guestCostAmountUsd = Number(guestCostAmountUsdRaw);
 
   if (!eventId || !title || !startsAt || !publicDetails) {
-    return NextResponse.redirect(new URL("/admin?section=events&error=missing_event_fields", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "missing_event_fields"), request.url), 303);
   }
 
   if (!["public", "player_only", "internal"].includes(visibility)) {
-    return NextResponse.redirect(new URL("/admin?section=events&error=invalid_event_visibility", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "invalid_event_visibility"), request.url), 303);
   }
 
   try {
@@ -58,8 +73,8 @@ export async function POST(request: Request) {
       published,
       locationPublic,
       locationPrivate,
-      locationPublicMapUrl,
-      locationPrivateMapUrl,
+      locationPublicMapUrl: locationPublicMapUrl || toGoogleMapsSearchUrl(locationPublic),
+      locationPrivateMapUrl: locationPrivateMapUrl || toGoogleMapsSearchUrl(locationPrivate),
       eventTypeId: eventTypeId || undefined,
       managerUserId: managerUserId || undefined
     });
@@ -73,8 +88,8 @@ export async function POST(request: Request) {
       signupMode: effectiveSignupMode,
       interestClosesAt,
       targetRosterSize: Number.isFinite(targetRosterSize) ? targetRosterSize : undefined,
-      heroImageUrl,
-      thumbnailImageUrl,
+      heroImageUrl: heroImageUrl || heroImageChoice,
+      thumbnailImageUrl: thumbnailImageUrl || thumbnailImageChoice,
       allowGuestRequests: guestsAllowedForEventType,
       guestCostEnabled: guestsAllowedForEventType && guestCostEnabled,
       guestCostLabel,
@@ -82,8 +97,8 @@ export async function POST(request: Request) {
       updatedByUserId: actor.id
     });
 
-    return NextResponse.redirect(new URL("/admin?section=events&eventupdated=1", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "eventupdated", "1"), request.url), 303);
   } catch {
-    return NextResponse.redirect(new URL("/admin?section=events&error=event_update_failed", request.url), 303);
+    return NextResponse.redirect(new URL(withParam(returnTo, "error", "event_update_failed"), request.url), 303);
   }
 }

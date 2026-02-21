@@ -44,7 +44,8 @@ export default async function HomePage({
     .slice(0, 4);
   const featuredVideoSources = [
     process.env.NEXT_PUBLIC_HOME_VIDEO_1,
-    process.env.NEXT_PUBLIC_HOME_VIDEO_2
+    process.env.NEXT_PUBLIC_HOME_VIDEO_2,
+    "/videos/home-program.mp4"
   ]
     .filter(Boolean)
     .map((value) => value!.trim())
@@ -59,22 +60,28 @@ export default async function HomePage({
             parsed.searchParams.get("v") ||
             parsed.pathname.split("/").filter(Boolean)[1] ||
             parsed.pathname.split("/").filter(Boolean)[0];
-          return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
+          return id ? { type: "embed" as const, src: `https://www.youtube.com/embed/${id}?rel=0` } : null;
         }
         if (host === "youtu.be") {
           const id = parsed.pathname.split("/").filter(Boolean)[0];
-          return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
+          return id ? { type: "embed" as const, src: `https://www.youtube.com/embed/${id}?rel=0` } : null;
         }
         if (host === "vimeo.com") {
           const id = parsed.pathname.split("/").filter(Boolean)[0];
-          return id ? `https://player.vimeo.com/video/${id}` : null;
+          return id ? { type: "embed" as const, src: `https://player.vimeo.com/video/${id}` } : null;
+        }
+        if (/\.(mp4|webm|ogg|mov)$/i.test(parsed.pathname)) {
+          return { type: "video" as const, src: url };
         }
         return null;
       } catch {
+        if (url.startsWith("/") || /\.(mp4|webm|ogg|mov)$/i.test(url)) {
+          return { type: "video" as const, src: url };
+        }
         return null;
       }
     })
-    .filter((value): value is string => Boolean(value));
+    .filter((value): value is { type: "embed" | "video"; src: string } => Boolean(value));
 
   const leadPhoto = showcase[0] ?? null;
   const photoGrid = showcase.slice(1, 9);
@@ -129,15 +136,21 @@ export default async function HomePage({
   const videoCards =
     featuredVideoSources.length > 0 ? (
       <div className="video-grid">
-        {featuredVideoSources.map((src, index) => (
-          <div className="video-card" key={src}>
-            <iframe
-              src={src}
-              title={`Featured Warriors video ${index + 1}`}
-              loading="lazy"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+        {featuredVideoSources.map((entry, index) => (
+          <div className="video-card" key={`${entry.type}-${entry.src}`}>
+            {entry.type === "embed" ? (
+              <iframe
+                src={entry.src}
+                title={`Featured Warriors video ${index + 1}`}
+                loading="lazy"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video controls playsInline preload="metadata">
+                <source src={entry.src} type="video/mp4" />
+              </video>
+            )}
           </div>
         ))}
       </div>

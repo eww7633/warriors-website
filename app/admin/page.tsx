@@ -1447,17 +1447,7 @@ export default async function AdminPage({
             <summary>Create Event</summary>
             <h3>Publish Event (Public Site Feed Source)</h3>
             <form className="grid-form" action="/api/admin/events" method="post">
-              <input name="title" placeholder="Event title" required />
-              <label>
-                Start date/time
-                <input name="startsAt" type="datetime-local" required />
-              </label>
-              <input name="locationPublic" placeholder="Public location" />
-              <input name="locationPrivate" placeholder="Private location (players/admin)" />
-              <input name="locationPublicMapUrl" placeholder="Public Google Maps URL (optional)" />
-              <input name="locationPrivateMapUrl" placeholder="Private Google Maps URL (optional)" />
-              <input name="heroImageUrl" placeholder="Hero image URL (event card)" />
-              <input name="thumbnailImageUrl" placeholder="Thumbnail image URL (calendar/list)" />
+              <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
               <label>
                 Event type
                 <select name="eventTypeId" defaultValue="">
@@ -1468,19 +1458,51 @@ export default async function AdminPage({
                 </select>
               </label>
               <label>
+                Signup flow
+                <select name="signupMode" defaultValue="straight_rsvp">
+                  <option value="straight_rsvp">Straight RSVP (unlimited)</option>
+                  <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
+                </select>
+              </label>
+              <input name="title" placeholder="Event title" required />
+              <label>
+                Start date/time
+                <input name="startsAt" type="datetime-local" required />
+              </label>
+              <input name="locationPublic" placeholder="Public location" />
+              <input name="locationPrivate" placeholder="Private location (players/admin)" />
+              <details className="event-card admin-disclosure">
+                <summary>Location links and image media (optional)</summary>
+                <input name="locationPublicMapUrl" placeholder="Public maps URL (leave blank to auto-generate from address)" />
+                <input name="locationPrivateMapUrl" placeholder="Private maps URL (leave blank to auto-generate from address)" />
+                <label>
+                  Hero image from media library
+                  <select name="heroImageChoice" defaultValue="">
+                    <option value="">None selected</option>
+                    {showcasePhotos.map((photo) => (
+                      <option key={`hero-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                    ))}
+                  </select>
+                </label>
+                <input name="heroImageUrl" placeholder="Hero image URL (optional override)" />
+                <label>
+                  Thumbnail from media library
+                  <select name="thumbnailImageChoice" defaultValue="">
+                    <option value="">None selected</option>
+                    {showcasePhotos.map((photo) => (
+                      <option key={`thumb-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                    ))}
+                  </select>
+                </label>
+                <input name="thumbnailImageUrl" placeholder="Thumbnail URL (optional override)" />
+              </details>
+              <label>
                 Game manager
                 <select name="managerUserId" defaultValue="">
                   <option value="">No manager assigned</option>
                   {approvedPlayers.map((member) => (
                     <option key={member.id} value={member.id}>{member.fullName}</option>
                   ))}
-                </select>
-              </label>
-              <label>
-                Signup flow
-                <select name="signupMode" defaultValue="straight_rsvp">
-                  <option value="straight_rsvp">Straight RSVP (unlimited)</option>
-                  <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
                 </select>
               </label>
               <label>
@@ -1549,30 +1571,7 @@ export default async function AdminPage({
                   })()}
                   <form className="grid-form" action="/api/admin/events/update" method="post">
                     <input type="hidden" name="eventId" value={event.id} />
-                    <input name="title" defaultValue={event.title} required />
-                    <label>
-                      Start date/time
-                      <input
-                        name="startsAt"
-                        type="datetime-local"
-                        defaultValue={new Date(event.date).toISOString().slice(0, 16)}
-                        required
-                      />
-                    </label>
-                    <input name="locationPublic" defaultValue={event.locationPublic || ""} placeholder="Public location" />
-                    <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
-                    <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public Google Maps URL (optional)" />
-                    <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private Google Maps URL (optional)" />
-                    <input
-                      name="heroImageUrl"
-                      defaultValue={signupConfigsByEvent[event.id]?.heroImageUrl || ""}
-                      placeholder="Hero image URL (event card)"
-                    />
-                    <input
-                      name="thumbnailImageUrl"
-                      defaultValue={signupConfigsByEvent[event.id]?.thumbnailImageUrl || ""}
-                      placeholder="Thumbnail image URL (calendar/list)"
-                    />
+                    <input type="hidden" name="returnTo" value={`/admin?section=${returnSection}`} />
                     <label>
                       Event type
                       <select name="eventTypeId" defaultValue={event.eventTypeId || ""}>
@@ -1592,6 +1591,51 @@ export default async function AdminPage({
                         <option value="interest_gathering">Interest gathering (roster selected by Hockey Ops)</option>
                       </select>
                     </label>
+                    <input name="title" defaultValue={event.title} required />
+                    <label>
+                      Start date/time
+                      <input
+                        name="startsAt"
+                        type="datetime-local"
+                        defaultValue={new Date(event.date).toISOString().slice(0, 16)}
+                        required
+                      />
+                    </label>
+                    <input name="locationPublic" defaultValue={event.locationPublic || ""} placeholder="Public location" />
+                    <input name="locationPrivate" defaultValue={event.locationPrivate || ""} placeholder="Private location (players/admin)" />
+                    <details className="event-card admin-disclosure">
+                      <summary>Location links and image media (optional)</summary>
+                      <input name="locationPublicMapUrl" defaultValue={event.locationPublicMapUrl || ""} placeholder="Public maps URL (leave blank to auto-generate from address)" />
+                      <input name="locationPrivateMapUrl" defaultValue={event.locationPrivateMapUrl || ""} placeholder="Private maps URL (leave blank to auto-generate from address)" />
+                      <label>
+                        Hero image from media library
+                        <select name="heroImageChoice" defaultValue="">
+                          <option value="">Keep current</option>
+                          {showcasePhotos.map((photo) => (
+                            <option key={`hero-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <input
+                        name="heroImageUrl"
+                        defaultValue={signupConfigsByEvent[event.id]?.heroImageUrl || ""}
+                        placeholder="Hero image URL (optional override)"
+                      />
+                      <label>
+                        Thumbnail from media library
+                        <select name="thumbnailImageChoice" defaultValue="">
+                          <option value="">Keep current</option>
+                          {showcasePhotos.map((photo) => (
+                            <option key={`thumb-edit-${event.id}-${photo.id}`} value={photo.imageUrl}>{photo.fileName}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <input
+                        name="thumbnailImageUrl"
+                        defaultValue={signupConfigsByEvent[event.id]?.thumbnailImageUrl || ""}
+                        placeholder="Thumbnail URL (optional override)"
+                      />
+                    </details>
                     <label>
                       Interest closes at
                       <input
