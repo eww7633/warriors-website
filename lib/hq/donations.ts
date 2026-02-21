@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type DonationIntent = {
   id: string;
@@ -76,6 +78,14 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<DonationStore>("donations", defaultStore);
+    return {
+      intents: Array.isArray(parsed.intents) ? parsed.intents : [],
+      payments: Array.isArray(parsed.payments) ? parsed.payments : []
+    } satisfies DonationStore;
+  }
+
   await ensureStoreFile();
   try {
     const parsed = JSON.parse(await fs.readFile(storePath(), "utf-8")) as Partial<DonationStore>;
@@ -89,6 +99,11 @@ async function readStore() {
 }
 
 async function writeStore(store: DonationStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("donations", store);
+    return;
+  }
+
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

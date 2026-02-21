@@ -1,5 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type DvhlTeamControl = {
   teamId: string;
@@ -45,6 +47,13 @@ async function ensureStoreFile() {
 }
 
 async function readStore(): Promise<DvhlStore> {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<DvhlStore>("dvhlControls", defaultStore);
+    return {
+      controls: Array.isArray(parsed.controls) ? parsed.controls : []
+    };
+  }
+
   await ensureStoreFile();
   const storePath = resolvedStorePath();
 
@@ -59,6 +68,11 @@ async function readStore(): Promise<DvhlStore> {
 }
 
 async function writeStore(store: DvhlStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("dvhlControls", store);
+    return;
+  }
+
   const storePath = resolvedStorePath();
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }

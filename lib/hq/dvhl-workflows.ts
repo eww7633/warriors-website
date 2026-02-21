@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
 import { listCompetitions } from "@/lib/hq/competitions";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 import { getDvhlTeamControlMap } from "@/lib/hq/dvhl";
 
 export type DvhlDraftPick = {
@@ -109,6 +111,16 @@ async function ensureStoreFile() {
 }
 
 async function readStore(): Promise<DvhlWorkflowStore> {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<DvhlWorkflowStore>("dvhlWorkflows", defaultStore);
+    return {
+      drafts: Array.isArray(parsed.drafts) ? parsed.drafts : [],
+      subRequests: Array.isArray(parsed.subRequests) ? parsed.subRequests : [],
+      plans: Array.isArray(parsed.plans) ? parsed.plans : [],
+      signups: Array.isArray(parsed.signups) ? parsed.signups : []
+    };
+  }
+
   await ensureStoreFile();
   const storePath = resolvedStorePath();
   try {
@@ -125,6 +137,11 @@ async function readStore(): Promise<DvhlWorkflowStore> {
 }
 
 async function writeStore(store: DvhlWorkflowStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("dvhlWorkflows", store);
+    return;
+  }
+
   const storePath = resolvedStorePath();
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }

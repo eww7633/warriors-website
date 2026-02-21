@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { MemberUser } from "@/lib/types";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type RosterReservation = {
   id: string;
@@ -83,11 +85,23 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<RosterReservationStore>("rosterReservations", defaultStore);
+    return {
+      reservations: Array.isArray(parsed.reservations) ? parsed.reservations : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as RosterReservationStore;
 }
 
 async function writeStore(store: RosterReservationStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("rosterReservations", store);
+    return;
+  }
+
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

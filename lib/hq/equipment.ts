@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type EquipmentCondition = "new" | "good" | "fair" | "needs_repair";
 export type EquipmentRequestStatus = "submitted" | "approved" | "ready" | "picked_up" | "returned" | "denied";
@@ -85,11 +87,24 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<EquipmentStore>("equipment", defaultStore);
+    return {
+      items: Array.isArray(parsed.items) ? parsed.items : [],
+      requests: Array.isArray(parsed.requests) ? parsed.requests : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as EquipmentStore;
 }
 
 async function writeStore(store: EquipmentStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("equipment", store);
+    return;
+  }
+
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 

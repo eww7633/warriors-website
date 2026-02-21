@@ -1,6 +1,8 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type OnboardingChecklistTemplateItem = {
   id: string;
@@ -94,6 +96,17 @@ async function ensureStoreFile() {
 }
 
 async function readStore(): Promise<OnboardingStore> {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<OnboardingStore>("hqOnboarding", buildDefaultStore());
+    const template = Array.isArray(parsed.template) ? parsed.template : [];
+    const completions = Array.isArray(parsed.completions) ? parsed.completions : [];
+    const audit = Array.isArray(parsed.audit) ? parsed.audit : [];
+    if (template.length === 0) {
+      return buildDefaultStore();
+    }
+    return { template, completions, audit };
+  }
+
   await ensureStoreFile();
   const storePath = resolvedStorePath();
 
@@ -114,6 +127,11 @@ async function readStore(): Promise<OnboardingStore> {
 }
 
 async function writeStore(store: OnboardingStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("hqOnboarding", store);
+    return;
+  }
+
   const storePath = resolvedStorePath();
   await fs.writeFile(storePath, JSON.stringify(store, null, 2), "utf-8");
 }

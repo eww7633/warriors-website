@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { hasDatabaseUrl } from "@/lib/db-env";
+import { readDbJsonStore, writeDbJsonStore } from "@/lib/hq/db-json-store";
 
 export type NewsPost = {
   id: string;
@@ -79,11 +81,23 @@ async function ensureStoreFile() {
 }
 
 async function readStore() {
+  if (hasDatabaseUrl()) {
+    const parsed = await readDbJsonStore<NewsStore>("news", defaultStore);
+    return {
+      posts: Array.isArray(parsed.posts) ? parsed.posts : []
+    };
+  }
+
   await ensureStoreFile();
   return JSON.parse(await fs.readFile(storePath(), "utf-8")) as NewsStore;
 }
 
 async function writeStore(store: NewsStore) {
+  if (hasDatabaseUrl()) {
+    await writeDbJsonStore("news", store);
+    return;
+  }
+
   await fs.writeFile(storePath(), JSON.stringify(store, null, 2), "utf-8");
 }
 
