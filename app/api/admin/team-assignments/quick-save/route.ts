@@ -9,7 +9,7 @@ function withParam(path: string, key: string, value: string) {
   return `${path}${sep}${key}=${encodeURIComponent(value)}`;
 }
 
-function assignmentTypeForCompetition(type: "DVHL" | "TOURNAMENT" | "SINGLE_GAME") {
+function assignmentTypeForCompetition(type: string) {
   if (type === "DVHL") return "dvhl";
   if (type === "TOURNAMENT") return "tournament";
   return "on_ice";
