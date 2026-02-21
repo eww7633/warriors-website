@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { canAccessAdminPanel, upsertUserOpsRole, userHasPermission } from "@/lib/hq/permissions";
 import { getCurrentUser } from "@/lib/hq/session";
+import { setUserRole } from "@/lib/hq/access";
 import { getContactLeadById } from "@/lib/hq/ops-data";
+import { updateCentralRosterPlayer } from "@/lib/hq/roster";
 import {
   findBlockingRosterReservation,
   listRosterReservations,
   upsertRosterReservations
 } from "@/lib/hq/roster-reservations";
+import { upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
 import { readStore } from "@/lib/hq/store";
 
 function withParam(path: string, key: string, value: string) {
@@ -114,6 +117,33 @@ export async function POST(request: Request) {
     usedNumbers.add(jerseyNumber);
     locked += 1;
 
+    if (lead.linkedUserId) {
+      const linked = store.users.find((entry) => entry.id === lead.linkedUserId);
+      if (linked?.role === "public") {
+        await setUserRole({
+          actorUserId: actor.id,
+          targetUserId: linked.id,
+          role: "player"
+        });
+      }
+
+      const placement = await updateCentralRosterPlayer({
+        userId: lead.linkedUserId,
+        fullName,
+        rosterId: "main-player-roster",
+        jerseyNumber,
+        activityStatus: "active"
+      });
+      if (!placement.ok) {
+        skipped += 1;
+        continue;
+      }
+      await upsertPlayerContactProfile({
+        userId: lead.linkedUserId,
+        primarySubRoster: primarySubRoster as "gold" | "white" | "black"
+      });
+    }
+
     if (lead.linkedUserId && roleKey) {
       try {
         if (roleKey !== "super_admin" || (await userHasPermission(actor, "assign_ops_roles"))) {
@@ -146,4 +176,3 @@ export async function POST(request: Request) {
   url.searchParams.set("bulkRoles", String(rolesAssigned));
   return NextResponse.redirect(url, 303);
 }
-

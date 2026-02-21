@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel, userHasPermission } from "@/lib/hq/permissions";
+import { setUserRole } from "@/lib/hq/access";
+import { updateCentralRosterPlayer } from "@/lib/hq/roster";
+import { upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
 import {
   findBlockingRosterReservation,
   listRosterReservations,
@@ -120,6 +123,34 @@ export async function POST(request: Request) {
         autoLinkUsers: store.users
       }
     );
+
+    if (lead.linkedUserId) {
+      const linked = store.users.find((entry) => entry.id === lead.linkedUserId);
+      if (linked?.role === "public") {
+        await setUserRole({
+          actorUserId: actor.id,
+          targetUserId: linked.id,
+          role: "player"
+        });
+      }
+      const placement = await updateCentralRosterPlayer({
+        userId: lead.linkedUserId,
+        fullName,
+        rosterId,
+        jerseyNumber,
+        activityStatus: "active"
+      });
+      if (!placement.ok) {
+        const url = new URL(returnTo, request.url);
+        url.searchParams.set("error", "number_conflict");
+        url.searchParams.set("conflictPlayer", placement.conflict.name);
+        return NextResponse.redirect(url, 303);
+      }
+      await upsertPlayerContactProfile({
+        userId: lead.linkedUserId,
+        primarySubRoster: primarySubRoster as "gold" | "white" | "black"
+      });
+    }
 
     return NextResponse.redirect(new URL(withParam(returnTo, "contact", "roster_locked"), request.url), 303);
   } catch {
