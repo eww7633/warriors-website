@@ -1,6 +1,7 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient } from '@/lib/api-client';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import type { MobileUser, SessionState } from '@/lib/types';
 
 type AuthContextValue = {
@@ -32,6 +33,20 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     run();
   }, []);
 
+  useEffect(() => {
+    const syncPushToken = async () => {
+      if (!session.isAuthenticated || !session.token) return;
+      try {
+        const pushToken = await registerForPushNotificationsAsync();
+        if (!pushToken) return;
+        await apiClient.registerPushToken(session.token, pushToken);
+      } catch {
+        // Push token sync is best-effort; app auth flow should continue.
+      }
+    };
+    syncPushToken();
+  }, [session.isAuthenticated, session.token]);
+
   const persist = async (value: SessionState) => {
     setSession(value);
     await SecureStore.setItemAsync(KEY, JSON.stringify(value));
@@ -43,11 +58,20 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       session,
       login: async (email, password) => {
         const result = await apiClient.login(email, password);
-        await persist({
+        const nextSession: SessionState = {
           isAuthenticated: true,
           token: result.token,
           user: result.user as MobileUser
-        });
+        };
+        await persist(nextSession);
+        try {
+          const pushToken = await registerForPushNotificationsAsync();
+          if (pushToken) {
+            await apiClient.registerPushToken(nextSession.token as string, pushToken);
+          }
+        } catch {
+          // Ignore push registration failures.
+        }
       },
       register: async (input) => {
         await apiClient.register(input);

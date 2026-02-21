@@ -5,6 +5,7 @@ import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { scheduleRsvpConfirmationNotification } from '@/lib/notifications';
 import { useThemeColors } from '@/lib/theme';
 import type { DashboardSummary, MobileEvent, ReservationStatus } from '@/lib/types';
 
@@ -83,6 +84,9 @@ export default function DashboardScreen() {
       setUpdatingId(eventId);
       setError(null);
       await apiClient.setRsvp(session.token, eventId, status);
+      const eventTitle = events.find((entry) => entry.id === eventId)?.title ?? 'Event';
+      const startsAt = events.find((entry) => entry.id === eventId)?.startsAt ?? new Date().toISOString();
+      await scheduleRsvpConfirmationNotification(eventTitle, status, startsAt);
       setEvents((current) =>
         current.map((entry) =>
           entry.id === eventId
@@ -148,6 +152,7 @@ export default function DashboardScreen() {
         <Text style={{ color: colors.text, fontWeight: '700', fontSize: 16 }}>Quick Actions</Text>
         {!isSupporter ? <Button label="Scan QR Check-In" variant="secondary" onPress={() => router.push('/(app)/checkin')} /> : null}
         <Button label="Full Event List" onPress={() => router.push('/(app)/events')} />
+        <Button label="Team Directory" variant="secondary" onPress={() => router.push('/(app)/team')} />
       </Card>
 
       <ErrorText message={error} />

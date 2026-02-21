@@ -15,6 +15,8 @@ Recommended for iOS simulator:
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://localhost:3000
+EXPO_PUBLIC_ICAL_FEED_URL=
+EXPO_PUBLIC_GOOGLE_CALENDAR_SUBSCRIBE_URL=
 ```
 
 ## Run
@@ -44,3 +46,6 @@ writes `EXPO_PUBLIC_API_BASE_URL`, and starts Expo iOS with cache clear.
 - RSVP actions
 - QR check-in scan
 - Shared API client + env config
+- Add to calendar (device calendar + subscription link)
+- Team directory (privacy-aware) + admin roster actions (email/text/call)
+- Offline read cache for events + announcements

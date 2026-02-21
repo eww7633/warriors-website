@@ -116,6 +116,16 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
+      <Card>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>{session.user?.role === 'admin' ? 'Roster' : 'Team Directory'}</Text>
+        <Text style={{ color: colors.textMuted }}>
+          {session.user?.role === 'admin'
+            ? 'View and contact roster members with admin filters and actions.'
+            : 'View teammate contact info where they shared privacy permissions.'}
+        </Text>
+        <Button label="Open Team Directory" variant="secondary" onPress={() => router.push('/(app)/team')} />
+      </Card>
+
       {session.user?.role === 'admin' ? (
         <Card>
           <Text style={{ color: colors.text, fontWeight: '700' }}>Admin View</Text>

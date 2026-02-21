@@ -1,9 +1,10 @@
 import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
+import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { addEventToCalendar, openCalendarSubscription } from '@/lib/calendar';
 import { useThemeColors } from '@/lib/theme';
 import type { MobileEvent } from '@/lib/types';
 
@@ -110,8 +111,34 @@ export default function EventsScreen() {
                   Open map
                 </Text>
               ) : null}
+              <Button
+                label="Add to Calendar"
+                variant="secondary"
+                onPress={async () => {
+                  try {
+                    await addEventToCalendar(event);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : 'Unable to add event to calendar');
+                  }
+                }}
+              />
             </Card>
           ))}
+          <Card>
+            <Text style={{ color: colors.text, fontWeight: '700' }}>Calendar Sync</Text>
+            <Text style={{ color: colors.textMuted }}>Subscribe to the Warriors schedule calendar in your preferred app.</Text>
+            <Button
+              label="Open Subscription Link"
+              variant="secondary"
+              onPress={async () => {
+                try {
+                  await openCalendarSubscription();
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Subscription link unavailable');
+                }
+              }}
+            />
+          </Card>
         </View>
       </ScrollView>
     </Screen>

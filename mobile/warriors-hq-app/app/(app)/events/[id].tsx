@@ -5,6 +5,7 @@ import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { addEventToCalendar } from '@/lib/calendar';
 import { useThemeColors } from '@/lib/theme';
 import type { MobileEvent, ReservationStatus } from '@/lib/types';
 
@@ -93,6 +94,17 @@ export default function EventDetailScreen() {
                 Open map
               </Text>
             ) : null}
+            <Button
+              label="Add to Calendar"
+              variant="secondary"
+              onPress={async () => {
+                try {
+                  await addEventToCalendar(event);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : 'Unable to add event to calendar');
+                }
+              }}
+            />
           </Card>
           {!isSupporter ? (
             <>

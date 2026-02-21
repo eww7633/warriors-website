@@ -31,6 +31,11 @@ export default function AdminScreen() {
         <Button label="Open Announcements" onPress={() => router.push('/(app)/announcements')} />
       </Card>
       <Card>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>Roster</Text>
+        <Text style={{ color: colors.textMuted }}>Open full roster directory with team/role filters and call/text/email actions.</Text>
+        <Button label="Open Roster Directory" variant="secondary" onPress={() => router.push('/(app)/team')} />
+      </Card>
+      <Card>
         <Text style={{ color: colors.text, fontWeight: '700' }}>Event Approval Queue</Text>
         <Text style={{ color: colors.textMuted }}>
           RSVP requests from non-rostered players are submitted from event pages. Hockey Ops approval API wiring can be added next.
@@ -39,4 +44,3 @@ export default function AdminScreen() {
     </Screen>
   );
 }
-

@@ -56,6 +56,9 @@ export type MobileAnnouncement = {
   body: string;
   createdAt: string;
   createdByName: string | null;
+  pinned: boolean;
+  expiresAt: string | null;
+  audience: 'all' | 'players' | 'supporters' | 'admins';
 };
 
 export type DashboardSummary = {
@@ -66,4 +69,37 @@ export type DashboardSummary = {
     recentCheckIns: number;
     visibleEvents: number;
   };
+};
+
+export type RsvpApprovalRequest = {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventStartsAt: string;
+  requestedByUserId: string;
+  requestedByName: string;
+  requestedByEmail: string | null;
+  requestedByRole: 'player' | 'supporter' | 'admin' | null;
+  requestedAt: string;
+  note: string | null;
+  status: 'pending' | 'approved' | 'denied';
+  teamLabel: string | null;
+};
+
+export type MobileRosterMember = {
+  userId: string;
+  fullName: string;
+  role: 'player' | 'supporter' | 'admin';
+  teamLabel: string | null;
+  position: string | null;
+  jerseyNumber: number | null;
+  avatarUrl: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  sharePhone: boolean;
+  shareEmail: boolean;
+  shareAddress: boolean;
+  canViewPrivate: boolean;
+  status: 'pending' | 'approved' | 'rejected';
 };

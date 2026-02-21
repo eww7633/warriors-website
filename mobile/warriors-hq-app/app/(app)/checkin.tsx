@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { apiClient } from '@/lib/api-client';
+import { scheduleCheckInConfirmationNotification } from '@/lib/notifications';
 import { useThemeColors } from '@/lib/theme';
 
 const parseToken = (raw: string): string => {
@@ -45,6 +46,7 @@ export default function CheckInScreen() {
     setMessage(null);
     try {
       await apiClient.submitQrCheckIn(session.token, token);
+      await scheduleCheckInConfirmationNotification();
       setMessage('Check-in complete.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Check-in failed');

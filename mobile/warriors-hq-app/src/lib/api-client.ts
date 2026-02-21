@@ -1,7 +1,24 @@
 import { API_BASE_URL } from '@/lib/env';
-import type { DashboardSummary, MobileAnnouncement, MobileEvent, MobileUser, ReservationStatus } from '@/lib/types';
+import { offlineCache } from '@/lib/offline-cache';
+import type {
+  DashboardSummary,
+  MobileAnnouncement,
+  MobileEvent,
+  MobileRosterMember,
+  MobileUser,
+  ReservationStatus,
+  RsvpApprovalRequest
+} from '@/lib/types';
+
+export class SessionExpiredError extends Error {
+  constructor(message = 'Session expired. Please sign in again.') {
+    super(message);
+    this.name = 'SessionExpiredError';
+  }
+}
 
 const buildUrl = (path: string): string => `${API_BASE_URL}${path}`;
+
 const toNullableNumber = (value: unknown): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
@@ -95,7 +112,49 @@ const normalizeAnnouncement = (raw: Record<string, unknown>): MobileAnnouncement
   title: String(raw.title ?? 'Announcement'),
   body: String(raw.body ?? raw.message ?? ''),
   createdAt: String(raw.createdAt ?? raw.date ?? new Date().toISOString()),
-  createdByName: raw.createdByName ? String(raw.createdByName) : raw.authorName ? String(raw.authorName) : null
+  createdByName: raw.createdByName ? String(raw.createdByName) : raw.authorName ? String(raw.authorName) : null,
+  pinned: Boolean(raw.pinned),
+  expiresAt: raw.expiresAt ? String(raw.expiresAt) : null,
+  audience: (raw.audience as MobileAnnouncement['audience']) ?? 'all'
+});
+
+const normalizeApprovalRequest = (raw: Record<string, unknown>): RsvpApprovalRequest => ({
+  id: String(raw.id ?? raw.requestId ?? ''),
+  eventId: String(raw.eventId ?? ''),
+  eventTitle: String(raw.eventTitle ?? raw.title ?? 'Event'),
+  eventStartsAt: String(raw.eventStartsAt ?? raw.startsAt ?? raw.date ?? new Date().toISOString()),
+  requestedByUserId: String(raw.requestedByUserId ?? raw.userId ?? ''),
+  requestedByName: String(raw.requestedByName ?? raw.fullName ?? 'Unknown User'),
+  requestedByEmail: raw.requestedByEmail ? String(raw.requestedByEmail) : null,
+  requestedByRole: (raw.requestedByRole as RsvpApprovalRequest['requestedByRole']) ?? null,
+  requestedAt: String(raw.requestedAt ?? raw.createdAt ?? new Date().toISOString()),
+  note: raw.note ? String(raw.note) : null,
+  status: (raw.status as RsvpApprovalRequest['status']) ?? 'pending',
+  teamLabel: raw.teamLabel ? String(raw.teamLabel) : null
+});
+
+const normalizeRosterMember = (raw: Record<string, unknown>): MobileRosterMember => ({
+  userId: String(raw.userId ?? raw.id ?? ''),
+  fullName: String(raw.fullName ?? raw.name ?? 'Unknown Member'),
+  role: (raw.role as MobileRosterMember['role']) ?? 'player',
+  teamLabel: raw.teamLabel ? String(raw.teamLabel) : raw.teamName ? String(raw.teamName) : null,
+  position: raw.position ? String(raw.position) : null,
+  jerseyNumber: toNullableNumber(raw.jerseyNumber ?? raw.number ?? raw.sweaterNumber),
+  avatarUrl: raw.avatarUrl
+    ? String(raw.avatarUrl)
+    : raw.photoUrl
+      ? String(raw.photoUrl)
+      : raw.profileImageUrl
+        ? String(raw.profileImageUrl)
+        : null,
+  phone: raw.phone ? String(raw.phone) : null,
+  email: raw.email ? String(raw.email) : null,
+  address: raw.address ? String(raw.address) : null,
+  sharePhone: Boolean(raw.sharePhone ?? raw.phoneVisibleToTeam),
+  shareEmail: Boolean(raw.shareEmail ?? raw.emailVisibleToTeam),
+  shareAddress: Boolean(raw.shareAddress ?? raw.addressVisibleToTeam),
+  canViewPrivate: Boolean(raw.canViewPrivate),
+  status: (raw.status as MobileRosterMember['status']) ?? 'approved'
 });
 
 const postForm = async (path: string, body: Record<string, string>): Promise<Response> => {
@@ -124,6 +183,13 @@ const authorized = async (path: string, token: string, init?: RequestInit): Prom
     });
   } catch {
     throw new Error(networkErrorMessage());
+  }
+};
+
+const throwIfUnauthorized = async (response: Response): Promise<void> => {
+  if (response.status === 401) {
+    const message = await parseErrorPayload(response);
+    throw new SessionExpiredError(message);
   }
 };
 
@@ -169,13 +235,36 @@ export const apiClient = {
 
   async logout(token: string): Promise<void> {
     const response = await authorized('/api/mobile/auth/logout', token, { method: 'POST' });
+    await throwIfUnauthorized(response);
     if (!response.ok && response.status !== 401) {
+      throw new Error(await parseErrorPayload(response));
+    }
+  },
+
+  async registerPushToken(token: string, pushToken: string): Promise<void> {
+    let response = await authorized('/api/mobile/push/register', token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ pushToken })
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/mobile/notifications/register', token, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ pushToken })
+      });
+    }
+
+    await throwIfUnauthorized(response);
+    if (!response.ok && response.status !== 404 && response.status !== 405) {
       throw new Error(await parseErrorPayload(response));
     }
   },
 
   async getDashboard(token: string): Promise<DashboardSummary> {
     const response = await authorized('/api/mobile/dashboard', token);
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
@@ -188,24 +277,45 @@ export const apiClient = {
   },
 
   async getEvents(token: string): Promise<MobileEvent[]> {
-    const response = await authorized('/api/mobile/events', token);
+    try {
+      const response = await authorized('/api/mobile/events', token);
+      await throwIfUnauthorized(response);
+      if (!response.ok) {
+        throw new Error(await parseErrorPayload(response));
+      }
+
+      const payload = (await response.json()) as { events: Array<Record<string, unknown>> };
+      const events = (payload.events || []).map(normalizeEvent);
+      await offlineCache.saveEvents(events);
+      return events;
+    } catch (error) {
+      if (error instanceof SessionExpiredError) throw error;
+      const cached = await offlineCache.loadEvents<MobileEvent[]>();
+      if (cached?.length) {
+        return cached;
+      }
+      throw error;
+    }
+  },
+
+  async getEventDetail(token: string, eventId: string): Promise<MobileEvent> {
+    let response = await authorized(`/api/mobile/events/${eventId}`, token);
+    if (response.status === 404 || response.status === 405) {
+      const events = await this.getEvents(token);
+      const event = events.find((entry) => entry.id === eventId);
+      if (!event) throw new Error('Event not found');
+      return event;
+    }
+
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
 
-    const payload = (await response.json()) as { events: Array<Record<string, unknown>> };
-    return (payload.events || []).map(normalizeEvent);
-  },
-
-  async getEventDetail(token: string, eventId: string): Promise<MobileEvent> {
-    const events = await this.getEvents(token);
-    const event = events.find((entry) => entry.id === eventId);
-
-    if (!event) {
-      throw new Error('Event not found');
-    }
-
-    return event;
+    const payload = (await response.json()) as { event?: Record<string, unknown> } | Record<string, unknown>;
+    const raw = 'event' in payload ? payload.event : payload;
+    if (!raw) throw new Error('Event not found');
+    return normalizeEvent(raw as Record<string, unknown>);
   },
 
   async setRsvp(token: string, eventId: string, status: ReservationStatus, note = ''): Promise<void> {
@@ -215,6 +325,7 @@ export const apiClient = {
       body: JSON.stringify({ eventId, status, note })
     });
 
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
@@ -235,6 +346,74 @@ export const apiClient = {
       });
     }
 
+    await throwIfUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+  },
+
+  async getRsvpApprovalQueue(token: string): Promise<RsvpApprovalRequest[]> {
+    let response = await authorized('/api/mobile/admin/rsvp-approvals', token);
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/admin/events/rsvp-approvals', token);
+    }
+
+    await throwIfUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as {
+      requests?: Array<Record<string, unknown>>;
+      approvals?: Array<Record<string, unknown>>;
+      items?: Array<Record<string, unknown>>;
+    };
+
+    const items = payload.requests ?? payload.approvals ?? payload.items ?? [];
+    return items.map(normalizeApprovalRequest);
+  },
+
+  async getRoster(token: string, includePrivate = false): Promise<MobileRosterMember[]> {
+    const query = includePrivate ? '?includePrivate=1' : '';
+    let response = await authorized(`/api/mobile/roster${query}`, token);
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized(`/api/admin/roster${query}`, token);
+    }
+    if ((response.status === 404 || response.status === 405) && !includePrivate) {
+      response = await authorized('/api/public/roster', token);
+    }
+
+    await throwIfUnauthorized(response);
+    if (!response.ok) {
+      throw new Error(await parseErrorPayload(response));
+    }
+
+    const payload = (await response.json()) as {
+      roster?: Array<Record<string, unknown>>;
+      members?: Array<Record<string, unknown>>;
+      items?: Array<Record<string, unknown>>;
+    };
+
+    const items = payload.roster ?? payload.members ?? payload.items ?? [];
+    return items.map(normalizeRosterMember);
+  },
+
+  async resolveRsvpApproval(token: string, requestId: string, decision: 'approved' | 'denied'): Promise<void> {
+    let response = await authorized(`/api/mobile/admin/rsvp-approvals/${requestId}`, token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ decision })
+    });
+
+    if (response.status === 404 || response.status === 405) {
+      response = await authorized('/api/admin/events/rsvp-approvals/resolve', token, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ requestId, decision })
+      });
+    }
+
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
@@ -247,6 +426,7 @@ export const apiClient = {
       body: JSON.stringify({ token: qrToken })
     });
 
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
@@ -271,6 +451,7 @@ export const apiClient = {
       response = await tryUpload('/api/mobile/profile/avatar');
     }
 
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
@@ -283,17 +464,33 @@ export const apiClient = {
   },
 
   async getAnnouncements(token: string): Promise<MobileAnnouncement[]> {
-    let response = await authorized('/api/mobile/announcements', token);
-    if (response.status === 404 || response.status === 405) {
-      response = await authorized('/api/public/announcements', token);
-    }
-    if (!response.ok) {
-      throw new Error(await parseErrorPayload(response));
-    }
+    try {
+      let response = await authorized('/api/mobile/announcements', token);
+      if (response.status === 404 || response.status === 405) {
+        response = await authorized('/api/public/announcements', token);
+      }
 
-    const payload = (await response.json()) as { announcements?: Array<Record<string, unknown>>; items?: Array<Record<string, unknown>> };
-    const items = payload.announcements ?? payload.items ?? [];
-    return items.map(normalizeAnnouncement);
+      await throwIfUnauthorized(response);
+      if (!response.ok) {
+        throw new Error(await parseErrorPayload(response));
+      }
+
+      const payload = (await response.json()) as {
+        announcements?: Array<Record<string, unknown>>;
+        items?: Array<Record<string, unknown>>;
+      };
+      const items = payload.announcements ?? payload.items ?? [];
+      const announcements = items.map(normalizeAnnouncement);
+      await offlineCache.saveAnnouncements(announcements);
+      return announcements;
+    } catch (error) {
+      if (error instanceof SessionExpiredError) throw error;
+      const cached = await offlineCache.loadAnnouncements<MobileAnnouncement[]>();
+      if (cached?.length) {
+        return cached;
+      }
+      throw error;
+    }
   },
 
   async createAnnouncement(token: string, input: { title: string; body: string }): Promise<void> {
@@ -311,6 +508,7 @@ export const apiClient = {
       });
     }
 
+    await throwIfUnauthorized(response);
     if (!response.ok) {
       throw new Error(await parseErrorPayload(response));
     }
