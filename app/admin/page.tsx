@@ -934,6 +934,19 @@ export default async function AdminPage({
                     <div key={candidate.id} className="event-card stack">
                       <strong>{candidate.fullName}</strong>
                       <p>{candidate.email}</p>
+                      <div className="cta-row">
+                        <a
+                          className="button alt"
+                          href={`/api/admin/users/${candidate.id}/invite-preview`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Preview Invite Email
+                        </a>
+                        <form action={`/api/admin/users/${candidate.id}/send-invite`} method="post">
+                          <button className="button ghost" type="submit">Send Invite Email</button>
+                        </form>
+                      </div>
                       <p>Phone: {candidate.phone || "Not provided"}</p>
                       <p>Preferred position: {candidate.requestedPosition || "Not provided"}</p>
                       <p>Experience: {extra?.playerExperienceSummary || "Not provided"}</p>
