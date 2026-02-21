@@ -4,8 +4,10 @@ import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Tex
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { scheduleRsvpConfirmationNotification } from '@/lib/notifications';
+import { scheduleEventReminders } from '@/lib/reminders';
 import { useThemeColors } from '@/lib/theme';
 import type { DashboardSummary, MobileEvent, ReservationStatus } from '@/lib/types';
 
@@ -52,6 +54,8 @@ export default function DashboardScreen() {
       setError(null);
       const items = await apiClient.getEvents(session.token);
       setEvents(items);
+      await scheduleEventReminders(items);
+      await analytics.track('dashboard_loaded', { events: items.length }, session.token);
 
       try {
         const summary = await apiClient.getDashboard(session.token);
@@ -89,6 +93,7 @@ export default function DashboardScreen() {
       const eventTitle = events.find((entry) => entry.id === eventId)?.title ?? 'Event';
       const startsAt = events.find((entry) => entry.id === eventId)?.startsAt ?? new Date().toISOString();
       await scheduleRsvpConfirmationNotification(eventTitle, status, startsAt);
+      await analytics.track('rsvp_updated', { eventId, status }, session.token);
       setEvents((current) =>
         current.map((entry) =>
           entry.id === eventId
@@ -115,6 +120,7 @@ export default function DashboardScreen() {
       setError(null);
       await apiClient.requestRsvpApproval(session.token, eventId);
       setError('RSVP request submitted for approval.');
+      await analytics.track('rsvp_approval_requested', { eventId }, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Unable to submit RSVP request');

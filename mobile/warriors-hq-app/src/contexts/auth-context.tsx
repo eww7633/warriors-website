@@ -1,6 +1,8 @@
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { apiClient, SessionExpiredError } from '@/lib/api-client';
+import { analytics } from '@/lib/analytics';
+import { captureException } from '@/lib/monitoring';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import type { MobileUser, SessionState } from '@/lib/types';
 
@@ -75,6 +77,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         };
         await persist(nextSession);
         setAuthNotice(null);
+        await analytics.track('auth_login_success', { role: result.user.role }, nextSession.token);
         try {
           const pushToken = await registerForPushNotificationsAsync();
           if (pushToken) {
@@ -86,6 +89,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       },
       register: async (input) => {
         await apiClient.register(input);
+        await analytics.track('auth_register_submitted', { hasPhone: Boolean(input.phone), hasPosition: Boolean(input.position) });
       },
       logout: async () => {
         if (session.token) {
@@ -97,6 +101,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
         }
         await persist(defaultSession);
         setAuthNotice(null);
+        await analytics.track('auth_logout');
       },
       updateUser: async (patch) => {
         if (!session.user) return;
@@ -114,8 +119,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       handleApiError: async (error) => {
         if (error instanceof SessionExpiredError) {
           await forceRelogin(error.message);
+          await analytics.track('auth_session_expired');
           return true;
         }
+        await captureException(error, { scope: 'api' });
         return false;
       }
     }),

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
+import { scheduleAnnouncementAlerts } from '@/lib/reminders';
 import { useThemeColors } from '@/lib/theme';
 import type { MobileAnnouncement } from '@/lib/types';
 
@@ -42,7 +44,10 @@ export default function AnnouncementsScreen() {
     if (!session.token) return;
     try {
       setError(null);
-      setItems(await apiClient.getAnnouncements(session.token));
+      const announcements = await apiClient.getAnnouncements(session.token);
+      setItems(announcements);
+      await scheduleAnnouncementAlerts(announcements);
+      await analytics.track('announcements_loaded', { count: announcements.length }, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Announcements unavailable');
@@ -65,6 +70,7 @@ export default function AnnouncementsScreen() {
         pinned,
         expiresAt: expiresAt.trim() || null
       });
+      await analytics.track('announcement_created', { audience, pinned, hasExpiry: Boolean(expiresAt.trim()) }, session.token);
       setTitle('');
       setBody('');
       setAudience('all');

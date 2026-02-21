@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { useThemeColors } from '@/lib/theme';
 import type { RsvpApprovalRequest } from '@/lib/types';
@@ -22,6 +23,7 @@ export default function AdminScreen() {
       setError(null);
       const items = await apiClient.getRsvpApprovalQueue(session.token);
       setApprovals(items.filter((item) => item.status === 'pending'));
+      await analytics.track('admin_approval_queue_loaded', { count: items.length }, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Approval queue unavailable');
@@ -38,6 +40,7 @@ export default function AdminScreen() {
       setSavingId(requestId);
       setError(null);
       await apiClient.resolveRsvpApproval(session.token, requestId, decision);
+      await analytics.track('admin_approval_resolved', { requestId, decision }, session.token);
       setApprovals((current) => current.filter((item) => item.id !== requestId));
     } catch (e) {
       if (await handleApiError(e)) return;

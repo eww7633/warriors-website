@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { WarriorsLogo } from '@/components/warriors-logo';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { useThemeColors } from '@/lib/theme';
 
 export default function RegisterScreen() {
@@ -25,8 +26,10 @@ export default function RegisterScreen() {
     setMessage(null);
     try {
       await register({ fullName, email, password, phone, position });
+      await analytics.track('register_screen_submitted');
       setMessage('Request submitted. You can sign in after approval.');
     } catch (e) {
+      await analytics.track('register_screen_error');
       setError(e instanceof Error ? e.message : 'Unable to register');
     } finally {
       setLoading(false);

@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { WarriorsLogo } from '@/components/warriors-logo';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { useThemeColors } from '@/lib/theme';
 
 export default function LoginScreen() {
@@ -20,8 +21,10 @@ export default function LoginScreen() {
     setError(null);
     try {
       await login(email.trim(), password);
+      await analytics.track('login_screen_success');
       router.replace('/(app)/dashboard');
     } catch (e) {
+      await analytics.track('login_screen_error');
       setError(e instanceof Error ? e.message : 'Unable to login');
     } finally {
       setLoading(false);

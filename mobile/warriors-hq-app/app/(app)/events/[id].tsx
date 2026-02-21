@@ -4,6 +4,7 @@ import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { addEventToCalendar } from '@/lib/calendar';
 import { useThemeColors } from '@/lib/theme';
@@ -29,7 +30,9 @@ export default function EventDetailScreen() {
     try {
       if (!params.id) throw new Error('Missing event id');
       if (!session.token) throw new Error('Session missing. Please sign in again.');
-      setEvent(await apiClient.getEventDetail(session.token, params.id));
+      const detail = await apiClient.getEventDetail(session.token, params.id);
+      setEvent(detail);
+      await analytics.track('event_detail_loaded', { eventId: params.id }, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Event unavailable');
@@ -46,6 +49,7 @@ export default function EventDetailScreen() {
       if (!session.token) throw new Error('Session missing. Please sign in again.');
       setSaving(true);
       await apiClient.setRsvp(session.token, params.id, status);
+      await analytics.track('rsvp_updated_detail', { eventId: params.id, status }, session.token);
       setEvent((prev) => (prev ? { ...prev, viewerReservationStatus: status } : prev));
       await load();
     } catch (e) {
@@ -62,6 +66,7 @@ export default function EventDetailScreen() {
       if (!session.token) throw new Error('Session missing. Please sign in again.');
       setSaving(true);
       await apiClient.requestRsvpApproval(session.token, params.id);
+      await analytics.track('rsvp_approval_requested_detail', { eventId: params.id }, session.token);
       setError('RSVP request submitted for approval.');
       await load();
     } catch (e) {
@@ -103,6 +108,7 @@ export default function EventDetailScreen() {
               onPress={async () => {
                 try {
                   await addEventToCalendar(event);
+                  await analytics.track('calendar_add_event_detail', { eventId: event.id }, session.token);
                 } catch (e) {
                   setError(e instanceof Error ? e.message : 'Unable to add event to calendar');
                 }

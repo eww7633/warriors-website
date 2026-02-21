@@ -3,6 +3,7 @@ import { Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View 
 import { PlayerAvatar } from '@/components/player-avatar';
 import { Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { useThemeColors } from '@/lib/theme';
 import type { MobileRosterMember } from '@/lib/types';
@@ -49,6 +50,7 @@ export default function TeamScreen() {
       setError(null);
       const roster = await apiClient.getRoster(session.token, isAdmin);
       setMembers(roster);
+      await analytics.track('team_directory_loaded', { count: roster.length, admin: isAdmin }, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Roster unavailable');

@@ -73,6 +73,9 @@ export default function AppLayout() {
       <Tabs.Screen name="events/going/[id]" options={{ href: null, title: "Who's Going" }} />
       <Tabs.Screen name="checkin" options={{ href: null, title: 'QR Check-In' }} />
       <Tabs.Screen name="admin" options={{ href: null, title: 'Admin' }} />
+      <Tabs.Screen name="about" options={{ href: null, title: 'About' }} />
+      <Tabs.Screen name="support" options={{ href: null, title: 'Support' }} />
+      <Tabs.Screen name="privacy" options={{ href: null, title: 'Privacy' }} />
     </Tabs>
   );
 }

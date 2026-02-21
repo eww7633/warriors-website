@@ -6,6 +6,7 @@ import { PlayerAvatar } from '@/components/player-avatar';
 import { Button, Card, ErrorText, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useAuth } from '@/contexts/auth-context';
 import { usePreferences } from '@/contexts/preferences-context';
+import { analytics } from '@/lib/analytics';
 import { apiClient } from '@/lib/api-client';
 import { useThemeColors } from '@/lib/theme';
 import type { MobileUser, ThemeMode } from '@/lib/types';
@@ -85,6 +86,7 @@ export default function SettingsScreen() {
 
       const user = await apiClient.uploadProfilePhoto(session.token, result.assets[0].uri);
       await updateUser(user);
+      await analytics.track('profile_photo_updated', {}, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Unable to upload photo.');
@@ -112,6 +114,7 @@ export default function SettingsScreen() {
       });
       await updateUser(user);
       setDraft(toDraft(user));
+      await analytics.track('profile_updated', {}, session.token);
     } catch (e) {
       if (await handleApiError(e)) return;
       setError(e instanceof Error ? e.message : 'Unable to save profile.');
@@ -252,6 +255,13 @@ export default function SettingsScreen() {
           <Button label="Open Admin Tools" variant="secondary" onPress={() => router.push('/(app)/admin')} />
         </Card>
       ) : null}
+
+      <Card>
+        <Text style={{ color: colors.text, fontWeight: '700' }}>App Info</Text>
+        <Button label="Privacy" variant="secondary" onPress={() => router.push('/(app)/privacy')} />
+        <Button label="Support" variant="secondary" onPress={() => router.push('/(app)/support')} />
+        <Button label="About" variant="secondary" onPress={() => router.push('/(app)/about')} />
+      </Card>
 
       <Button label="Log Out" variant="danger" onPress={logout} />
     </Screen>
