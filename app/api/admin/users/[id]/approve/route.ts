@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { approvePlayer } from "@/lib/hq/store";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
+import { getPlayerProfileExtra, upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
 import { findBlockingRosterReservation, linkMatchingReservationForUser } from "@/lib/hq/roster-reservations";
 import { readStore } from "@/lib/hq/store";
 
@@ -66,6 +66,24 @@ export async function POST(
     });
     const refreshedStore = await readStore();
     const approvedUser = refreshedStore.users.find((entry) => entry.id === params.id);
+    if (
+      !approvedUser ||
+      approvedUser.role !== "player" ||
+      approvedUser.status !== "approved" ||
+      approvedUser.rosterId !== rosterId ||
+      (approvedUser.jerseyNumber ?? undefined) !== jerseyNumber
+    ) {
+      throw new Error("player_approval_verification_failed");
+    }
+    if (["gold", "white", "black"].includes(primarySubRoster)) {
+      const profile = await getPlayerProfileExtra(params.id);
+      if (
+        profile.primarySubRoster !== primarySubRoster ||
+        Boolean(profile.allowCrossColorJerseyOverlap) !== allowCrossColorJerseyOverlap
+      ) {
+        throw new Error("player_profile_verification_failed");
+      }
+    }
     if (approvedUser) {
       await linkMatchingReservationForUser({
         user: approvedUser,

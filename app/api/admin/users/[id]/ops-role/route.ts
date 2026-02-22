@@ -44,6 +44,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
         }
       }
       await clearUserOpsRoles({ actorUserId: actor.id, targetUserId: params.id });
+      const remaining = await getUserOpsAssignments(params.id);
+      if (remaining.length > 0) {
+        throw new Error("ops_role_clear_verification_failed");
+      }
     } else {
       if (!roleKey) {
         return NextResponse.redirect(
@@ -68,6 +72,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
         officialEmail,
         badgeLabel
       });
+      const assignments = await getUserOpsAssignments(params.id);
+      if (!assignments.some((entry) => entry.roleKey === roleKey)) {
+        throw new Error("ops_role_update_verification_failed");
+      }
     }
 
     return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}opsrole=updated`, request.url), 303);

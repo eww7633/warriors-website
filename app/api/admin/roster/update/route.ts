@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { updateCentralRosterPlayer } from "@/lib/hq/roster";
+import { listCentralRosterPlayers, updateCentralRosterPlayer } from "@/lib/hq/roster";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
@@ -47,6 +47,17 @@ export async function POST(request: Request) {
         ),
         303
       );
+    }
+
+    const expectedJerseyNumber = activityStatus === "inactive" ? undefined : jerseyNumber;
+    const savedPlayer = (await listCentralRosterPlayers()).find((entry) => entry.id === userId);
+    if (
+      !savedPlayer ||
+      (savedPlayer.rosterId ?? "") !== rosterId ||
+      (savedPlayer.jerseyNumber ?? undefined) !== expectedJerseyNumber ||
+      savedPlayer.activityStatus !== activityStatus
+    ) {
+      throw new Error("roster_profile_verification_failed");
     }
 
     return NextResponse.redirect(new URL("/admin/roster?saved=1", request.url), 303);

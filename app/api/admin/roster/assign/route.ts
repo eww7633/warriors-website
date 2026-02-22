@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { updateCentralRosterPlayer } from "@/lib/hq/roster";
-import { upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
+import { listCentralRosterPlayers, updateCentralRosterPlayer } from "@/lib/hq/roster";
+import { getPlayerProfileExtra, upsertPlayerContactProfile } from "@/lib/hq/player-profiles";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
@@ -64,6 +64,24 @@ export async function POST(request: Request) {
       primarySubRoster: primarySubRoster as "gold" | "white" | "black",
       allowCrossColorJerseyOverlap
     });
+
+    const expectedJerseyNumber = activityStatus === "inactive" ? undefined : jerseyNumber;
+    const savedPlayer = (await listCentralRosterPlayers()).find((entry) => entry.id === userId);
+    if (
+      !savedPlayer ||
+      (savedPlayer.rosterId ?? "") !== rosterId ||
+      (savedPlayer.jerseyNumber ?? undefined) !== expectedJerseyNumber ||
+      savedPlayer.activityStatus !== activityStatus
+    ) {
+      throw new Error("roster_assignment_verification_failed");
+    }
+    const savedProfile = await getPlayerProfileExtra(userId);
+    if (
+      savedProfile.primarySubRoster !== primarySubRoster ||
+      Boolean(savedProfile.allowCrossColorJerseyOverlap) !== allowCrossColorJerseyOverlap
+    ) {
+      throw new Error("profile_assignment_verification_failed");
+    }
 
     return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`, request.url), 303);
   } catch (error) {

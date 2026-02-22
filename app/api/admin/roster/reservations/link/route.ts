@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
 import { readStore } from "@/lib/hq/store";
-import { linkRosterReservationToUser } from "@/lib/hq/roster-reservations";
+import { findRosterReservationById, linkRosterReservationToUser } from "@/lib/hq/roster-reservations";
 
 export async function POST(request: Request) {
   const actor = await getCurrentUser();
@@ -26,6 +26,10 @@ export async function POST(request: Request) {
     }
 
     await linkRosterReservationToUser({ reservationId, user });
+    const linkedReservation = await findRosterReservationById(reservationId);
+    if (!linkedReservation || linkedReservation.linkedUserId !== userId) {
+      throw new Error("reservation_link_verification_failed");
+    }
     return NextResponse.redirect(new URL("/admin?section=players&reservationlinked=1", request.url), 303);
   } catch (error) {
     const reason = encodeURIComponent(error instanceof Error ? error.message : "reservation_link_failed");

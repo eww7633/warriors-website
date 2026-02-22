@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/hq/session";
 import { canAccessAdminPanel } from "@/lib/hq/permissions";
-import { rejectPlayer } from "@/lib/hq/store";
+import { readStore, rejectPlayer } from "@/lib/hq/store";
 
 export async function POST(
   request: Request,
@@ -15,6 +15,17 @@ export async function POST(
 
   try {
     await rejectPlayer(params.id);
+    const refreshedStore = await readStore();
+    const rejectedUser = refreshedStore.users.find((entry) => entry.id === params.id);
+    if (
+      !rejectedUser ||
+      rejectedUser.status !== "rejected" ||
+      rejectedUser.role !== "public" ||
+      typeof rejectedUser.rosterId !== "undefined" ||
+      typeof rejectedUser.jerseyNumber !== "undefined"
+    ) {
+      throw new Error("player_reject_verification_failed");
+    }
     return NextResponse.redirect(new URL("/admin?section=players&rejected=1", request.url), 303);
   } catch (error) {
     const reason = encodeURIComponent(error instanceof Error ? error.message : "reject_failed");

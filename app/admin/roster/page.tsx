@@ -655,47 +655,6 @@ export default async function CentralRosterPage({
                   </details>
 
                   <details className="event-card admin-disclosure">
-                    <summary>Legacy Roster Profile Editor</summary>
-                    <form className="grid-form" action="/api/admin/roster/update" method="post">
-                    <input type="hidden" name="userId" value={player.id} />
-                    <input type="hidden" name="fullName" value={player.fullName} />
-                    <strong>Legacy Roster Profile Editor</strong>
-                    <label>
-                      Main roster
-                      <select name="rosterId" defaultValue={player.rosterId ?? "main-player-roster"}>
-                        {MAIN_ROSTER_OPTIONS.map((option) => (
-                          <option key={option.id} value={option.id}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Official jersey number
-                      <input
-                        name="jerseyNumber"
-                        type="number"
-                        min="1"
-                        max="99"
-                        defaultValue={player.jerseyNumber ?? ""}
-                        placeholder="Jersey #"
-                      />
-                    </label>
-                    <label>
-                      Activity
-                      <select name="activityStatus" defaultValue={player.activityStatus}>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </label>
-                    <label>
-                      <input type="checkbox" name="forceNumberOverlap" /> Allow manual number overlap override
-                    </label>
-                    <button className="button" type="submit">Save Roster Profile</button>
-                    </form>
-                  </details>
-
-                  <details className="event-card admin-disclosure">
                     <summary>Team Assignment Tools</summary>
                     <form className="grid-form" action="/api/admin/team-assignments/quick-save" method="post">
                     <input type="hidden" name="userId" value={player.id} />
