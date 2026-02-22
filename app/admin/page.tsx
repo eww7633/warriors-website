@@ -137,6 +137,7 @@ export default async function AdminPage({
     queuePromoted?: string;
     queueRostered?: string;
     queueSkipped?: string;
+    queueFailures?: string;
     usersCreated?: string;
     usersLinked?: string;
     usersSkipped?: string;
@@ -1174,8 +1175,25 @@ export default async function AdminPage({
                   <option value="black">Black</option>
                 </select>
               </label>
-              <button className="button" type="submit">Run Queue Action On Selected</button>
+              <div className="cta-row">
+                <button className="button" type="submit">Run Queue Action On Selected</button>
+                <button className="button ghost" name="action" value="roster" type="submit">Quick Roster Selected</button>
+                <button className="button ghost" name="action" value="provision" type="submit">Quick Provision + Link</button>
+              </div>
             </form>
+            {query.queueFailures ? (
+              <details className="event-card admin-disclosure" open>
+                <summary>Queue issues (first 20)</summary>
+                <ul>
+                  {String(query.queueFailures)
+                    .split("||")
+                    .filter(Boolean)
+                    .map((entry, index) => (
+                      <li key={`${entry}-${index}`}>{entry}</li>
+                    ))}
+                </ul>
+              </details>
+            ) : null}
             {filteredContactLeads.length === 0 ? (
               <p className="muted">No imported contacts match current filter.</p>
             ) : (
@@ -1197,31 +1215,6 @@ export default async function AdminPage({
                     ) : (
                       <p className="muted">Not linked to a website user yet.</p>
                     )}
-                    <div className="cta-row">
-                      {lead.email ? (
-                        <form action={`/api/admin/contacts/${lead.id}/send-invite`} method="post">
-                          <button className="button ghost" type="submit">Send Invite Email</button>
-                        </form>
-                      ) : null}
-                      {lead.email ? (
-                        <form action="/api/admin/contacts/queue" method="post">
-                          <input type="hidden" name="returnTo" value="/admin?section=contacts" />
-                          <input type="hidden" name="action" value="link" />
-                          <input type="hidden" name="leadIds" value={lead.id} />
-                          <button className="button ghost" type="submit">Link Now</button>
-                        </form>
-                      ) : null}
-                      {lead.email ? (
-                        <a
-                          className="button alt"
-                          href={`/join?mode=player&invite=1&email=${encodeURIComponent(lead.email)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open Invite Link
-                        </a>
-                      ) : null}
-                    </div>
                   </div>
                 ))}
               </div>

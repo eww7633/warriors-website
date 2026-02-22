@@ -5,7 +5,7 @@
   --surface: #fffcf7;
   --surface-soft: #fffefb;
   --ink: #171819;
-  --ink-soft: #4f545c;
+  --ink-soft: #3f4751;
   --line: #d9cfc1;
   --line-strong: #cbbca7;
   --gold: #d8a333;
@@ -1862,6 +1862,12 @@ textarea {
   background: #fffcf6;
   color: var(--ink);
   font-family: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #5a636f;
+  opacity: 1;
 }
 
 table {

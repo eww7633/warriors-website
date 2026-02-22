@@ -26,6 +26,11 @@ function appendCount(path: string, key: string, value: number) {
   return `${path}${sep}${key}=${encodeURIComponent(String(value))}`;
 }
 
+function appendValue(path: string, key: string, value: string) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}${key}=${encodeURIComponent(value)}`;
+}
+
 function randomPassword() {
   return `Tmp-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
 }
@@ -65,6 +70,7 @@ export async function POST(request: Request) {
   let promoted = 0;
   let rostered = 0;
   let skipped = 0;
+  const failures: string[] = [];
 
   const siteBase = process.env.NEXT_PUBLIC_SITE_URL || "https://pghwarriorhockey.us";
 
@@ -173,8 +179,11 @@ export async function POST(request: Request) {
         });
         rostered += 1;
       }
-    } catch {
+    } catch (error) {
       skipped += 1;
+      const reason = error instanceof Error ? error.message : "queue_action_failed";
+      const label = lead.fullName || lead.email || lead.id;
+      failures.push(`${label}: ${reason}`);
     }
   }
 
@@ -185,5 +194,8 @@ export async function POST(request: Request) {
   next = appendCount(next, "queuePromoted", promoted);
   next = appendCount(next, "queueRostered", rostered);
   next = appendCount(next, "queueSkipped", skipped);
+  if (failures.length > 0) {
+    next = appendValue(next, "queueFailures", failures.slice(0, 20).join("||"));
+  }
   return NextResponse.redirect(new URL(next, request.url), 303);
 }
