@@ -27,7 +27,11 @@ export async function POST(request: Request) {
 
     await linkRosterReservationToUser({ reservationId, user });
     return NextResponse.redirect(new URL("/admin?section=players&reservationlinked=1", request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL("/admin?section=players&error=reservation_link_failed", request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "reservation_link_failed");
+    return NextResponse.redirect(
+      new URL(`/admin?section=players&error=reservation_link_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }

@@ -66,7 +66,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}saved=1`, request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=roster_update_failed`, request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "roster_update_failed");
+    return NextResponse.redirect(
+      new URL(`${returnTo}${returnTo.includes("?") ? "&" : "?"}error=roster_update_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }

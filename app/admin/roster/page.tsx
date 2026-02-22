@@ -33,6 +33,7 @@ export default async function CentralRosterPage({
     saved?: string;
     deleted?: string;
     error?: string;
+    errorDetail?: string;
     conflictPlayer?: string;
     sharedTournaments?: string;
     q?: string;
@@ -228,7 +229,9 @@ export default async function CentralRosterPage({
         {query.request === "rejected" && <p className="badge">Request rejected.</p>}
         {query.error && (
           <p className="muted">
-            {query.error === "number_conflict"
+            {query.errorDetail
+              ? decodeURIComponent(query.errorDetail)
+              : query.error === "number_conflict"
               ? `Number conflict: already assigned to ${query.conflictPlayer ?? "another player"}. Only force overlap if players will not be rostered together in tournaments.`
               : query.error === "shared_tournament_overlap"
               ? `Cannot force number overlap. ${query.conflictPlayer ?? "This player"} shares tournament history with this player: ${query.sharedTournaments ?? "Unknown tournament"}.`

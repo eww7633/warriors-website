@@ -74,7 +74,11 @@ export async function POST(
       });
     }
     return NextResponse.redirect(new URL("/admin?section=players&approved=1", request.url), 303);
-  } catch {
-    return NextResponse.redirect(new URL("/admin?section=players&error=approval_failed", request.url), 303);
+  } catch (error) {
+    const reason = encodeURIComponent(error instanceof Error ? error.message : "approval_failed");
+    return NextResponse.redirect(
+      new URL(`/admin?section=players&error=approval_failed&errorDetail=${reason}`, request.url),
+      303
+    );
   }
 }
