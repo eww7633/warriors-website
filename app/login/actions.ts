@@ -29,5 +29,11 @@ export async function loginAction(formData: FormData) {
   });
 
   const adminAccess = await canAccessAdminPanel(user);
-  redirect(adminAccess ? "/admin" : "/player");
+  if (adminAccess) {
+    redirect("/admin");
+  }
+  if (user.role === "public") {
+    redirect("/account");
+  }
+  redirect("/player");
 }

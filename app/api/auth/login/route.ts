@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { SESSION_COOKIE, createSessionRecord } from "@/lib/hq/session";
 import { authenticateUser } from "@/lib/hq/store";
+import { canAccessAdminPanel } from "@/lib/hq/permissions";
 
 export async function POST(request: Request) {
   const formData = (await request.formData()) as unknown as {
@@ -19,7 +20,8 @@ export async function POST(request: Request) {
   }
 
   const { token, expiresAt } = await createSessionRecord(user.id);
-  const destination = user.role === "admin" ? "/admin" : "/player";
+  const hasAdminAccess = await canAccessAdminPanel(user);
+  const destination = hasAdminAccess ? "/admin" : user.role === "public" ? "/account" : "/player";
   const response = NextResponse.redirect(new URL(destination, request.url), 303);
   const requestHost = new URL(request.url).hostname;
   const isLocalHost = requestHost === "localhost" || requestHost === "127.0.0.1";
